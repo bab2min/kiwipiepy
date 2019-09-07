@@ -4,6 +4,29 @@
 
 using namespace std;
 
+#if PY_MAJOR_VERSION < 3
+string PyUnicode_AsUTF8(PyObject* obj)
+{
+	PyObject* utf8Obj = PyUnicode_AsUTF8String(obj);
+	string str = PyString_AsString(utf8Obj);
+	Py_DECREF(utf8Obj);
+	return str;
+}
+
+#endif
+
+string getModuleFilename(PyObject* moduleObj)
+{
+#if PY_MAJOR_VERSION >= 3
+	PyObject* filePath = PyModule_GetFilenameObject(moduleObj);
+	string spath = PyUnicode_AsUTF8(filePath);
+	Py_DECREF(filePath);
+	return spath;
+#else
+	return PyModule_GetFilename(moduleObj);
+#endif
+}
+
 static PyObject* gModule;
 
 struct KiwiObject
@@ -33,17 +56,8 @@ struct KiwiObject
 			}
 			catch (const exception& e)
 			{
-				PyObject* filePath = PyModule_GetFilenameObject(PyImport_AddModule("kiwipiepy"));
-				string spath = PyUnicode_AsUTF8(filePath);
-				Py_DECREF(filePath);
-				if (spath.rfind('/') != spath.npos)
-				{
-					spath = spath.substr(0, spath.rfind('/') + 1);
-				}
-				else
-				{
-					spath = spath.substr(0, spath.rfind('\\') + 1);
-				}
+				string spath = getModuleFilename(PyImport_AddModule("kiwipiepy"));
+				spath = spath.substr(0, spath.rfind(spath.rfind('/') != spath.npos ? '/' : '\\') + 1);
 				self->inst = new Kiwi{ (spath + modelPath).c_str(), 0, numThread, options };
 			}
 		}
@@ -494,20 +508,36 @@ static PyObject* kiwi__version(KiwiObject* self, void* closure)
 	}
 }
 
-PyMODINIT_FUNC PyInit__kiwipiepy()
+PyObject* moduleInit()
 {
+#if PY_MAJOR_VERSION >= 3
 	static PyModuleDef mod =
 	{
 		PyModuleDef_HEAD_INIT,
-		"kiwipiepy",
+		"_kiwipiepy",
 		"Kiwi API for Python",
 		-1,
 		nullptr
 	};
 
 	gModule = PyModule_Create(&mod);
+#else
+	gModule = Py_InitModule3("_kiwipiepy", nullptr, "Kiwi API for Python");
+#endif
 	if (PyType_Ready(&Kiwi_type) < 0) return nullptr;
 	Py_INCREF(&Kiwi_type);
 	PyModule_AddObject(gModule, "Kiwi", (PyObject*)&Kiwi_type);
 	return gModule;
 }
+
+#if PY_MAJOR_VERSION >= 3
+PyMODINIT_FUNC PyInit__kiwipiepy()
+{
+	return moduleInit();
+}
+#else
+PyMODINIT_FUNC init_kiwipiepy()
+{
+	moduleInit();
+}
+#endif
