@@ -10,8 +10,10 @@ with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 sources = []
-for f in os.listdir(os.path.join(here, 'KiwiLibrary')):
-    if f.endswith('.cpp'): sources.append('KiwiLibrary/' + f)
+for f in os.listdir(os.path.join(here, 'src')):
+    if f.endswith('.cpp'): sources.append('src/' + f)
+for f in os.listdir(os.path.join(here, 'src/core')):
+    if f.endswith('.cpp'): sources.append('src/core/' + f)
 
 largs = []
 if platform.system() == 'Windows': cargs = ['/O2', '/MT', '/Gy']
