@@ -33,7 +33,7 @@ setup(
     description='Kiwi, the Korean Tokenizer for Python',
     long_description=long_description,
 
-    url='https://github.com/bab2min/kiwi',
+    url='https://github.com/bab2min/kiwipiepy',
 
     author='bab2min',
     author_email='bab2min@gmail.com',
