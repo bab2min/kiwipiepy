@@ -2,7 +2,7 @@
 
 https://github.com/bab2min/kiwipiepy
 
-[![PyPI version](https://badge.fury.io/py/kiwipiepy.svg)](https://pypi.org/project/kiwipiepy/0.6.5/)
+[![PyPI version](https://badge.fury.io/py/kiwipiepy.svg)](https://pypi.org/project/kiwipiepy/)
 
 [Kiwi 0.5 버전](https://github.com/bab2min/kiwi)부터는 Python3용 API를 제공합니다. 이 프로젝트를 빌드하여 Python에 모듈을 import해서 사용하셔도 좋고, 
 혹은 더 간편하게 pip를 이용하여 이미 빌드된 kiwipiepy 모듈을 설치하셔도 좋습니다.
@@ -182,13 +182,13 @@ kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완�
      ([('테스트입니', 'NNP', 0, 5), ('이', 'VCP', 5, 1), ('다', 'EF', 5, 1), ('.', 'SF', 6, 1)], -32.20524978637695), 
      ([('테스트', 'NNG', 0, 3), ('이', 'MM', 3, 1), ('ᆸ니다', 'EF', 4, 2), ('.', 'SF', 6, 1)], -32.859375)]
      
- **`analyze(reader, receiver, top_n = 1)`**
+**`analyze(reader, receiver, top_n = 1)`**
  
- analyze 메소드는 또 다른 형태로도 호출할 수 있습니다. reader와 receiver를 사용해 호출하는 경우,
- 문자열 읽기/쓰기 부분과 분석 부분이 별도의 스레드에서 동작하며, 여분의 스레드가 있을 경우 분석 역시 멀티 코어를 활용하여 성능 향상을 꽤할 수 있습니다.
- 대량의 텍스트를 분석하는 경우 이 형태를 사용하는 것을 추천합니다.
+analyze 메소드는 또 다른 형태로도 호출할 수 있습니다. reader와 receiver를 사용해 호출하는 경우,
+문자열 읽기/쓰기 부분과 분석 부분이 별도의 스레드에서 동작하며, 여분의 스레드가 있을 경우 분석 역시 멀티 코어를 활용하여 성능 향상을 꽤할 수 있습니다.
+대량의 텍스트를 분석하는 경우 이 형태를 사용하는 것을 추천합니다.
  
- reader와 receiver를 사용한 예시는 다음과 같습니다.
+reader와 receiver를 사용한 예시는 다음과 같습니다.
  
     from kiwipiepy import Kiwi
 

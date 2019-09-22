@@ -245,3 +245,4 @@ ModelManifest.xml
 /kiwipiepy.egg-info
 /kiwipiepy/__pycache__
 *.csv
+/dist

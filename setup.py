@@ -5,9 +5,12 @@ from setuptools.command.install import install
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-# Get the long description from the relevant file
-with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
+
+long_description = '''kiwipiepy
+----------
+kiwipiepy is a python version package of Kiwi(Korean Intelligent Word Identifier) which is a morphological analyzer for Korean.
+
+https://github.com/bab2min/kiwipiepy '''
 
 sources = []
 for f in os.listdir(os.path.join(here, 'src')):
