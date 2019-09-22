@@ -1,8 +1,17 @@
 #include <stdexcept>
-#include <Python.h>
+
+#ifdef _DEBUG
+#undef _DEBUG
+#include "PyDoc.h"
+#define _DEBUG
+#else 
+#include "PyDoc.h"
+#endif
+
 #include "core/Kiwi.h"
 
 using namespace std;
+using namespace kiwi;
 
 #if PY_MAJOR_VERSION < 3
 string PyUnicode_AsUTF8(PyObject* obj)
@@ -44,7 +53,7 @@ struct KiwiObject
 	static int init(KiwiObject *self, PyObject *args, PyObject *kwargs)
 	{
 		const char* modelPath = "./";
-		size_t numThread = 0, options = 1;
+		size_t numThread = 0, options = 3;
 		static const char* kwlist[] = { "num_workers", "model_path", "options", nullptr };
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nsn", (char**)kwlist, &numThread, &modelPath, &options)) return -1;
 		try
@@ -80,18 +89,28 @@ static PyObject* kiwi__loadUserDictionary(KiwiObject* self, PyObject* args, PyOb
 static PyObject* kiwi__perform(KiwiObject* self, PyObject* args, PyObject *kwargs);
 static PyObject* kiwi__prepare(KiwiObject* self, PyObject* args, PyObject *kwargs);
 static PyObject* kiwi__setCutOffThreshold(KiwiObject* self, PyObject* args, PyObject *kwargs);
+static PyObject* kiwi__get_option(KiwiObject* self, PyObject* args, PyObject *kwargs);
+static PyObject* kiwi__set_option(KiwiObject* self, PyObject* args, PyObject *kwargs);
 
 static PyMethodDef Kiwi_methods[] =
 {
-	{ "addUserWord", (PyCFunction)kiwi__addUserWord, METH_VARARGS | METH_KEYWORDS, "add custom word into model" },
-	{ "loadUserDictionary", (PyCFunction)kiwi__loadUserDictionary, METH_VARARGS | METH_KEYWORDS, "load custom dictionary file into model" },
-	{ "extractWords", (PyCFunction)kiwi__extractWords, METH_VARARGS | METH_KEYWORDS, "extract words from corpus" },
-	{ "extractFilterWords", (PyCFunction)kiwi__extractFilterWords, METH_VARARGS | METH_KEYWORDS, "extract words from corpus and filter the results" },
-	{ "extractAddWords", (PyCFunction)kiwi__extractAddWords, METH_VARARGS | METH_KEYWORDS, "extract words from corpus and add them into model" },
-	{ "perform", (PyCFunction)kiwi__perform, METH_VARARGS | METH_KEYWORDS, "extractAddWords + prepare + analyze" },
-	{ "setCutOffThreshold", (PyCFunction)kiwi__setCutOffThreshold, METH_VARARGS | METH_KEYWORDS, "prepare for analyzing text" },
-	{ "prepare", (PyCFunction)kiwi__prepare, METH_VARARGS | METH_KEYWORDS, "prepare for analyzing text" },
-	{ "analyze", (PyCFunction)kiwi__analyze, METH_VARARGS | METH_KEYWORDS, "analyze text and return topN results" },
+	{ "addUserWord", (PyCFunction)kiwi__addUserWord, METH_VARARGS | METH_KEYWORDS, Kiwi_add_user_word__doc__ },
+	{ "add_user_word", (PyCFunction)kiwi__addUserWord, METH_VARARGS | METH_KEYWORDS, Kiwi_add_user_word__doc__ },
+	{ "loadUserDictionary", (PyCFunction)kiwi__loadUserDictionary, METH_VARARGS | METH_KEYWORDS, Kiwi_load_user_dictionary__doc__ },
+	{ "load_user_dictionary", (PyCFunction)kiwi__loadUserDictionary, METH_VARARGS | METH_KEYWORDS, Kiwi_load_user_dictionary__doc__ },
+	{ "extractWords", (PyCFunction)kiwi__extractWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_words__doc__ },
+	{ "extract_words", (PyCFunction)kiwi__extractWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_words__doc__ },
+	{ "extractFilterWords", (PyCFunction)kiwi__extractFilterWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_filter_words__doc__ },
+	{ "extract_filter_words", (PyCFunction)kiwi__extractFilterWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_filter_words__doc__ },
+	{ "extractAddWords", (PyCFunction)kiwi__extractAddWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_add_words__doc__ },
+	{ "extract_add_words", (PyCFunction)kiwi__extractAddWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_add_words__doc__ },
+	{ "perform", (PyCFunction)kiwi__perform, METH_VARARGS | METH_KEYWORDS, Kiwi_perform__doc__ },
+	{ "setCutOffThreshold", (PyCFunction)kiwi__setCutOffThreshold, METH_VARARGS | METH_KEYWORDS, Kiwi_set_cutoff_threshold__doc__ },
+	{ "set_cutoff_threshold", (PyCFunction)kiwi__setCutOffThreshold, METH_VARARGS | METH_KEYWORDS, Kiwi_set_cutoff_threshold__doc__ },
+	{ "prepare", (PyCFunction)kiwi__prepare, METH_VARARGS | METH_KEYWORDS, Kiwi_prepare__doc__ },
+	{ "analyze", (PyCFunction)kiwi__analyze, METH_VARARGS | METH_KEYWORDS, Kiwi_analyze__doc__ },
+	{ "get_option", (PyCFunction)kiwi__get_option, METH_VARARGS | METH_KEYWORDS, Kiwi_get_option__doc__ },
+	{ "set_option", (PyCFunction)kiwi__set_option, METH_VARARGS | METH_KEYWORDS, Kiwi_set_option__doc__ },
 	{ nullptr }
 };
 
@@ -147,8 +166,8 @@ static PyObject* kiwi__addUserWord(KiwiObject* self, PyObject* args, PyObject *k
 {
 	const char* word;
 	const char* tag = "NNP";
-	float score = 10;
-	static const char* kwlist[] = { "num_workers", "model_path", "options", nullptr };
+	float score = 0;
+	static const char* kwlist[] = { "word", "tag", "score", nullptr };
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|sf", (char**)kwlist, &word, &tag, &score)) return nullptr;
 	try
 	{
@@ -325,7 +344,7 @@ static PyObject* kiwi__extractAddWords(KiwiObject* self, PyObject* args, PyObjec
 static PyObject* kiwi__setCutOffThreshold(KiwiObject* self, PyObject* args, PyObject *kwargs)
 {
 	float threshold;
-	static const char* kwlist[] = { "threashold", nullptr };
+	static const char* kwlist[] = { "threshold", nullptr };
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "f", (char**)kwlist, &threshold)) return nullptr;
 	try
 	{
@@ -348,6 +367,40 @@ static PyObject* kiwi__prepare(KiwiObject* self, PyObject* args, PyObject *kwarg
 	try
 	{
 		return Py_BuildValue("n", self->inst->prepare());
+	}
+	catch (const exception& e)
+	{
+		PyErr_SetString(PyExc_Exception, e.what());
+		return nullptr;
+	}
+}
+
+static PyObject* kiwi__get_option(KiwiObject* self, PyObject* args, PyObject *kwargs)
+{
+	ssize_t option;
+	static const char* kwlist[] = { "option", nullptr };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n", (char**)kwlist, &option)) return nullptr;
+	try
+	{
+		return Py_BuildValue("n", self->inst->getOption(option));
+	}
+	catch (const exception& e)
+	{
+		PyErr_SetString(PyExc_Exception, e.what());
+		return nullptr;
+	}
+}
+
+static PyObject* kiwi__set_option(KiwiObject* self, PyObject* args, PyObject *kwargs)
+{
+	ssize_t option, value;
+	static const char* kwlist[] = { "option", "value", nullptr };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "nn", (char**)kwlist, &option, &value)) return nullptr;
+	try
+	{
+		self->inst->setOption(option, value);
+		Py_INCREF(Py_None);
+		return Py_None;
 	}
 	catch (const exception& e)
 	{

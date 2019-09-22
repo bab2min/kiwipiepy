@@ -30,7 +30,7 @@ modules = [Extension('_kiwipiepy',
 setup(
     name='kiwipiepy',
 
-    version='0.6.5',
+    version='0.7.0',
 
     description='Kiwi, the Korean Tokenizer for Python',
     long_description=long_description,
