@@ -1,13 +1,16 @@
-from setuptools import setup, Extension  # Always prefer setuptools over distutils
-from codecs import open  # To use a consistent encoding
+from setuptools import setup, Extension 
+from codecs import open
 import os, os.path, platform
 from setuptools.command.install import install
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-# Get the long description from the relevant file
-with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
+
+long_description = '''kiwipiepy
+----------
+kiwipiepy is a python version package of Kiwi(Korean Intelligent Word Identifier) which is a morphological analyzer for Korean.
+
+https://github.com/bab2min/kiwipiepy '''
 
 sources = []
 for f in os.listdir(os.path.join(here, 'src')):
@@ -30,7 +33,7 @@ modules = [Extension('_kiwipiepy',
 setup(
     name='kiwipiepy',
 
-    version='0.6.5',
+    version='0.7.1',
 
     description='Kiwi, the Korean Tokenizer for Python',
     long_description=long_description,

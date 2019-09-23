@@ -26,6 +26,7 @@
     <ClCompile Include="src\core\KNLangModel.cpp" />
     <ClCompile Include="src\core\KTrie.cpp" />
     <ClCompile Include="src\core\KWordDetector.cpp" />
+    <ClCompile Include="src\core\serializer.cpp" />
     <ClCompile Include="src\core\Utils.cpp" />
     <ClCompile Include="src\KiwiPy.cpp" />
   </ItemGroup>
@@ -48,9 +49,11 @@
     <ClInclude Include="src\core\KTrie.h" />
     <ClInclude Include="src\core\KWordDetector.h" />
     <ClInclude Include="src\core\logPoisson.h" />
+    <ClInclude Include="src\core\serializer.hpp" />
     <ClInclude Include="src\core\ThreadPool.h" />
     <ClInclude Include="src\core\Trie.hpp" />
     <ClInclude Include="src\core\Utils.h" />
+    <ClInclude Include="src\PyDoc.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -138,7 +141,7 @@
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
@@ -152,8 +155,8 @@
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -169,7 +172,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -188,10 +191,10 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
