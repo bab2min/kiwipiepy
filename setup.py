@@ -1,5 +1,5 @@
-from setuptools import setup, Extension  # Always prefer setuptools over distutils
-from codecs import open  # To use a consistent encoding
+from setuptools import setup, Extension 
+from codecs import open
 import os, os.path, platform
 from setuptools.command.install import install
 
@@ -33,7 +33,7 @@ modules = [Extension('_kiwipiepy',
 setup(
     name='kiwipiepy',
 
-    version='0.7.0',
+    version='0.7.1',
 
     description='Kiwi, the Korean Tokenizer for Python',
     long_description=long_description,
