@@ -445,6 +445,7 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 				return nullptr;
 			}
 		}
+		PyErr_Clear();
 	}
 	{
 		PyObject* reader, *receiver;
@@ -453,8 +454,8 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 		{
 			try
 			{
-				if (!PyCallable_Check(reader)) return PyErr_SetString(PyExc_TypeError, "analyze requires 1st parameter which is callable"), nullptr;
-				if (!PyCallable_Check(receiver)) return PyErr_SetString(PyExc_TypeError, "analyze requires 2nd parameter which is callable"), nullptr;
+				if (!PyCallable_Check(reader)) return PyErr_SetString(PyExc_TypeError, "'analyze' requires 1st parameter as callable"), nullptr;
+				if (!PyCallable_Check(receiver)) return PyErr_SetString(PyExc_TypeError, "'analyze' requires 2nd parameter as callable"), nullptr;
 				self->inst->analyze(topN, [&reader](size_t id)->u16string
 				{
 					PyObject* argList = Py_BuildValue("(n)", id);
