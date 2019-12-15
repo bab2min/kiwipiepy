@@ -243,6 +243,6 @@ ModelManifest.xml
 
 /build_windows.bat
 /kiwipiepy.egg-info
-/kiwipiepy/__pycache__
+__pycache__
 *.csv
 /dist
