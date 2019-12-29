@@ -197,13 +197,17 @@ reader와 receiver를 사용한 예시는 다음과 같습니다.
             self.input = open(input, encoding='utf-8')
             self.output = open(output, 'w', encoding='utf-8')
 
-        def read(self, id):
-            if id == 0:
+        def read(self, sent_id):
+            if sent_id == 0:
                 self.input.seek(0)
-            return self.input.readline()
+                self.iter = iter(self.input)
+            try:
+                return next(self.iter)
+            except StopIteration:
+                return None
 
-        def write(self, id, res):
-            print('Analyzed %dth row' % id)
+        def write(self, sent_id, res):
+            print('Analyzed %dth row' % sent_id)
             self.output.write(' '.join(map(lambda x:x[0]+'/'+x[1], res[0][0])) + '\n')
 
         def __del__(self):

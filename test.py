@@ -9,10 +9,11 @@ class IOHandler:
     def read(self, sent_id):
         if sent_id == 0:
             self.input.seek(0)
-        while True:
-            line = self.input.readline()
-            if line: return line
-        return ''
+            self.iter = iter(self.input)
+        try:
+            return next(self.iter)
+        except StopIteration:
+            return None
 
     def write(self, sent_id, res):
         self.output.write(' '.join(map(lambda x:x[0]+'/'+x[1], res[0][0])) + '\n')

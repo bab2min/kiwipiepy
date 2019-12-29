@@ -18,11 +18,13 @@ jobs:
 #
 #    steps:        
 #    - uses: actions/checkout@v1
-#    - name: Build & Test
+#    - name: Build
+#      run: |
+#        /opt/python/${{ matrix.cp }}/bin/python setup.py build install
+#    - name: Test
 #      run: |
 #        /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest konlpy
-#        /opt/python/${{ matrix.cp }}/bin/python setup.py build install
-#        /opt/python/${{ matrix.cp }}/bin/python -m pytest test.py
+#        /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test.py
 
   build_macos:
     name: Build for macOS
@@ -44,7 +46,7 @@ jobs:
     - name: Test
       run: |
         python -m pip install pytest konlpy
-        python -m pytest test.py
+        python -m pytest --verbose test.py
 
   build_windows:
     name: Build for Windows
@@ -68,4 +70,4 @@ jobs:
     - name: Test
       run: |
         python -m pip install pytest konlpy
-        python -m pytest test.py
+        python -m pytest --verbose test.py
