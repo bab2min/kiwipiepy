@@ -13,6 +13,45 @@
 using namespace std;
 using namespace kiwi;
 
+struct UniquePyObj
+{
+	PyObject* obj;
+	UniquePyObj(PyObject* _obj = nullptr) : obj(_obj) {}
+	~UniquePyObj()
+	{
+		Py_XDECREF(obj);
+	}
+
+	UniquePyObj(const UniquePyObj&) = delete;
+	UniquePyObj& operator=(const UniquePyObj&) = delete;
+
+	UniquePyObj(UniquePyObj&& o)
+	{
+		std::swap(obj, o.obj);
+	}
+
+	UniquePyObj& operator=(UniquePyObj&& o)
+	{
+		std::swap(obj, o.obj);
+		return *this;
+	}
+
+	PyObject* get() const
+	{
+		return obj;
+	}
+
+	operator bool() const
+	{
+		return !!obj;
+	}
+
+	operator PyObject*() const
+	{
+		return obj;
+	}
+	};
+
 #if PY_MAJOR_VERSION < 3
 string PyUnicode_AsUTF8(PyObject* obj)
 {
@@ -208,18 +247,14 @@ static PyObject* kiwi__extractWords(KiwiObject* self, PyObject* args, PyObject *
 	{
 		auto res = self->inst->extractWords([argReader](size_t id) -> u16string
 		{
-			PyObject* argList = Py_BuildValue("(n)", id);
-			PyObject* retVal = PyEval_CallObject(argReader, argList);
-			Py_DECREF(argList);
+			UniquePyObj argList = Py_BuildValue("(n)", id);
+			UniquePyObj retVal = PyEval_CallObject(argReader, argList);
 			if (!retVal) throw bad_exception();
 			if (PyObject_Not(retVal))
 			{
-				Py_DECREF(retVal);
 				return {};
 			}
-			auto p = Kiwi::toU16(PyUnicode_AsUTF8(retVal));
-			Py_DECREF(retVal);
-			return p;
+			return Kiwi::toU16(PyUnicode_AsUTF8(retVal));
 		}, minCnt, maxWordLen, minScore);
 
 		PyObject* retList = PyList_New(res.size());
@@ -256,18 +291,14 @@ static PyObject* kiwi__extractFilterWords(KiwiObject* self, PyObject* args, PyOb
 	{
 		auto res = self->inst->extractWords([argReader](size_t id) -> u16string
 		{
-			PyObject* argList = Py_BuildValue("(n)", id);
-			PyObject* retVal = PyEval_CallObject(argReader, argList);
-			Py_DECREF(argList);
+			UniquePyObj argList = Py_BuildValue("(n)", id);
+			UniquePyObj retVal = PyEval_CallObject(argReader, argList);
 			if (!retVal) throw bad_exception();
 			if (PyObject_Not(retVal))
 			{
-				Py_DECREF(retVal);
 				return {};
 			}
-			auto p = Kiwi::toU16(PyUnicode_AsUTF8(retVal));
-			Py_DECREF(retVal);
-			return p;
+			return Kiwi::toU16(PyUnicode_AsUTF8(retVal));
 		}, minCnt, maxWordLen, minScore);
 
 		res = self->inst->filterExtractedWords(move(res), posScore);
@@ -305,18 +336,14 @@ static PyObject* kiwi__extractAddWords(KiwiObject* self, PyObject* args, PyObjec
 	{
 		auto res = self->inst->extractAddWords([argReader](size_t id) -> u16string
 		{
-			PyObject* argList = Py_BuildValue("(n)", id);
-			PyObject* retVal = PyEval_CallObject(argReader, argList);
-			Py_DECREF(argList);
+			UniquePyObj argList = Py_BuildValue("(n)", id);
+			UniquePyObj retVal = PyEval_CallObject(argReader, argList);
 			if (!retVal) throw bad_exception();
 			if (PyObject_Not(retVal))
 			{
-				Py_DECREF(retVal);
 				return {};
 			}
-			auto p = Kiwi::toU16(PyUnicode_AsUTF8(retVal));
-			Py_DECREF(retVal);
-			return p;
+			return Kiwi::toU16(PyUnicode_AsUTF8(retVal));
 		}, minCnt, maxWordLen, minScore, posScore);
 
 		PyObject* retList = PyList_New(res.size());
@@ -421,7 +448,7 @@ PyObject* resToPyList(const vector<KResult>& res)
 		{
 			PyList_SetItem(rList, jdx++, Py_BuildValue("(ssnn)", Kiwi::toU8(q.str()).c_str(), tagToString(q.tag()), (size_t)q.pos(), (size_t)q.len()));
 		}
-		PyList_SetItem(retList, idx++, Py_BuildValue("(Of)", rList, p.second));
+		PyList_SetItem(retList, idx++, Py_BuildValue("(Nf)", rList, p.second));
 	}
 	return retList;
 }
@@ -434,16 +461,16 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 		static const char* kwlist[] = { "text", "top_n", nullptr };
 		if (PyArg_ParseTupleAndKeywords(args, kwargs, "s|n", (char**)kwlist, &text, &topN))
 		{
-			try
+			//try
 			{
 				auto res = self->inst->analyze(text, topN);
 				return resToPyList(res);
 			}
-			catch (const exception& e)
+			/*catch (const exception& e)
 			{
 				PyErr_SetString(PyExc_Exception, e.what());
 				return nullptr;
-			}
+			}*/
 		}
 		PyErr_Clear();
 	}
@@ -458,26 +485,19 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 				if (!PyCallable_Check(receiver)) return PyErr_SetString(PyExc_TypeError, "'analyze' requires 2nd parameter as callable"), nullptr;
 				self->inst->analyze(topN, [&reader](size_t id)->u16string
 				{
-					PyObject* argList = Py_BuildValue("(n)", id);
-					PyObject* retVal = PyEval_CallObject(reader, argList);
-					Py_DECREF(argList);
+					UniquePyObj argList = Py_BuildValue("(n)", id);
+					UniquePyObj retVal = PyEval_CallObject(reader, argList);
 					if (!retVal) throw bad_exception();
 					if (PyObject_Not(retVal))
 					{
-						Py_DECREF(retVal);
 						return {};
 					}
-					auto p = Kiwi::toU16(PyUnicode_AsUTF8(retVal));
-					Py_DECREF(retVal);
-					return p;
+					return Kiwi::toU16(PyUnicode_AsUTF8(retVal));
 				}, [&receiver](size_t id, vector<KResult>&& res)
 				{
-					PyObject* l = resToPyList(res);
-					PyObject* argList = Py_BuildValue("(nO)", id, l);
-					PyObject* ret = PyEval_CallObject(receiver, argList);
+					UniquePyObj argList = Py_BuildValue("(nN)", id, resToPyList(res));
+					UniquePyObj ret = PyEval_CallObject(receiver, argList);
 					if(!ret) throw bad_exception();
-					Py_DECREF(ret);
-					Py_DECREF(argList);
 				});
 				Py_INCREF(Py_None);
 				return Py_None;
@@ -513,26 +533,19 @@ static PyObject* kiwi__perform(KiwiObject* self, PyObject* args, PyObject *kwarg
 
 		self->inst->perform(topN, [&reader](size_t id)->u16string
 		{
-			PyObject* argList = Py_BuildValue("(n)", id);
-			PyObject* retVal = PyEval_CallObject(reader, argList);
-			Py_DECREF(argList);
+			UniquePyObj argList = Py_BuildValue("(n)", id);
+			UniquePyObj retVal = PyEval_CallObject(reader, argList);
 			if (!retVal) throw bad_exception();
 			if (PyObject_Not(retVal))
 			{
-				Py_DECREF(retVal);
 				return {};
 			}
-			auto p = Kiwi::toU16(PyUnicode_AsUTF8(retVal));
-			Py_DECREF(retVal);
-			return p;
+			return Kiwi::toU16(PyUnicode_AsUTF8(retVal));
 		}, [&receiver](size_t id, vector<KResult>&& res)
 		{
-			PyObject* l = resToPyList(res);
-			PyObject* argList = Py_BuildValue("(nO)", id, l);
-			PyObject* ret = PyEval_CallObject(receiver, argList);
+			UniquePyObj argList = Py_BuildValue("(nN)", id, resToPyList(res));
+			UniquePyObj ret = PyEval_CallObject(receiver, argList);
 			if (!ret) throw bad_exception();
-			Py_DECREF(ret);
-			Py_DECREF(argList);
 		}, minCnt, maxWordLen, minScore, posScore);
 		Py_INCREF(Py_None);
 		return Py_None;

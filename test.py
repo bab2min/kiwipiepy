@@ -6,13 +6,15 @@ class IOHandler:
         self.input = input
         self.output = output
 
-    def read(self, id):
-        if id == 0:
+    def read(self, sent_id):
+        if sent_id == 0:
             self.input.seek(0)
-        return self.input.readline()
+        while True:
+            line = self.input.readline()
+            if line: return line
+        return ''
 
-    def write(self, id, res):
-        print('Analyzed %dth row' % id)
+    def write(self, sent_id, res):
         self.output.write(' '.join(map(lambda x:x[0]+'/'+x[1], res[0][0])) + '\n')
 
     def __del__(self):
@@ -33,6 +35,6 @@ def test_analyze_multi():
 
 def test_extract_words():
     kiwi = Kiwi()
+    kiwi.prepare()
     handle = IOHandler(kolaw.open('constitution.txt'))
-
-
+    kiwi.extract_words(handle.read)
