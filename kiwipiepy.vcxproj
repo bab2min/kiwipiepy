@@ -35,6 +35,8 @@
     <None Include="kiwipiepy\__main__.py" />
     <None Include="README.md" />
     <None Include="setup.py" />
+    <None Include="x64\Debug\test.py" />
+    <None Include="x64\Release\test.py" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\core\BakedMap.hpp" />

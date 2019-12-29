@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Release">
+      <UniqueIdentifier>{7797df98-8827-48a4-bba9-d27a0b3aa861}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Debug">
+      <UniqueIdentifier>{006c5263-f679-408c-9729-996ce9cc7008}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\KiwiPy.cpp">
@@ -51,6 +57,12 @@
     <None Include="README.md" />
     <None Include="kiwipiepy\__init__.py" />
     <None Include="kiwipiepy\__main__.py" />
+    <None Include="x64\Release\test.py">
+      <Filter>Release</Filter>
+    </None>
+    <None Include="x64\Debug\test.py">
+      <Filter>Debug</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\core\BakedMap.hpp">
