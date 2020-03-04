@@ -310,6 +310,15 @@ struct WordLLP
 	const MInfos* morphs = nullptr;
 	float accScore = 0;
 	const KNLangModel::Node* node = nullptr;
+
+	WordLLP()
+	{
+	}
+
+	WordLLP(const MInfos* _morphs, float _accScore, const KNLangModel::Node* _node)
+		: morphs{_morphs}, accScore{_accScore}, node{_node}
+	{
+	}
 };
 
 typedef vector<WordLL, pool_allocator<WordLL>> WordLLs;
