@@ -373,7 +373,7 @@ vector<KWordDetector::WordInfo> KWordDetector::extractWords(const function<u16st
 		}
 	}
 
-	sort(cands.begin(), cands.end(), [](const auto& a, const auto& b)
+	sort(cands.begin(), cands.end(), [](const WordInfo& a, const WordInfo& b)
 	{
 		return a.score > b.score;
 	});
@@ -392,6 +392,14 @@ vector<KWordDetector::WordInfo> KWordDetector::extractWords(const function<u16st
 
 	for (auto& r : cands)
 	{
+		/*
+		removing unpaired surrogate
+		*/
+		if ((r.form.back() & 0xFC00) == 0xD800)
+		{
+			r.form.pop_back();
+		}
+
 		/*
 		removing hyper-matched forms
 		ex) correct form: ABC, matched forms: ABC, ABC_D, ABC_E ...
