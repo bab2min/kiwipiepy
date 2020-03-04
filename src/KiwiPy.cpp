@@ -254,14 +254,19 @@ static PyObject* kiwi__extractWords(KiwiObject* self, PyObject* args, PyObject *
 			{
 				return {};
 			}
-			return Kiwi::toU16(PyUnicode_AsUTF8(retVal));
+			if (!PyUnicode_Check(retVal)) throw runtime_error{ "reader must return a value in 'str' type" };
+			auto utf8 = PyUnicode_AsUTF8(retVal);
+			if (!utf8) throw bad_exception();
+			return Kiwi::toU16(utf8);
 		}, minCnt, maxWordLen, minScore);
 
 		PyObject* retList = PyList_New(res.size());
 		size_t idx = 0;
 		for (auto& r : res)
 		{
-			PyList_SetItem(retList, idx++, Py_BuildValue("(sfnf)", Kiwi::toU8(r.form).c_str(), r.score, r.freq, r.posScore[KPOSTag::NNP]));
+			auto v = Py_BuildValue("(sfnf)", Kiwi::toU8(r.form).c_str(), r.score, r.freq, r.posScore[KPOSTag::NNP]);
+			if (!v) throw bad_exception();
+			PyList_SetItem(retList, idx++, v);
 		}
 		return retList;
 	}
@@ -298,7 +303,10 @@ static PyObject* kiwi__extractFilterWords(KiwiObject* self, PyObject* args, PyOb
 			{
 				return {};
 			}
-			return Kiwi::toU16(PyUnicode_AsUTF8(retVal));
+			if (!PyUnicode_Check(retVal)) throw runtime_error{ "reader must return a value in 'str' type" };
+			auto utf8 = PyUnicode_AsUTF8(retVal);
+			if (!utf8) throw bad_exception();
+			return Kiwi::toU16(utf8);
 		}, minCnt, maxWordLen, minScore);
 
 		res = self->inst->filterExtractedWords(move(res), posScore);
@@ -343,7 +351,10 @@ static PyObject* kiwi__extractAddWords(KiwiObject* self, PyObject* args, PyObjec
 			{
 				return {};
 			}
-			return Kiwi::toU16(PyUnicode_AsUTF8(retVal));
+			if (!PyUnicode_Check(retVal)) throw runtime_error{ "reader must return a value in 'str' type" };
+			auto utf8 = PyUnicode_AsUTF8(retVal);
+			if (!utf8) throw bad_exception();
+			return Kiwi::toU16(utf8);
 		}, minCnt, maxWordLen, minScore, posScore);
 
 		PyObject* retList = PyList_New(res.size());
@@ -492,7 +503,10 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 					{
 						return {};
 					}
-					return Kiwi::toU16(PyUnicode_AsUTF8(retVal));
+					if (!PyUnicode_Check(retVal)) throw runtime_error{ "reader must return a value in 'str' type" };
+					auto utf8 = PyUnicode_AsUTF8(retVal);
+					if (!utf8) throw bad_exception();
+					return Kiwi::toU16(utf8);
 				}, [&receiver](size_t id, vector<KResult>&& res)
 				{
 					UniquePyObj argList = Py_BuildValue("(nN)", id, resToPyList(res));
@@ -540,7 +554,9 @@ static PyObject* kiwi__perform(KiwiObject* self, PyObject* args, PyObject *kwarg
 			{
 				return {};
 			}
-			return Kiwi::toU16(PyUnicode_AsUTF8(retVal));
+			auto utf8 = PyUnicode_AsUTF8(retVal);
+			if (!utf8) throw bad_exception();
+			return Kiwi::toU16(utf8);
 		}, [&receiver](size_t id, vector<KResult>&& res)
 		{
 			UniquePyObj argList = Py_BuildValue("(nN)", id, resToPyList(res));
