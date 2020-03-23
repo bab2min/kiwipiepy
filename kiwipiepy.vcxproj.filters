@@ -63,6 +63,8 @@
     <None Include="x64\Debug\test.py">
       <Filter>Debug</Filter>
     </None>
+    <None Include=".github\workflows\deploy.yml" />
+    <None Include=".github\workflows\pull_request_test.yml" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\core\BakedMap.hpp">

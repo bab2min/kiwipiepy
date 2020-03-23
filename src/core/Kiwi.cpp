@@ -88,6 +88,7 @@ int Kiwi::loadUserDictionary(const char * userDictPath)
 int Kiwi::prepare()
 {
 	mdl->solidify();
+	workers = unique_ptr<ThreadPool>{ new ThreadPool{ numThread - 1, numThread * 64 } };
 	return 0;
 }
 
@@ -620,6 +621,14 @@ vector<KResult> Kiwi::analyze(const string & str, size_t topN) const
 	return analyze(utf8_to_utf16(str), topN);
 }
 
+future<vector<KResult>> Kiwi::asyncAnalyze(const string & str, size_t topN) const
+{
+	return workers->enqueue([&, str, topN](size_t)
+	{
+		return analyze(str, topN);
+	});
+}
+
 void Kiwi::analyze(size_t topN, const function<u16string(size_t)>& reader, const function<void(size_t, vector<KResult>&&)>& receiver) const
 {
 	if (numThread > 1)
@@ -650,14 +659,13 @@ void Kiwi::analyze(size_t topN, const function<u16string(size_t)>& reader, const
 
 		size_t id;
 		{
-			ThreadPool workers{ numThread - 1, numThread * 64 };
 			for (id = 0; ; ++id)
 			{
 				auto ustr = reader(id);
 				if (ustr.empty()) break;
 
 				sharedResult.consumeResult(receiver);
-				workers.enqueue([this, topN, id, ustr, &receiver, &sharedResult](size_t tid)
+				workers->enqueue([this, topN, id, ustr, &receiver, &sharedResult](size_t tid)
 				{
 					auto r = analyze(ustr, topN);
 					sharedResult.addResult(id, move(r));

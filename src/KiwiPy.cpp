@@ -121,6 +121,7 @@ struct KiwiObject
 
 static PyObject* kiwi__addUserWord(KiwiObject* self, PyObject* args, PyObject *kwargs);
 static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwargs);
+static PyObject* kiwi__async_analyze(KiwiObject* self, PyObject* args, PyObject *kwargs);
 static PyObject* kiwi__extractAddWords(KiwiObject* self, PyObject* args, PyObject *kwargs);
 static PyObject* kiwi__extractFilterWords(KiwiObject* self, PyObject* args, PyObject *kwargs);
 static PyObject* kiwi__extractWords(KiwiObject* self, PyObject* args, PyObject *kwargs);
@@ -150,6 +151,9 @@ static PyMethodDef Kiwi_methods[] =
 	{ "analyze", (PyCFunction)kiwi__analyze, METH_VARARGS | METH_KEYWORDS, Kiwi_analyze__doc__ },
 	{ "get_option", (PyCFunction)kiwi__get_option, METH_VARARGS | METH_KEYWORDS, Kiwi_get_option__doc__ },
 	{ "set_option", (PyCFunction)kiwi__set_option, METH_VARARGS | METH_KEYWORDS, Kiwi_set_option__doc__ },
+#if (PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 5)
+	{ "async_analyze", (PyCFunction)kiwi__async_analyze, METH_VARARGS | METH_KEYWORDS, Kiwi_analyze__doc__ },
+#endif
 	{ nullptr }
 };
 
@@ -200,6 +204,132 @@ static PyTypeObject Kiwi_type = {
 	PyType_GenericAlloc,
 	PyType_GenericNew,
 };
+
+PyObject* resToPyList(const vector<KResult>& res)
+{
+	PyObject* retList = PyList_New(res.size());
+	size_t idx = 0;
+	for (auto& p : res)
+	{
+		PyObject* rList = PyList_New(p.first.size());
+		size_t jdx = 0;
+		size_t u32offset = 0;
+		for (auto& q : p.first)
+		{
+			size_t u32chrs = 0;
+			for (auto u : q.str())
+			{
+				if ((u & 0xFC00) == 0xD800) u32chrs++;
+			}
+
+			PyList_SetItem(rList, jdx++, Py_BuildValue("(ssnn)", Kiwi::toU8(q.str()).c_str(), tagToString(q.tag()), (size_t)q.pos() - u32offset, (size_t)q.len() - u32chrs));
+			u32offset += u32chrs;
+		}
+		PyList_SetItem(retList, idx++, Py_BuildValue("(Nf)", rList, p.second));
+	}
+	return retList;
+}
+
+struct KiwiAwaitableRes
+{
+	PyObject_HEAD;
+	KiwiObject* kiwi;
+	future<vector<KResult>> future;
+
+	static void dealloc(KiwiAwaitableRes* self)
+	{
+		Py_XDECREF(self->kiwi);
+		Py_TYPE(self)->tp_free((PyObject*)self);
+	}
+
+	static int init(KiwiAwaitableRes *self, PyObject *args, PyObject *kwargs)
+	{
+		KiwiObject* kiwi;
+		static const char* kwlist[] = { "kiwi", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", (char**)kwlist, &kiwi)) return -1;
+		try
+		{
+			self->kiwi = kiwi;
+			Py_INCREF(kiwi);
+		}
+		catch (const exception& e)
+		{
+			cerr << e.what() << endl;
+			PyErr_SetString(PyExc_Exception, e.what());
+			return -1;
+		}
+		return 0;
+	}
+
+	static PyObject* get(KiwiAwaitableRes *self, PyObject*, PyObject*);
+};
+
+static PyTypeObject KiwiAwaitableRes_type = {
+	PyVarObject_HEAD_INIT(nullptr, 0)
+	"kiwipiepy._awaitable_res",             /* tp_name */
+	sizeof(KiwiAwaitableRes), /* tp_basicsize */
+	0,                         /* tp_itemsize */
+	(destructor)KiwiAwaitableRes::dealloc, /* tp_dealloc */
+	0,                         /* tp_print */
+	0,                         /* tp_getattr */
+	0,                         /* tp_setattr */
+	0,                         /* tp_as_async */
+	0,                         /* tp_repr */
+	0,                         /* tp_as_number */
+	0,                         /* tp_as_sequence */
+	0,                         /* tp_as_mapping */
+	0,                         /* tp_hash  */
+	(ternaryfunc)KiwiAwaitableRes::get,                         /* tp_call */
+	0,                         /* tp_str */
+	0,                         /* tp_getattro */
+	0,                         /* tp_setattro */
+	0,                         /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,   /* tp_flags */
+	"",           /* tp_doc */
+	0,                         /* tp_traverse */
+	0,                         /* tp_clear */
+	0,                         /* tp_richcompare */
+	0,                         /* tp_weaklistoffset */
+	0,                         /* tp_iter */
+	0,                         /* tp_iternext */
+	0,             /* tp_methods */
+	0,						 /* tp_members */
+	0,        /* tp_getset */
+	0,                         /* tp_base */
+	0,                         /* tp_dict */
+	0,                         /* tp_descr_get */
+	0,                         /* tp_descr_set */
+	0,                         /* tp_dictoffset */
+	(initproc)KiwiAwaitableRes::init,      /* tp_init */
+	PyType_GenericAlloc,
+	PyType_GenericNew,
+};
+
+PyObject* KiwiAwaitableRes::get(KiwiAwaitableRes *self, PyObject*, PyObject*)
+{
+	return resToPyList(self->future.get());
+}
+
+static PyObject* kiwi__async_analyze(KiwiObject* self, PyObject* args, PyObject *kwargs)
+{
+	size_t topN = 1;
+	char* text;
+	static const char* kwlist[] = { "text", "top_n", nullptr };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|n", (char**)kwlist, &text, &topN)) return nullptr;
+	try
+	{
+		auto fut = self->inst->asyncAnalyze(text, topN);
+		UniquePyObj args = Py_BuildValue("(O)", self);
+		PyObject* ret = PyObject_CallObject((PyObject*)&KiwiAwaitableRes_type, args);
+		((KiwiAwaitableRes*)ret)->future = move(fut);
+		return ret;
+	}
+	catch (const exception& e)
+	{
+		PyErr_SetString(PyExc_Exception, e.what());
+	}
+	return nullptr;
+}
 
 static PyObject* kiwi__addUserWord(KiwiObject* self, PyObject* args, PyObject *kwargs)
 {
@@ -447,23 +577,6 @@ static PyObject* kiwi__set_option(KiwiObject* self, PyObject* args, PyObject *kw
 	}
 }
 
-PyObject* resToPyList(const vector<KResult>& res)
-{
-	PyObject* retList = PyList_New(res.size());
-	size_t idx = 0;
-	for (auto& p : res)
-	{
-		PyObject* rList = PyList_New(p.first.size());
-		size_t jdx = 0;
-		for (auto& q : p.first)
-		{
-			PyList_SetItem(rList, jdx++, Py_BuildValue("(ssnn)", Kiwi::toU8(q.str()).c_str(), tagToString(q.tag()), (size_t)q.pos(), (size_t)q.len()));
-		}
-		PyList_SetItem(retList, idx++, Py_BuildValue("(Nf)", rList, p.second));
-	}
-	return retList;
-}
-
 static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwargs)
 {
 	size_t topN = 1;
@@ -610,6 +723,10 @@ PyObject* moduleInit()
 	if (PyType_Ready(&Kiwi_type) < 0) return nullptr;
 	Py_INCREF(&Kiwi_type);
 	PyModule_AddObject(gModule, "Kiwi", (PyObject*)&Kiwi_type);
+
+	if (PyType_Ready(&KiwiAwaitableRes_type) < 0) return nullptr;
+	Py_INCREF(&KiwiAwaitableRes_type);
+	PyModule_AddObject(gModule, "_awaitable_res", (PyObject*)&KiwiAwaitableRes_type);
 	return gModule;
 }
 
