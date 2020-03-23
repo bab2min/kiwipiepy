@@ -31,6 +31,8 @@
     <ClCompile Include="src\KiwiPy.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include=".github\workflows\deploy.yml" />
+    <None Include=".github\workflows\pull_request_test.yml" />
     <None Include="kiwipiepy\__init__.py" />
     <None Include="kiwipiepy\__main__.py" />
     <None Include="README.md" />

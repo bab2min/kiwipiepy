@@ -53,6 +53,7 @@ namespace kiwi
 	protected:
 		float cutOffThreshold = 7.f;
 		std::unique_ptr<KModelMgr> mdl;
+		std::unique_ptr<ThreadPool> workers;
 		size_t numThread;
 		bool integrateAllomorph;
 		KWordDetector detector;
@@ -79,6 +80,7 @@ namespace kiwi
 		KResult analyze(const std::string& str) const;
 		std::vector<KResult> analyze(const std::u16string& str, size_t topN) const;
 		std::vector<KResult> analyze(const std::string& str, size_t topN) const;
+		std::future<std::vector<KResult>> asyncAnalyze(const std::string& str, size_t topN) const;
 		void analyze(size_t topN, const std::function<std::u16string(size_t)>& reader, const std::function<void(size_t, std::vector<KResult>&&)>& receiver) const;
 		void perform(size_t topN, const std::function<std::u16string(size_t)>& reader, const std::function<void(size_t, std::vector<KResult>&&)>& receiver, size_t minCnt = 10, size_t maxWordLen = 10, float minScore = 0.25, float posThreshold = -3) const;
 		void clearCache();
