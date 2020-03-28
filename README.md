@@ -77,7 +77,7 @@ Kiwi가 제공하는 미등록 단어 추출 관련 메소드는 다음 세 가�
     kiwi.extractFilterWords(reader, min_cnt, max_word_len, min_score, pos_score)
     kiwi.extractAddWords(reader, min_cnt, max_word_len, min_score, pos_score)
 
-**`extractWords(reader, min_cnt = 10, max_word_len = 10, min_score = 0.25)`**
+**`extract_words(reader, min_cnt = 10, max_word_len = 10, min_score = 0.25)`**
 
 reader가 읽어들인 텍스트로부터 단어 후보를 추출합니다. 
 reader는 다음과 같은 호출가능한(Callable) 객체여야합니다.
@@ -101,7 +101,7 @@ reader는 첫번째 인자로 id를 받습니다. id는 현재 읽어야할 행�
 extract계열의 함수는 단어 후보를 추출하는 과정에서 입력 텍스트 파일을 여러 번 다시 읽으므로, 
 id == 0인 경우를 적절하게 처리해주어야 올바른 결과를 얻으실 수 있습니다.
 
-**`extractFilterWords(reader, min_cnt = 10, max_word_len = 10, min_score = 0.25, pos_score = -3)`**
+**`extract_filter_words(reader, min_cnt = 10, max_word_len = 10, min_score = 0.25, pos_score = -3)`**
 
 extractWords와 동일하게 단어 후보를 추출하고, 그 중에서 이미 형태소 분석 사전에 등록된 경우 및 명사가 아닐 것으로 예측되는 단어 후보를 제거하여
 실제 명사로 예측되는 단어 목록만 추출해줍니다. 
@@ -109,7 +109,7 @@ pos_score는 추출할 단어의 최소 명사 점수입니다. 이 값을 낮�
 반대로 높일수록 추출되는 명사의 개수가 줄어듭니다. 기본값은 -3입니다.
 나머지 인자는 extractWords와 동일합니다. 
 
-**`extractAddWords(reader, min_cnt = 10, max_word_len = 10, min_score = 0.25, pos_score = -3)`**
+**`extract_add_words(reader, min_cnt = 10, max_word_len = 10, min_score = 0.25, pos_score = -3)`**
 
 extractFilterWords와 동일하게 명사인 단어만 추출해줍니다. 
 다만 이 메소드는 추출된 명사 후보를 자동으로 사용자 사전에 등록하여 형태소 분석에 사용할 수 있게 해줍니다. 
@@ -118,7 +118,7 @@ extractFilterWords와 동일하게 명사인 단어만 추출해줍니다.
 ## 사용자 사전 추가
 
 기존의 사전에 등록되지 않은 단어를 제대로 분석하기 위해서는 사용자 사전에 해당 단어를 등록해주어야 합니다. 
-이는 extractAddWords를 통해서 자동으로 이뤄질 수도 있고, 수작업으로 직접 추가될 수도 있습니다. 
+이는 extract_add_words를 통해서 자동으로 이뤄질 수도 있고, 수작업으로 직접 추가될 수도 있습니다. 
 다음 메소드들은 사용자 사전을 관리하는데 사용되는 메소드들입니다.
 
     kiwi.add_user_word(word, pos, score)
