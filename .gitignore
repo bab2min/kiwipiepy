@@ -240,9 +240,10 @@ ModelManifest.xml
 
 # Paket dependency manager
 .paket/paket.exe
-
+/build/
 /build_windows.bat
 /kiwipiepy.egg-info
 __pycache__
 *.csv
 /dist
+*.so
