@@ -134,26 +134,24 @@ static PyObject* kiwi__set_option(KiwiObject* self, PyObject* args, PyObject *kw
 
 static PyMethodDef Kiwi_methods[] =
 {
-	{ "addUserWord", (PyCFunction)kiwi__addUserWord, METH_VARARGS | METH_KEYWORDS, Kiwi_add_user_word__doc__ },
+	{ "addUserWord", (PyCFunction)kiwi__addUserWord, METH_VARARGS | METH_KEYWORDS, Kiwi_addUserWord__doc__ },
 	{ "add_user_word", (PyCFunction)kiwi__addUserWord, METH_VARARGS | METH_KEYWORDS, Kiwi_add_user_word__doc__ },
-	{ "loadUserDictionary", (PyCFunction)kiwi__loadUserDictionary, METH_VARARGS | METH_KEYWORDS, Kiwi_load_user_dictionary__doc__ },
+	{ "loadUserDictionary", (PyCFunction)kiwi__loadUserDictionary, METH_VARARGS | METH_KEYWORDS, Kiwi_loadUserDictionary__doc__ },
 	{ "load_user_dictionary", (PyCFunction)kiwi__loadUserDictionary, METH_VARARGS | METH_KEYWORDS, Kiwi_load_user_dictionary__doc__ },
-	{ "extractWords", (PyCFunction)kiwi__extractWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_words__doc__ },
+	{ "extractWords", (PyCFunction)kiwi__extractWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extractWords__doc__ },
 	{ "extract_words", (PyCFunction)kiwi__extractWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_words__doc__ },
-	{ "extractFilterWords", (PyCFunction)kiwi__extractFilterWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_filter_words__doc__ },
+	{ "extractFilterWords", (PyCFunction)kiwi__extractFilterWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extractFilterWords__doc__ },
 	{ "extract_filter_words", (PyCFunction)kiwi__extractFilterWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_filter_words__doc__ },
-	{ "extractAddWords", (PyCFunction)kiwi__extractAddWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_add_words__doc__ },
+	{ "extractAddWords", (PyCFunction)kiwi__extractAddWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extractAddWords__doc__ },
 	{ "extract_add_words", (PyCFunction)kiwi__extractAddWords, METH_VARARGS | METH_KEYWORDS, Kiwi_extract_add_words__doc__ },
 	{ "perform", (PyCFunction)kiwi__perform, METH_VARARGS | METH_KEYWORDS, Kiwi_perform__doc__ },
-	{ "setCutOffThreshold", (PyCFunction)kiwi__setCutOffThreshold, METH_VARARGS | METH_KEYWORDS, Kiwi_set_cutoff_threshold__doc__ },
+	{ "setCutOffThreshold", (PyCFunction)kiwi__setCutOffThreshold, METH_VARARGS | METH_KEYWORDS, Kiwi_setCutoffThreshold__doc__ },
 	{ "set_cutoff_threshold", (PyCFunction)kiwi__setCutOffThreshold, METH_VARARGS | METH_KEYWORDS, Kiwi_set_cutoff_threshold__doc__ },
 	{ "prepare", (PyCFunction)kiwi__prepare, METH_VARARGS | METH_KEYWORDS, Kiwi_prepare__doc__ },
 	{ "analyze", (PyCFunction)kiwi__analyze, METH_VARARGS | METH_KEYWORDS, Kiwi_analyze__doc__ },
 	{ "get_option", (PyCFunction)kiwi__get_option, METH_VARARGS | METH_KEYWORDS, Kiwi_get_option__doc__ },
 	{ "set_option", (PyCFunction)kiwi__set_option, METH_VARARGS | METH_KEYWORDS, Kiwi_set_option__doc__ },
-#if (PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 5)
-	{ "async_analyze", (PyCFunction)kiwi__async_analyze, METH_VARARGS | METH_KEYWORDS, Kiwi_analyze__doc__ },
-#endif
+	{ "async_analyze", (PyCFunction)kiwi__async_analyze, METH_VARARGS | METH_KEYWORDS, Kiwi_async_analyze__doc__ },
 	{ nullptr }
 };
 
@@ -185,7 +183,7 @@ static PyTypeObject Kiwi_type = {
 	0,                         /* tp_setattro */
 	0,                         /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT,   /* tp_flags */
-	"Kiwi()",           /* tp_doc */
+	Kiwi__doc__,           /* tp_doc */
 	0,                         /* tp_traverse */
 	0,                         /* tp_clear */
 	0,                         /* tp_richcompare */
@@ -312,13 +310,13 @@ PyObject* KiwiAwaitableRes::get(KiwiAwaitableRes *self, PyObject*, PyObject*)
 
 static PyObject* kiwi__async_analyze(KiwiObject* self, PyObject* args, PyObject *kwargs)
 {
-	size_t topN = 1;
+	size_t topN = 1, matchOptions = PatternMatcher::all;
 	char* text;
-	static const char* kwlist[] = { "text", "top_n", nullptr };
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|n", (char**)kwlist, &text, &topN)) return nullptr;
+	static const char* kwlist[] = { "text", "top_n", "match_options", nullptr };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|n", (char**)kwlist, &text, &topN, &matchOptions)) return nullptr;
 	try
 	{
-		auto fut = self->inst->asyncAnalyze(text, topN);
+		auto fut = self->inst->asyncAnalyze(text, topN, matchOptions);
 		UniquePyObj args = Py_BuildValue("(O)", self);
 		PyObject* ret = PyObject_CallObject((PyObject*)&KiwiAwaitableRes_type, args);
 		((KiwiAwaitableRes*)ret)->future = move(fut);
@@ -579,15 +577,15 @@ static PyObject* kiwi__set_option(KiwiObject* self, PyObject* args, PyObject *kw
 
 static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwargs)
 {
-	size_t topN = 1;
+	size_t topN = 1, matchOptions = PatternMatcher::all;
 	{
 		char* text;
-		static const char* kwlist[] = { "text", "top_n", nullptr };
-		if (PyArg_ParseTupleAndKeywords(args, kwargs, "s|n", (char**)kwlist, &text, &topN))
+		static const char* kwlist[] = { "text", "top_n", "match_options", nullptr };
+		if (PyArg_ParseTupleAndKeywords(args, kwargs, "s|nn", (char**)kwlist, &text, &topN, &matchOptions))
 		{
 			//try
 			{
-				auto res = self->inst->analyze(text, topN);
+				auto res = self->inst->analyze(text, topN, matchOptions);
 				return resToPyList(res);
 			}
 			/*catch (const exception& e)
@@ -600,8 +598,8 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 	}
 	{
 		PyObject* reader, *receiver;
-		static const char* kwlist[] = { "reader", "receiver", "top_n", nullptr };
-		if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO|n", (char**)kwlist, &reader, &receiver, &topN))
+		static const char* kwlist[] = { "reader", "receiver", "top_n", "match_options", nullptr };
+		if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO|nn", (char**)kwlist, &reader, &receiver, &topN, &matchOptions))
 		{
 			try
 			{
@@ -625,7 +623,7 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 					UniquePyObj argList = Py_BuildValue("(nN)", id, resToPyList(res));
 					UniquePyObj ret = PyEval_CallObject(receiver, argList);
 					if(!ret) throw bad_exception();
-				});
+				}, matchOptions);
 				Py_INCREF(Py_None);
 				return Py_None;
 			}
@@ -646,13 +644,13 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 
 static PyObject* kiwi__perform(KiwiObject* self, PyObject* args, PyObject *kwargs)
 {
-	size_t topN = 1;
+	size_t topN = 1, matchOptions = PatternMatcher::all;
 	PyObject* reader, *receiver;
 	size_t minCnt = 10, maxWordLen = 10;
 	float minScore = 0.25f, posScore = -3;
-	static const char* kwlist[] = { "reader", "receiver", "top_n", "min_cnt", "max_word_len", "min_score", "pos_score", nullptr };
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|nnnff", (char**)kwlist, 
-		&reader, &receiver, &topN, &minCnt, &maxWordLen, &minScore, &posScore)) return nullptr;
+	static const char* kwlist[] = { "reader", "receiver", "top_n", "match_options", "min_cnt", "max_word_len", "min_score", "pos_score", nullptr };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|nnnnff", (char**)kwlist, 
+		&reader, &receiver, &topN, &matchOptions, &minCnt, &maxWordLen, &minScore, &posScore)) return nullptr;
 	try
 	{
 		if (!PyCallable_Check(reader)) return PyErr_SetString(PyExc_TypeError, "perform requires 1st parameter which is callable"), nullptr;
@@ -675,7 +673,7 @@ static PyObject* kiwi__perform(KiwiObject* self, PyObject* args, PyObject *kwarg
 			UniquePyObj argList = Py_BuildValue("(nN)", id, resToPyList(res));
 			UniquePyObj ret = PyEval_CallObject(receiver, argList);
 			if (!ret) throw bad_exception();
-		}, minCnt, maxWordLen, minScore, posScore);
+		}, matchOptions, minCnt, maxWordLen, minScore, posScore);
 		Py_INCREF(Py_None);
 		return Py_None;
 	}
