@@ -1,0 +1,50 @@
+name: Generate the documentation
+
+on:
+  release:
+    types: published
+
+jobs:
+  build_manylinux:
+    name: Build for manylinux
+    runs-on: ubuntu-latest
+    container:
+      image: docker://quay.io/pypa/manylinux1_x86_64
+    strategy:
+      max-parallel: 1
+      matrix:
+        language: [kr]
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install dependencies
+      run: |
+        ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
+        python3 -m pip install --upgrade pip
+    - name: build
+      run: |
+        python3 -m pip install pdoc3
+        python3 setup.py install
+    - name: gen doc
+      run: |
+        export KIWIPIEPY_VER="`python3 -m pip show kiwipiepy | grep Version | cut -d' ' -f2`"
+        python3 -m pdoc --html kiwipiepy
+        sed -i -E "s/documentation<\/title>/documentation (v${KIWIPIEPY_VER})<\/title>/" html/kiwipiepy/*.html
+        sed -i -E 's/<\/title>/<\/title><link rel="icon" type="image\/png" sizes="192x192" href="\/kiwipiepy\/favicon-192x192.png">/' html/kiwipiepy/*.html
+        sed -i -E 's/(<p><img alt="" src="https:\/\/badge.fury.io\/py\/kiwipiepy.svg"><\/p>)/<script async defer src="https:\/\/buttons.github.io\/buttons.js"><\/script> <p><img alt="" src="https:\/\/badge.fury.io\/py\/kiwipiepy.svg"> <a class="github-button" href="https:\/\/github.com\/bab2min\/kiwipiepy" data-size="large" data-show-count="true" aria-label="Star bab2min\/kiwipiepy on GitHub">Star<\/a> <a class="github-button" href="https:\/\/github.com\/bab2min\/kiwipiepy\/issues" data-size="large" data-show-count="true" aria-label="Issue bab2min\/kiwipiepy on GitHub">Issue<\/a> <\/p>/' html/kiwipiepy/*.html
+        sed -i -e '/<nav id="sidebar">/r document/document_header.html' html/kiwipiepy/*.html
+        sed -i -E 's/(<\/body>)/<script async src="https:\/\/www.googletagmanager.com\/gtag\/js?id=UA-35651242-12"><\/script> <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag("js", new Date()); gtag("config", "UA-35651242-12"); <\/script>\n\1/' html/kiwipiepy/*.html
+        mkdir -p ../g
+        pushd ../g
+        git clone https://${{ secrets.ACCESS_TOKEN }}@github.com/bab2min/bab2min.github.io
+        mkdir -p bab2min.github.io/kiwipiepy/v${KIWIPIEPY_VER}/${{ matrix.language }}
+        popd
+        cp html/kiwipiepy/* ../g/bab2min.github.io/kiwipiepy/v${KIWIPIEPY_VER}/${{ matrix.language }}
+        pushd ../g/bab2min.github.io
+        git config user.email "bab2min@gmail.com"
+        git config user.name "bab2min"
+        git add .
+        git commit -m "v${KIWIPIEPY_VER} ${{ matrix.language }}"
+        git push
+        popd
+        

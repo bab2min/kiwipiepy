@@ -68,6 +68,7 @@
     </None>
     <None Include=".github\workflows\deploy.yml" />
     <None Include=".github\workflows\pull_request_test.yml" />
+    <None Include="kiwipiepy\documentation.rst" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\core\BakedMap.hpp">

@@ -247,3 +247,4 @@ __pycache__
 *.csv
 /dist
 *.so
+/venv.lin/
