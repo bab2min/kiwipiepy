@@ -15,9 +15,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
     - name: Install dependencies
       run: |
-        ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
         python3 -m pip install --upgrade pip
     - name: build
       run: |
