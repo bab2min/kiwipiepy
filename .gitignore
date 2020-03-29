@@ -248,3 +248,4 @@ __pycache__
 /dist
 *.so
 /venv.lin/
+/html/
