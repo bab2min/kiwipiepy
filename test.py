@@ -34,6 +34,14 @@ def test_analyze_multi():
     handle = IOHandler(kolaw.open('constitution.txt'), open('result.txt', 'w', encoding='utf-8'))
     kiwi.analyze(handle.read, handle.write)
 
+def test_async_analyze():
+    kiwi = Kiwi()
+    kiwi.prepare()
+    ret = []
+    for line in kolaw.open('constitution.txt'):
+        ret.append(kiwi.async_analyze(line))
+    ret = [r() for r in ret]
+
 def test_extract_words():
     kiwi = Kiwi()
     kiwi.prepare()

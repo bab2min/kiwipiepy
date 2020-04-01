@@ -3,7 +3,7 @@ Kiwipiepy란?
 Kiwipiepy는 한국어 형태소 분석기인 Kiwi(Korean Intelligent Word Identifier)의 Python 모듈입니다. 
 C++로 작성되었고 다른 패키지에 의존성이 없으므로 C++ 컴파일이 가능한 환경이라면 어디에서나 Kiwipiepy를 사용 가능합니다.
 
-현재 Kiwipiepy의 최신 버전은 0.8.0입니다.
+현재 Kiwipiepy의 최신 버전은 0.8.1입니다.
 
 .. image:: https://badge.fury.io/py/kiwipiepy.svg
 
@@ -199,6 +199,9 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.8.1 (2020-04-01)
+    * U+10000 이상의 유니코드 문자를 입력시 Python 모듈에서 오류가 발생하는 문제를 수정했습니다.
+
 * 0.8.0 (2020-03-29)
     * URL, 이메일, 해시태그를 검출하는 기능이 추가되었습니다. `analyze` 메소드의 `match_options` 파라미터로 이 기능의 사용 유무를 설정할 수 있습니다.
     * 치(하지), 컨대(하건대), 토록(하도록), 케(하게) 축약형이 포함된 동사 활용형을 제대로 분석하지 못하는 문제를 해결했습니다.
