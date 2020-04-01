@@ -168,6 +168,23 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
     handle = IOHandler('test.txt', 'result.txt')
     kiwi.analyze(handle.read, handle.write)
 
+** async_analyze 예제 **
+
+다음 예제 코드에서는 async_analyze를 사용해 멀티스레딩 분석을 진행합니다.
+
+::
+
+    from kiwipiepy import Kiwi
+    kiwi = Kiwi()
+    kiwi.prepare()
+    ret = []
+    # input.txt 파일의 라인별로 분석 작업을 할당합니다.
+    for line in open('input.txt', encoding='utf-8'):
+        ret.append(kiwi.async_analyze(line))
+
+    for r in ret:
+        print(r()) # r을 호출하여 분석 결과를 얻습니다.
+
 사용자 정의 사전 포맷
 ---------------------
 사용자 정의 사전은 UTF-8로 인코딩된 텍스트 파일이어야 하며, 다음과 같은 구조를 띄어야 합니다.
