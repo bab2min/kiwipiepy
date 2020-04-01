@@ -3,7 +3,7 @@ Kiwipiepy란?
 Kiwipiepy는 한국어 형태소 분석기인 Kiwi(Korean Intelligent Word Identifier)의 Python 모듈입니다. 
 C++로 작성되었고 다른 패키지에 의존성이 없으므로 C++ 컴파일이 가능한 환경이라면 어디에서나 Kiwipiepy를 사용 가능합니다.
 
-현재 Kiwipiepy의 최신 버전은 0.8.0입니다.
+현재 Kiwipiepy의 최신 버전은 0.8.1입니다.
 
 .. image:: https://badge.fury.io/py/kiwipiepy.svg
 
@@ -168,6 +168,23 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
     handle = IOHandler('test.txt', 'result.txt')
     kiwi.analyze(handle.read, handle.write)
 
+** async_analyze 예제 **
+
+다음 예제 코드에서는 async_analyze를 사용해 멀티스레딩 분석을 진행합니다.
+
+::
+
+    from kiwipiepy import Kiwi
+    kiwi = Kiwi()
+    kiwi.prepare()
+    ret = []
+    # input.txt 파일의 라인별로 분석 작업을 할당합니다.
+    for line in open('input.txt', encoding='utf-8'):
+        ret.append(kiwi.async_analyze(line))
+
+    for r in ret:
+        print(r()) # r을 호출하여 분석 결과를 얻습니다.
+
 사용자 정의 사전 포맷
 ---------------------
 사용자 정의 사전은 UTF-8로 인코딩된 텍스트 파일이어야 하며, 다음과 같은 구조를 띄어야 합니다.
@@ -199,6 +216,9 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.8.1 (2020-04-01)
+    * U+10000 이상의 유니코드 문자를 입력시 Python 모듈에서 오류가 발생하는 문제를 수정했습니다.
+
 * 0.8.0 (2020-03-29)
     * URL, 이메일, 해시태그를 검출하는 기능이 추가되었습니다. `analyze` 메소드의 `match_options` 파라미터로 이 기능의 사용 유무를 설정할 수 있습니다.
     * 치(하지), 컨대(하건대), 토록(하도록), 케(하게) 축약형이 포함된 동사 활용형을 제대로 분석하지 못하는 문제를 해결했습니다.

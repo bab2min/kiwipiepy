@@ -20,7 +20,7 @@ for f in os.listdir(os.path.join(here, 'src/core')):
 
 largs = []
 if platform.system() == 'Windows': cargs = ['/O2', '/MT', '/Gy']
-else: cargs = ['-std=c++1y', '-O3', '-fpermissive']
+else: cargs = ['-std=c++1y', '-O3', '-fpermissive', '-g']
 
 if platform.system() == 'Darwin':
     cargs += ['-stdlib=libc++']
@@ -33,7 +33,7 @@ modules = [Extension('_kiwipiepy',
 setup(
     name='kiwipiepy',
 
-    version='0.8.0',
+    version='0.8.1',
 
     description='Kiwi, the Korean Tokenizer for Python',
     long_description=long_description,
