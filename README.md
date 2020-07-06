@@ -49,10 +49,10 @@ kiwipiepy 패키지 설치가 성공적으로 완료되었다면, 다음과 같�
 
 Kiwi 생성자는 다음과 같습니다.
 
-    Kiwi(num_thread=0, model_path='./', options=Option.LOAD_DEFAULT_DICTIONARY | Option.INTEGRATE_ALLOMORPH)
+    Kiwi(num_workers=0, model_path='./', options=Option.LOAD_DEFAULT_DICTIONARY | Option.INTEGRATE_ALLOMORPH)
 
-num_thread가 2 이상이면 단어 추출 및 형태소 분석에 멀티 코어를 활용하여 조금 더 빠른 속도로 분석을 진행할 수 있습니다. 
-num_thread가 1인 경우 단일 코어만 활용합니다. num_thread가 0이면 현재 환경에서 사용가능한 모든 코어를 활용합니다. 
+num_workers가 2 이상이면 단어 추출 및 형태소 분석에 멀티 코어를 활용하여 조금 더 빠른 속도로 분석을 진행할 수 있습니다. 
+num_workers가 1인 경우 단일 코어만 활용합니다. num_workers가 0이면 현재 환경에서 사용가능한 모든 코어를 활용합니다. 
 생략 시 기본값은 0입니다.
 
 model_path는 형태소 분석 모델이 있는 경로를 지정합니다.
