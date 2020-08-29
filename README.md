@@ -222,3 +222,59 @@ reader와 receiver를 사용한 예시는 다음과 같습니다.
     handle = IOHandler('test.txt', 'result.txt')
     kiwi.analyze(handle.read, handle.write)
 
+## 품사 태그
+
+세종 품사 태그를 기초로 하되, 일부 품사 태그를 추가/수정하여 사용하고 있습니다.
+
+<table>
+<tr><th>대분류</th><th>태그</th><th>설명</th></tr>
+<tr><th rowspan='5'>체언(N)</th><td>NNG</td><td>일반 명사</td></tr>
+<tr><td>NNP</td><td>고유 명사</td></tr>
+<tr><td>NNB</td><td>의존 명사</td></tr>
+<tr><td>NR</td><td>수사</td></tr>
+<tr><td>NP</td><td>대명사</td></tr>
+<tr><th rowspan='5'>용언(V)</th><td>VV</td><td>동사</td></tr>
+<tr><td>VA</td><td>형용사</td></tr>
+<tr><td>VX</td><td>보조 용언</td></tr>
+<tr><td>VCP</td><td>긍정 지시사(이다)</td></tr>
+<tr><td>VCN</td><td>부정 지시사(아니다)</td></tr>
+<tr><th rowspan='1'>관형사</th><td>MM</td><td>관형사</td></tr>
+<tr><th rowspan='2'>부사(MA)</th><td>MAG</td><td>일반 부사</td></tr>
+<tr><td>MAJ</td><td>접속 부사</td></tr>
+<tr><th rowspan='1'>감탄사</th><td>IC</td><td>감탄사</td></tr>
+<tr><th rowspan='9'>조사(J)</th><td>JKS</td><td>주격 조사</td></tr>
+<tr><td>JKC</td><td>보격 조사</td></tr>
+<tr><td>JKG</td><td>관형격 조사</td></tr>
+<tr><td>JKO</td><td>목적격 조사</td></tr>
+<tr><td>JKB</td><td>부사격 조사</td></tr>
+<tr><td>JKV</td><td>호격 조사</td></tr>
+<tr><td>JKQ</td><td>인용격 조사</td></tr>
+<tr><td>JX</td><td>보조사</td></tr>
+<tr><td>JC</td><td>접속 조사</td></tr>
+<tr><th rowspan='5'>어미(E)</th><td>EP</td><td>선어말 어미</td></tr>
+<tr><td>EF</td><td>종결 어미</td></tr>
+<tr><td>EC</td><td>연결 어미</td></tr>
+<tr><td>ETN</td><td>명사형 전성 어미</td></tr>
+<tr><td>ETM</td><td>관형형 전성 어미</td></tr>
+<tr><th rowspan='1'>접두사</th><td>XPN</td><td>체언 접두사</td></tr>
+<tr><th rowspan='3'>접미사(XS)</th><td>XSN</td><td>명사 파생 접미사</td></tr>
+<tr><td>XSV</td><td>동사 파생 접미사</td></tr>
+<tr><td>XSA</td><td>형용사 파생 접미사</td></tr>
+<tr><th rowspan='1'>어근</th><td>XR</td><td>어근</td></tr>
+<tr><th rowspan='9'>부호, 외국어, 특수문자(S)</th><td>SF</td><td>종결 부호(. ! ?)</td></tr>
+<tr><td>SP</td><td>구분 부호(, / : ;)</td></tr>
+<tr><td>SS</td><td>인용 부호 및 괄호(' " ( ) [ ] < > { } ― ‘ ’ “ ” ≪ ≫ 등)</td></tr>
+<tr><td>SE</td><td>줄임표(…)</td></tr>
+<tr><td>SO</td><td>붙임표(- ~)</td></tr>
+<tr><td>SW</td><td>기타 특수 문자</td></tr>
+<tr><td>SL</td><td>알파벳(A-Z a-z)</td></tr>
+<tr><td>SH</td><td>한자</td></tr>
+<tr><td>SN</td><td>숫자(0-9)</td></tr>
+<tr><th rowspan='1'>분석 불능</th><td>UN</td><td>분석 불능<sup>*</sup></td></tr>
+<tr><th rowspan='3'>웹(W)</th><td>W_URL</td><td>URL 주소<sup>*</sup></td></tr>
+<tr><td>W_EMAIL</td><td>이메일 주소<sup>*</sup></td></tr>
+<tr><td>W_HASHTAG</td><td>해시태그<sup>*</sup></td></tr>
+</table>
+
+<sup>*</sup> 세종 품사 태그와 다른 독자적인 태그입니다.
+
