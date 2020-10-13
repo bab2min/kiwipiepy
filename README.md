@@ -81,7 +81,7 @@ Kiwi가 제공하는 미등록 단어 추출 관련 메소드는 다음 세 가�
     kiwi.extractFilterWords(reader, min_cnt, max_word_len, min_score, pos_score)
     kiwi.extractAddWords(reader, min_cnt, max_word_len, min_score, pos_score)
 
-**`extract_words(reader, min_cnt = 10, max_word_len = 10, min_score = 0.25)`**
+**`extract_words(reader, min_cnt=10, max_word_len=10, min_score=0.25)`**
 
 reader가 읽어들인 텍스트로부터 단어 후보를 추출합니다. 
 reader는 다음과 같은 호출가능한(Callable) 객체여야합니다.
@@ -105,7 +105,7 @@ reader는 첫번째 인자로 id를 받습니다. id는 현재 읽어야할 행�
 extract계열의 함수는 단어 후보를 추출하는 과정에서 입력 텍스트 파일을 여러 번 다시 읽으므로, 
 id == 0인 경우를 적절하게 처리해주어야 올바른 결과를 얻으실 수 있습니다.
 
-**`extract_filter_words(reader, min_cnt = 10, max_word_len = 10, min_score = 0.25, pos_score = -3)`**
+**`extract_filter_words(reader, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3)`**
 
 extractWords와 동일하게 단어 후보를 추출하고, 그 중에서 이미 형태소 분석 사전에 등록된 경우 및 명사가 아닐 것으로 예측되는 단어 후보를 제거하여
 실제 명사로 예측되는 단어 목록만 추출해줍니다. 
@@ -113,7 +113,7 @@ pos_score는 추출할 단어의 최소 명사 점수입니다. 이 값을 낮�
 반대로 높일수록 추출되는 명사의 개수가 줄어듭니다. 기본값은 -3입니다.
 나머지 인자는 extractWords와 동일합니다. 
 
-**`extract_add_words(reader, min_cnt = 10, max_word_len = 10, min_score = 0.25, pos_score = -3)`**
+**`extract_add_words(reader, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3)`**
 
 extractFilterWords와 동일하게 명사인 단어만 추출해줍니다. 
 다만 이 메소드는 추출된 명사 후보를 자동으로 사용자 사전에 등록하여 형태소 분석에 사용할 수 있게 해줍니다. 
@@ -128,7 +128,7 @@ extractFilterWords와 동일하게 명사인 단어만 추출해줍니다.
     kiwi.add_user_word(word, pos, score)
     kiwi.load_user_dictionary(userDictPath)
 
-**`add_user_word(word, pos = 'NNP', score = 0.0)`**
+**`add_user_word(word, pos='NNP', score=0.0)`**
 
 사용자 사전에 word를 등록합니다. 현재는 띄어쓰기(공백문자)가 포함되지 않는 문자열만 단어로 등록할 수 있습니다.
 pos는 등록할 단어의 품사입니다. 세종 품사태그를 따르며, 기본값은 NNP(고유명사)입니다.
@@ -273,9 +273,10 @@ reader와 receiver를 사용한 예시는 다음과 같습니다.
 <tr><td>SH</td><td>한자</td></tr>
 <tr><td>SN</td><td>숫자(0-9)</td></tr>
 <tr><th rowspan='1'>분석 불능</th><td>UN</td><td>분석 불능<sup>*</sup></td></tr>
-<tr><th rowspan='3'>웹(W)</th><td>W_URL</td><td>URL 주소<sup>*</sup></td></tr>
+<tr><th rowspan='4'>웹(W)</th><td>W_URL</td><td>URL 주소<sup>*</sup></td></tr>
 <tr><td>W_EMAIL</td><td>이메일 주소<sup>*</sup></td></tr>
-<tr><td>W_HASHTAG</td><td>해시태그<sup>*</sup></td></tr>
+<tr><td>W_HASHTAG</td><td>해시태그(#abcd)<sup>*</sup></td></tr>
+<tr><td>W_MENTION</td><td>멘션(@abcd)<sup>*</sup></td></tr>
 </table>
 
 <sup>*</sup> 세종 품사 태그와 다른 독자적인 태그입니다.
