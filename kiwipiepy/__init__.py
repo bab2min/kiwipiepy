@@ -28,7 +28,7 @@ class Match(IntEnum):
     .. versionadded:: 0.8.0
 
     분석 시 특수한 문자열 패턴 중 어떤 것들을 추출할 지 선택할 수 있습니다.
-    bitwise or 연산으로 여러 개 선택하여 사용가능합니다.
+    bitwise OR 연산으로 여러 개 선택하여 사용가능합니다.
     """
     URL = 1
     """
@@ -42,9 +42,15 @@ class Match(IntEnum):
     """
     해시태그(#해시태그) 형태의 텍스트를 W_HASHTAG라는 태그로 추출합니다.
     """
-    ALL = 7
+    MENTION = 8
     """
-    URL, EMAIL, HASHTAG를 모두 사용합니다.
+    멘션(@멘션) 형태의 텍스트를 W_MENTION이라는 태그로 추출합니다.
+    
+    .. versionadded:: 0.8.2
+    """
+    ALL = 15
+    """
+    URL, EMAIL, HASHTAG, MENTION를 모두 사용합니다.
     """
 
 del IntEnum

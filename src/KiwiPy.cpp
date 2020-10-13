@@ -313,7 +313,7 @@ static PyObject* kiwi__async_analyze(KiwiObject* self, PyObject* args, PyObject 
 	size_t topN = 1, matchOptions = PatternMatcher::all;
 	char* text;
 	static const char* kwlist[] = { "text", "top_n", "match_options", nullptr };
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|n", (char**)kwlist, &text, &topN, &matchOptions)) return nullptr;
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|nn", (char**)kwlist, &text, &topN, &matchOptions)) return nullptr;
 	try
 	{
 		auto fut = self->inst->asyncAnalyze(text, topN, matchOptions);
