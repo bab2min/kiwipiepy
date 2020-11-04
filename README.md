@@ -78,8 +78,8 @@ Kiwi 0.5부터 새로 추가된 기능입니다. 자주 등장하는 문자열�
 Kiwi가 제공하는 미등록 단어 추출 관련 메소드는 다음 세 가지입니다.
 
     kiwi.extract_words(reader, min_cnt, max_word_len, min_score)
-    kiwi.extractFilterWords(reader, min_cnt, max_word_len, min_score, pos_score)
-    kiwi.extractAddWords(reader, min_cnt, max_word_len, min_score, pos_score)
+    kiwi.extract_filter_words(reader, min_cnt, max_word_len, min_score, pos_score)
+    kiwi.extract_add_words(reader, min_cnt, max_word_len, min_score, pos_score)
 
 **`extract_words(reader, min_cnt=10, max_word_len=10, min_score=0.25)`**
 
