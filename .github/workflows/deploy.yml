@@ -19,6 +19,12 @@ jobs:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
+        git clone https://github.com/bab2min/Kiwi
+        mv Kiwi/src/core src/
+        mv Kiwi/ModelGenerator/sj.* kiwipiepy/
+        mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
+        mv Kiwi/ModelGenerator/default.dict kiwipiepy/
+        rm -r Kiwi
         /opt/python/cp35-cp35m/bin/python setup.py sdist
         /opt/python/cp35-cp35m/bin/python -m pip install twine wheel
         /opt/python/cp35-cp35m/bin/python -m twine upload dist/*.tar.gz
@@ -50,6 +56,12 @@ jobs:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
+        git clone https://github.com/bab2min/Kiwi
+        mv Kiwi/src/core src/
+        mv Kiwi/ModelGenerator/sj.* kiwipiepy/
+        mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
+        mv Kiwi/ModelGenerator/default.dict kiwipiepy/
+        rm -r Kiwi
         python -m pip install twine wheel
         python setup.py bdist_wheel
         twine upload dist/*
@@ -76,6 +88,12 @@ jobs:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
+        git clone https://github.com/bab2min/Kiwi
+        mv Kiwi/src/core src/
+        mv Kiwi/ModelGenerator/sj.* kiwipiepy/
+        mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
+        mv Kiwi/ModelGenerator/default.dict kiwipiepy/
+        rm -r Kiwi
         python -m pip install --upgrade pip setuptools
         python -m pip install twine wheel
         python setup.py bdist_wheel
