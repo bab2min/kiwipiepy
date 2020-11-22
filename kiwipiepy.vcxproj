@@ -19,16 +19,16 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\core\KFeatureTestor.cpp" />
-    <ClCompile Include="src\core\KForm.cpp" />
-    <ClCompile Include="src\core\Kiwi.cpp" />
-    <ClCompile Include="src\core\KModelMgr.cpp" />
-    <ClCompile Include="src\core\KNLangModel.cpp" />
-    <ClCompile Include="src\core\KTrie.cpp" />
-    <ClCompile Include="src\core\KWordDetector.cpp" />
-    <ClCompile Include="src\core\PatternMatcher.cpp" />
-    <ClCompile Include="src\core\serializer.cpp" />
-    <ClCompile Include="src\core\Utils.cpp" />
+    <ClCompile Include="..\Kiwi\src\core\KFeatureTestor.cpp" />
+    <ClCompile Include="..\Kiwi\src\core\KForm.cpp" />
+    <ClCompile Include="..\Kiwi\src\core\Kiwi.cpp" />
+    <ClCompile Include="..\Kiwi\src\core\KModelMgr.cpp" />
+    <ClCompile Include="..\Kiwi\src\core\KNLangModel.cpp" />
+    <ClCompile Include="..\Kiwi\src\core\KTrie.cpp" />
+    <ClCompile Include="..\Kiwi\src\core\KWordDetector.cpp" />
+    <ClCompile Include="..\Kiwi\src\core\PatternMatcher.cpp" />
+    <ClCompile Include="..\Kiwi\src\core\serializer.cpp" />
+    <ClCompile Include="..\Kiwi\src\core\Utils.cpp" />
     <ClCompile Include="src\KiwiPy.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -43,23 +43,24 @@
     <None Include="x64\Release\test.py" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\core\BakedMap.hpp" />
-    <ClInclude Include="src\core\KFeatureTestor.h" />
-    <ClInclude Include="src\core\KForm.h" />
-    <ClInclude Include="src\core\Kiwi.h" />
-    <ClInclude Include="src\core\KiwiHeader.h" />
-    <ClInclude Include="src\core\KMemory.h" />
-    <ClInclude Include="src\core\KMemoryChar.h" />
-    <ClInclude Include="src\core\KModelMgr.h" />
-    <ClInclude Include="src\core\KNLangModel.h" />
-    <ClInclude Include="src\core\KTrie.h" />
-    <ClInclude Include="src\core\KWordDetector.h" />
-    <ClInclude Include="src\core\logPoisson.h" />
-    <ClInclude Include="src\core\pattern.hpp" />
-    <ClInclude Include="src\core\serializer.hpp" />
-    <ClInclude Include="src\core\ThreadPool.h" />
-    <ClInclude Include="src\core\Trie.hpp" />
-    <ClInclude Include="src\core\Utils.h" />
+    <ClInclude Include="..\Kiwi\src\core\BakedMap.hpp" />
+    <ClInclude Include="..\Kiwi\src\core\KFeatureTestor.h" />
+    <ClInclude Include="..\Kiwi\src\core\KForm.h" />
+    <ClInclude Include="..\Kiwi\src\core\Kiwi.h" />
+    <ClInclude Include="..\Kiwi\src\core\KiwiHeader.h" />
+    <ClInclude Include="..\Kiwi\src\core\KMemory.h" />
+    <ClInclude Include="..\Kiwi\src\core\KMemoryChar.h" />
+    <ClInclude Include="..\Kiwi\src\core\KModelMgr.h" />
+    <ClInclude Include="..\Kiwi\src\core\KNLangModel.h" />
+    <ClInclude Include="..\Kiwi\src\core\KTrie.h" />
+    <ClInclude Include="..\Kiwi\src\core\KWordDetector.h" />
+    <ClInclude Include="..\Kiwi\src\core\logPoisson.h" />
+    <ClInclude Include="..\Kiwi\src\core\pattern.hpp" />
+    <ClInclude Include="..\Kiwi\src\core\PatternMatcher.h" />
+    <ClInclude Include="..\Kiwi\src\core\serializer.hpp" />
+    <ClInclude Include="..\Kiwi\src\core\ThreadPool.h" />
+    <ClInclude Include="..\Kiwi\src\core\Trie.hpp" />
+    <ClInclude Include="..\Kiwi\src\core\Utils.h" />
     <ClInclude Include="src\PyDoc.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

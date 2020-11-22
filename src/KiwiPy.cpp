@@ -583,16 +583,17 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 		static const char* kwlist[] = { "text", "top_n", "match_options", nullptr };
 		if (PyArg_ParseTupleAndKeywords(args, kwargs, "s|nn", (char**)kwlist, &text, &topN, &matchOptions))
 		{
-			//try
+			try
 			{
-				auto res = self->inst->analyze(text, topN, matchOptions);
+				auto res = self->inst->analyze(text, max(topN, (size_t)10), matchOptions);
+				if(res.size() > topN) res.erase(res.begin() + topN, res.end());
 				return resToPyList(res);
 			}
-			/*catch (const exception& e)
+			catch (const exception& e)
 			{
 				PyErr_SetString(PyExc_Exception, e.what());
 				return nullptr;
-			}*/
+			}
 		}
 		PyErr_Clear();
 	}
@@ -605,7 +606,7 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 			{
 				if (!PyCallable_Check(reader)) return PyErr_SetString(PyExc_TypeError, "'analyze' requires 1st parameter as callable"), nullptr;
 				if (!PyCallable_Check(receiver)) return PyErr_SetString(PyExc_TypeError, "'analyze' requires 2nd parameter as callable"), nullptr;
-				self->inst->analyze(topN, [&reader](size_t id)->u16string
+				self->inst->analyze(max(topN, (size_t)10), [&reader](size_t id)->u16string
 				{
 					UniquePyObj argList = Py_BuildValue("(n)", id);
 					UniquePyObj retVal = PyEval_CallObject(reader, argList);
@@ -618,8 +619,9 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 					auto utf8 = PyUnicode_AsUTF8(retVal);
 					if (!utf8) throw bad_exception();
 					return Kiwi::toU16(utf8);
-				}, [&receiver](size_t id, vector<KResult>&& res)
+				}, [&receiver, topN](size_t id, vector<KResult>&& res)
 				{
+					if (res.size() > topN) res.erase(res.begin() + topN, res.end());
 					UniquePyObj argList = Py_BuildValue("(nN)", id, resToPyList(res));
 					UniquePyObj ret = PyEval_CallObject(receiver, argList);
 					if(!ret) throw bad_exception();
@@ -656,7 +658,7 @@ static PyObject* kiwi__perform(KiwiObject* self, PyObject* args, PyObject *kwarg
 		if (!PyCallable_Check(reader)) return PyErr_SetString(PyExc_TypeError, "perform requires 1st parameter which is callable"), nullptr;
 		if (!PyCallable_Check(receiver)) return PyErr_SetString(PyExc_TypeError, "perform requires 2nd parameter which is callable"), nullptr;
 
-		self->inst->perform(topN, [&reader](size_t id)->u16string
+		self->inst->perform(max(topN, (size_t)10), [&reader](size_t id)->u16string
 		{
 			UniquePyObj argList = Py_BuildValue("(n)", id);
 			UniquePyObj retVal = PyEval_CallObject(reader, argList);
@@ -668,8 +670,9 @@ static PyObject* kiwi__perform(KiwiObject* self, PyObject* args, PyObject *kwarg
 			auto utf8 = PyUnicode_AsUTF8(retVal);
 			if (!utf8) throw bad_exception();
 			return Kiwi::toU16(utf8);
-		}, [&receiver](size_t id, vector<KResult>&& res)
+		}, [&receiver, topN](size_t id, vector<KResult>&& res)
 		{
+			if (res.size() > topN) res.erase(res.begin() + topN, res.end());
 			UniquePyObj argList = Py_BuildValue("(nN)", id, resToPyList(res));
 			UniquePyObj ret = PyEval_CallObject(receiver, argList);
 			if (!ret) throw bad_exception();
