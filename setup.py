@@ -33,13 +33,13 @@ modules = [Extension('_kiwipiepy',
     libraries=[],
     sources=sources,
     include_dirs=['mimalloc/include'],
-    define_macros=[('USE_MIMALLOC', '1')],
+    define_macros=[('USE_MIMALLOC', '1')] if platform.system() != 'Windows' else [],
     extra_compile_args=cargs, 
     extra_link_args=largs)
 ]
 
 if platform.system() == 'Windows': clib = []
-else: clib = [('mimalloc', {'sources':['mimalloc/src/static.c'], 'include_dirs':['mimalloc/include'], 'extra_compile_args':['-std=c11']})]
+else: clib = [('mimalloc', {'sources':['mimalloc/src/static.c'], 'include_dirs':['mimalloc/include']})]
 
 setup(
     name='kiwipiepy',
