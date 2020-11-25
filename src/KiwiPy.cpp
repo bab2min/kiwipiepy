@@ -232,7 +232,7 @@ struct KiwiAwaitableRes
 {
 	PyObject_HEAD;
 	KiwiObject* kiwi;
-	future<vector<KResult>> future;
+	future<vector<KResult>> fut;
 
 	static void dealloc(KiwiAwaitableRes* self)
 	{
@@ -305,7 +305,7 @@ static PyTypeObject KiwiAwaitableRes_type = {
 
 PyObject* KiwiAwaitableRes::get(KiwiAwaitableRes *self, PyObject*, PyObject*)
 {
-	return resToPyList(self->future.get());
+	return resToPyList(self->fut.get());
 }
 
 static PyObject* kiwi__async_analyze(KiwiObject* self, PyObject* args, PyObject *kwargs)
@@ -319,7 +319,7 @@ static PyObject* kiwi__async_analyze(KiwiObject* self, PyObject* args, PyObject 
 		auto fut = self->inst->asyncAnalyze(text, topN, matchOptions);
 		UniquePyObj args = Py_BuildValue("(O)", self);
 		PyObject* ret = PyObject_CallObject((PyObject*)&KiwiAwaitableRes_type, args);
-		((KiwiAwaitableRes*)ret)->future = move(fut);
+		((KiwiAwaitableRes*)ret)->fut = move(fut);
 		return ret;
 	}
 	catch (const exception& e)
@@ -719,7 +719,7 @@ static PyObject* kiwi__analyze(KiwiObject* self, PyObject* args, PyObject *kwarg
 					if (!ret) return nullptr;
 					ret->topN = topN;
 					ret->matchOptions = matchOptions;
-					for (size_t i = 0; i < self->inst->getNumThreads() * 16; ++i)
+					for (int i = 0; i < self->inst->getNumThreads() * 16; ++i)
 					{
 						if (!ret->feed_next_input()) break;
 					}
