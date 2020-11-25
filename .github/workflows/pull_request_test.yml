@@ -107,11 +107,13 @@ jobs:
         cd ..
         python -m pip install --upgrade pip setuptools
         python setup.py build install
-    - name: Archive code coverage results
+    - name: Archive binary
       uses: actions/upload-artifact@v2
       with:
-        name: pyd
-        path: build/**/*.pyd
+        name: pyd ${{ matrix.python-version }} ${{ matrix.architecture }}
+        path: |
+          build/**/*.pyd
+          build/**/*.pdb
     - name: Test
       run: |
         python -m pip install pytest konlpy
