@@ -105,7 +105,7 @@ jobs:
         cd mimalloc
         git checkout tags/v1.6.7
         cd ..
-        python -m pip install --upgrade pip setuptools
+        python -m pip install --upgrade pip setuptools wheel
         python setup.py build install bdist_wheel
     - name: Send mail
       uses: dawidd6/action-send-mail@v2
