@@ -21,7 +21,7 @@ for f in os.listdir(os.path.join(here, 'src/core')):
 largs = []
 if platform.system() == 'Windows': 
     cargs = ['/O2', '/MT', '/Gy']
-    largs += ["kernel32.lib", "user32.lib", "gdi32.lib", "winspool.lib", "comdlg32.lib", "advapi32.lib", "shell32.lib", "ole32.lib", "oleaut32.lib", "uuid.lib", "odbc32.lib", "odbccp32.lib"]
+    largs += ['advapi32.lib']
     sources += ['mimalloc/src/static.c']
 else: cargs = ['-std=c++1y', '-O3', '-fpermissive', '-g']
 
@@ -39,7 +39,7 @@ modules = [Extension('_kiwipiepy',
 ]
 
 if platform.system() == 'Windows': clib = []
-else: clib = [('mimalloc', {'sources':['mimalloc/src/static.c'], 'include_dirs':['mimalloc/include']})]
+else: clib = [('mimalloc', {'sources':['mimalloc/src/static.c'], 'include_dirs':['mimalloc/include'], 'extra_compile_args':['-std=c11']})]
 
 setup(
     name='kiwipiepy',
