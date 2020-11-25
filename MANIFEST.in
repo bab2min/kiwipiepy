@@ -1,4 +1,6 @@
 recursive-include kiwipiepy *
 recursive-include src *
+recursive-include mimalloc/src *
+recursive-include mimalloc/include *
 
 include LICENSE.txt

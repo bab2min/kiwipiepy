@@ -35,42 +35,54 @@ DOC_SIGNATURE_EN_KO(Kiwi_addUserWord__doc__,
     u8R""()"",
     u8R""(.. deprecated:: 0.7.6
 
-PEP8 규약을 따라 `kiwipiepy.Kiwi.add_user_word`를 사용하는 것을 권장합니다.)"");
+PEP8 규약을 따라 `kiwipiepy.Kiwi.add_user_word`를 사용하는 것을 권장합니다.
+
+(0.10.0 버전에서 제거될 예정))"");
 
 DOC_SIGNATURE_EN_KO(Kiwi_loadUserDictionary__doc__, 
     "",
     u8R""()"",
     u8R""(.. deprecated:: 0.7.6
 
-PEP8 규약을 따라 `kiwipiepy.Kiwi.load_user_dictionary`를 사용하는 것을 권장합니다.)"");
+PEP8 규약을 따라 `kiwipiepy.Kiwi.load_user_dictionary`를 사용하는 것을 권장합니다.
+
+(0.10.0 버전에서 제거될 예정))"");
 
 DOC_SIGNATURE_EN_KO(Kiwi_extractWords__doc__, 
     "",
     u8R""()"",
     u8R""(.. deprecated:: 0.7.6
 
-PEP8 규약을 따라 `kiwipiepy.Kiwi.extract_words`를 사용하는 것을 권장합니다.)"");
+PEP8 규약을 따라 `kiwipiepy.Kiwi.extract_words`를 사용하는 것을 권장합니다.
+
+(0.10.0 버전에서 제거될 예정))"");
 
 DOC_SIGNATURE_EN_KO(Kiwi_extractFilterWords__doc__, 
     "",
     u8R""()"",
     u8R""(.. deprecated:: 0.7.6
 
-PEP8 규약을 따라 `kiwipiepy.Kiwi.extract_filter_words`를 사용하는 것을 권장합니다.)"");
+PEP8 규약을 따라 `kiwipiepy.Kiwi.extract_filter_words`를 사용하는 것을 권장합니다.
+
+(0.10.0 버전에서 제거될 예정))"");
 
 DOC_SIGNATURE_EN_KO(Kiwi_extractAddWords__doc__, 
     "",
     u8R""()"",
     u8R""(.. deprecated:: 0.7.6
 
-PEP8 규약을 따라 `kiwipiepy.Kiwi.extract_add_words`를 사용하는 것을 권장합니다.)"");
+PEP8 규약을 따라 `kiwipiepy.Kiwi.extract_add_words`를 사용하는 것을 권장합니다.
+
+(0.10.0 버전에서 제거될 예정))"");
 
 DOC_SIGNATURE_EN_KO(Kiwi_setCutoffThreshold__doc__, 
     "",
     u8R""()"",
     u8R""(.. deprecated:: 0.7.6
 
-PEP8 규약을 따라 `kiwipiepy.Kiwi.set_cutoff_threshold`를 사용하는 것을 권장합니다.)"");
+PEP8 규약을 따라 `kiwipiepy.Kiwi.set_cutoff_threshold`를 사용하는 것을 권장합니다.
+
+(0.10.0 버전에서 제거될 예정))"");
 
 
 DOC_SIGNATURE_EN_KO(Kiwi_add_user_word__doc__, 
@@ -210,7 +222,11 @@ DOC_SIGNATURE_EN_KO(Kiwi_set_cutoff_threshold__doc__,
     "set_cutoff_threshold(self, threshold)",
     u8R""()"",
     u8R""(Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 값이 클 수록 더 많은 후보를 탐색하게 되므로 분석 속도가 느려지지만 정확도가 올라갑니다.
-반대로 이 값을 낮추면 더 적은 후보를 탐색하여 속도를 빨라지지만 정확도는 낮아집니다. 초기값은 8입니다.
+반대로 이 값을 낮추면 더 적은 후보를 탐색하여 속도를 빨라지지만 정확도는 낮아집니다. 초기값은 5입니다.
+
+.. versionadded:: 0.9.0
+
+초기값이 8에서 5로 변경되었습니다.
 
 Parameters
 ----------
@@ -262,8 +278,10 @@ DOC_SIGNATURE_EN_KO(Kiwi_analyze__doc__,
 
 Parameters
 ----------
-text: str
-    분석할 문자열입니다.
+text: Union[str, Iterable[str]]
+    분석할 문자열입니다. 
+    이 인자를 단일 str로 줄 경우, 싱글스레드에서 처리하며
+    str의 Iterable로 줄 경우, 멀티스레드로 분배하여 처리합니다.
 top_n: int
     분석 결과 후보를 상위 몇 개까지 생성할 지 설정합니다.
 match_options: int
@@ -275,10 +293,19 @@ match_options: int
 Returns
 -------
 result: List[Tuple[List[Tuple[str, str, int, int]], float]]
+    text를 str으로 준 경우.
     분석 결과는 최대 `top_n`개 길이의 리스트로 반환됩니다. 리스트의 각 항목은 `(분석 결과, 분석 점수)`로 구성된 튜플입니다. 
     `분석 결과`는 `(형태소, 품사태그, 시작 위치, 문자열 길이)` 튜플의 리스트로 구성됩니다.
 
-또한 이 함수는 또 다른 호출 방법을 가지고 있습니다. `text`를 인자로 직접 넘겨주는 대신 분석할 문자열을 생성할 함수와 분석 결과를 받을 함수를 지정해줄 수 있습니다.
+results: Iterable[List[Tuple[List[Tuple[str, str, int, int]], float]]]
+    text를 Iterable[str]으로 준 경우.
+    반환값은 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
+
+.. deprecated:: 0.9.0
+
+이 함수는 또 다른 호출 방법을 가지고 있습니다. `text`를 인자로 직접 넘겨주는 대신 분석할 문자열을 생성할 함수와 분석 결과를 받을 함수를 지정해줄 수 있습니다.
+그러나 이 방법은 사용이 복잡하고 Pythonic하지 않기 때문에 0.10.0 버전에서 제거될 예정입니다.
+
 
 ``analyze(self, reader, receiver, top_n=1, match_options=kiwipiepy.Match.ALL)``
 
@@ -309,6 +336,10 @@ DOC_SIGNATURE_EN_KO(Kiwi_async_analyze__doc__,
     u8R""(.. versionadded:: 0.7.6
 형태소 분석을 비동기로 실행합니다. 이 메소드를 호출하면 Kiwi는 내부적으로 할당된 스레드에 작업을 할당하고, Python에는 결과물을 받을 수 있는 객체를 돌려줍니다.
 따라서 Python 코드에서 멀티스레딩을 지원하지 않아도 이 메소드를 여러번 호출함으로써 멀티스레드 분석이 가능합니다.
+
+.. deprecated:: 0.9.0
+
+이 방법은 사용이 복잡하고 Pythonic하지 않기 때문에 0.10.0 버전에서 제거될 예정입니다.
 
 Parameters
 ----------

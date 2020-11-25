@@ -254,3 +254,4 @@ __pycache__
 /kiwipiepy/extract.mdl
 /kiwipiepy/default.dict
 /src/core
+/mimalloc

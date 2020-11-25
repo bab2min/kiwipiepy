@@ -21,11 +21,18 @@ jobs:
     - name: Build
       run: |
         git clone https://github.com/bab2min/Kiwi
+        cd Kiwi
+        git checkout tags/v0.9.0a
+        cd ..
         mv Kiwi/src/core src/
         mv Kiwi/ModelGenerator/sj.* kiwipiepy/
         mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
         mv Kiwi/ModelGenerator/default.dict kiwipiepy/
         rm -r Kiwi
+        git clone https://github.com/microsoft/mimalloc
+        cd mimalloc
+        git checkout tags/v1.6.7
+        cd ..
         /opt/python/${{ matrix.cp }}/bin/python setup.py build install
     - name: Test
       run: |
@@ -49,11 +56,18 @@ jobs:
     - name: Build
       run: |
         git clone https://github.com/bab2min/Kiwi
+        cd Kiwi
+        git checkout tags/v0.9.0a
+        cd ..
         mv Kiwi/src/core src/
         mv Kiwi/ModelGenerator/sj.* kiwipiepy/
         mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
         mv Kiwi/ModelGenerator/default.dict kiwipiepy/
         rm -r Kiwi
+        git clone https://github.com/microsoft/mimalloc
+        cd mimalloc
+        git checkout tags/v1.6.7
+        cd ..
         python setup.py build install
     - name: Test
       run: |
@@ -79,11 +93,18 @@ jobs:
     - name: Build
       run: |
         git clone https://github.com/bab2min/Kiwi
+        cd Kiwi
+        git checkout tags/v0.9.0a
+        cd ..
         mv Kiwi/src/core src/
         mv Kiwi/ModelGenerator/sj.* kiwipiepy/
         mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
         mv Kiwi/ModelGenerator/default.dict kiwipiepy/
         rm -r Kiwi
+        git clone https://github.com/microsoft/mimalloc
+        cd mimalloc
+        git checkout tags/v1.6.7
+        cd ..
         python -m pip install --upgrade pip setuptools
         python setup.py build install
     - name: Test

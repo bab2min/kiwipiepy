@@ -54,6 +54,9 @@
     <ClCompile Include="..\Kiwi\src\core\Utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="mimalloc\src\static.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="setup.py" />
@@ -69,6 +72,7 @@
     <None Include=".github\workflows\deploy.yml" />
     <None Include=".github\workflows\pull_request_test.yml" />
     <None Include="kiwipiepy\documentation.rst" />
+    <None Include="test.py" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\PyDoc.h">

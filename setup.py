@@ -12,7 +12,7 @@ kiwipiepy is a python version package of Kiwi(Korean Intelligent Word Identifier
 
 https://github.com/bab2min/kiwipiepy '''
 
-sources = []
+sources = ['mimalloc/src/static.c']
 for f in os.listdir(os.path.join(here, 'src')):
     if f.endswith('.cpp'): sources.append('src/' + f)
 for f in os.listdir(os.path.join(here, 'src/core')):
@@ -26,14 +26,17 @@ if platform.system() == 'Darwin':
     cargs += ['-stdlib=libc++']
     largs += ['-stdlib=libc++']
 modules = [Extension('_kiwipiepy',
-                    libraries = [],
-                    sources = sources,
-                    extra_compile_args=cargs, extra_link_args=largs)]
+    libraries=[],
+    sources=sources,
+    include_dirs=['mimalloc/include'],
+    extra_compile_args=cargs, 
+    extra_link_args=largs)
+]
 
 setup(
     name='kiwipiepy',
 
-    version='0.8.2',
+    version='0.9.0',
 
     description='Kiwi, the Korean Tokenizer for Python',
     long_description=long_description,
@@ -61,7 +64,7 @@ setup(
 
     keywords='Korean morphological analysis',
 
-    packages = ['kiwipiepy'],
+    packages=['kiwipiepy'],
     include_package_data=True,
     ext_modules = modules
 )
