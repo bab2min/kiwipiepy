@@ -115,9 +115,7 @@ jobs:
         username: ${{secrets.MAIL_USERNAME}}
         password: ${{secrets.MAIL_PASSWORD}}
         subject: Github Actions job result
-        body: Build job of ${{github.repository}} completed successfully!
-        # Read file contents as body:
-        body: file://README.md
+        body: Build job results
         to: bab2min@gmail.com
         from: bab2min@gmail.com
         content_type: text/html
