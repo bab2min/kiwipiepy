@@ -19,7 +19,10 @@ for f in os.listdir(os.path.join(here, 'src/core')):
     if f.endswith('.cpp'): sources.append('src/core/' + f)
 
 largs = []
-if platform.system() == 'Windows': cargs = ['/O2', '/MT', '/Gy']
+if platform.system() == 'Windows': 
+    cargs = ['/O2', '/MT', '/Gy']
+    largs += ['advapi32.lib']
+    sources += ['mimalloc/src/static.c']
 else: cargs = ['-std=c++1y', '-O3', '-fpermissive', '-g']
 
 if platform.system() == 'Darwin':
@@ -35,11 +38,12 @@ modules = [Extension('_kiwipiepy',
     extra_link_args=largs)
 ]
 
-mimalloc = ('mimalloc', {'sources':['mimalloc/src/static.c'], 'include_dirs':['mimalloc/include']})
+if platform.system() == 'Windows': clib = []
+else: clib = ('mimalloc', {'sources':['mimalloc/src/static.c'], 'include_dirs':['mimalloc/include']})
 
 setup(
     name='kiwipiepy',
-    libraries=[mimalloc],
+    libraries=clib,
     version='0.9.0',
 
     description='Kiwi, the Korean Tokenizer for Python',
