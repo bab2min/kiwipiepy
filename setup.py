@@ -29,7 +29,7 @@ modules = [Extension('_kiwipiepy',
     libraries=[],
     sources=sources,
     include_dirs=['mimalloc/include'],
-    define_macros=[('USE_MIMALLOC', '1')]
+    define_macros=[('USE_MIMALLOC', '1')],
     extra_compile_args=cargs, 
     extra_link_args=largs)
 ]
