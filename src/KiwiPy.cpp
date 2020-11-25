@@ -160,6 +160,7 @@ static PyObject* kiwi__version(KiwiObject* self, void* closure);
 static PyGetSetDef Kiwi_getsets[] = 
 {
 	{ (char*)"version", (getter)kiwi__version, nullptr, "get version", nullptr },
+	{ nullptr },
 };
 
 static PyTypeObject Kiwi_type = {
