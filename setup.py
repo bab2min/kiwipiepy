@@ -35,7 +35,7 @@ modules = [Extension('_kiwipiepy',
     extra_link_args=largs)
 ]
 
-mimalloc = ('mimalloc', {'sources':['mimalloc/src/static.c']})
+mimalloc = ('mimalloc', {'sources':['mimalloc/src/static.c'], 'include_dirs':['mimalloc/include']})
 
 setup(
     name='kiwipiepy',
