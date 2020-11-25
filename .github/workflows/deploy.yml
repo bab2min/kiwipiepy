@@ -114,7 +114,7 @@ jobs:
         mv Kiwi/ModelGenerator/sj.* kiwipiepy/
         mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
         mv Kiwi/ModelGenerator/default.dict kiwipiepy/
-        rm -r Kiwi
+        rm -Recurse -Force Kiwi
         
         git clone https://github.com/microsoft/mimalloc
         cd mimalloc
