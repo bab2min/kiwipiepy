@@ -19,21 +19,32 @@ for f in os.listdir(os.path.join(here, 'src/core')):
     if f.endswith('.cpp'): sources.append('src/core/' + f)
 
 largs = []
-if platform.system() == 'Windows': cargs = ['/O2', '/MT', '/Gy']
+if platform.system() == 'Windows': 
+    cargs = ['/O2', '/MT', '/Gy', '/Zi']
+    largs += ['advapi32.lib', '/DEBUG']
+    sources += ['mimalloc/src/static.c']
 else: cargs = ['-std=c++1y', '-O3', '-fpermissive', '-g']
 
 if platform.system() == 'Darwin':
     cargs += ['-stdlib=libc++']
     largs += ['-stdlib=libc++']
+
 modules = [Extension('_kiwipiepy',
-                    libraries = [],
-                    sources = sources,
-                    extra_compile_args=cargs, extra_link_args=largs)]
+    libraries=[],
+    sources=sources,
+    include_dirs=['mimalloc/include'],
+    define_macros=[('USE_MIMALLOC', '1')],
+    extra_compile_args=cargs, 
+    extra_link_args=largs)
+]
+
+if platform.system() == 'Windows': clib = []
+else: clib = [('mimalloc', {'sources':['mimalloc/src/static.c'], 'include_dirs':['mimalloc/include']})]
 
 setup(
     name='kiwipiepy',
-
-    version='0.8.2',
+    libraries=clib,
+    version='0.9.0',
 
     description='Kiwi, the Korean Tokenizer for Python',
     long_description=long_description,
@@ -61,7 +72,7 @@ setup(
 
     keywords='Korean morphological analysis',
 
-    packages = ['kiwipiepy'],
+    packages=['kiwipiepy'],
     include_package_data=True,
     ext_modules = modules
 )

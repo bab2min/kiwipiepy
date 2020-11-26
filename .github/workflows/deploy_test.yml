@@ -1,0 +1,128 @@
+name: Publish new package into test pypi
+
+on:
+  push:
+    tags:
+      - 'v*.*.*d'
+
+jobs:
+  build_manylinux:
+    name: Build for manylinux
+    runs-on: ubuntu-latest
+    container:
+      image: docker://quay.io/pypa/manylinux2010_x86_64
+
+    steps:        
+    - uses: actions/checkout@v1
+    - name: Deploy
+      continue-on-error: True
+      env:
+        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: |
+        git clone https://github.com/bab2min/Kiwi
+        cd Kiwi
+        git checkout tags/v0.9.0
+        cd ..
+        mv Kiwi/src/core src/
+        mv Kiwi/ModelGenerator/sj.* kiwipiepy/
+        mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
+        mv Kiwi/ModelGenerator/default.dict kiwipiepy/
+        rm -r Kiwi
+        
+        git clone https://github.com/microsoft/mimalloc
+        cd mimalloc
+        git checkout tags/v1.6.7
+        cd ..
+        
+        /opt/python/cp35-cp35m/bin/python setup.py sdist
+        /opt/python/cp35-cp35m/bin/python -m pip install twine wheel
+        /opt/python/cp35-cp35m/bin/python -m twine upload --repository testpypi dist/*.tar.gz
+        for cp in cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39
+        do
+          /opt/python/${cp}/bin/python -m pip install twine wheel
+          /opt/python/${cp}/bin/python setup.py build bdist_wheel
+          auditwheel repair dist/*-${cp}-linux_x86_64.whl
+        done
+        /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi wheelhouse/*.whl
+
+  build_macos:
+    name: Build for macOS
+    runs-on: macOS-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Deploy
+      continue-on-error: True
+      env:
+        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: |
+        git clone https://github.com/bab2min/Kiwi
+        cd Kiwi
+        git checkout tags/v0.9.0
+        cd ..
+        mv Kiwi/src/core src/
+        mv Kiwi/ModelGenerator/sj.* kiwipiepy/
+        mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
+        mv Kiwi/ModelGenerator/default.dict kiwipiepy/
+        rm -r Kiwi
+        
+        git clone https://github.com/microsoft/mimalloc
+        cd mimalloc
+        git checkout tags/v1.6.7
+        cd ..
+        
+        python -m pip install twine wheel
+        python setup.py bdist_wheel
+        twine upload --repository testpypi dist/*
+
+  build_windows:
+    name: Build for Windows
+    runs-on: windows-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
+        architecture: [x86, x64]
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up Python ${{ matrix.python-version }} ${{ matrix.architecture }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: ${{ matrix.architecture }}
+    - name: Deploy
+      continue-on-error: True
+      env:
+        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: |
+        git clone https://github.com/bab2min/Kiwi
+        cd Kiwi
+        git checkout tags/v0.9.0
+        cd ..
+        mv Kiwi/src/core src/
+        mv Kiwi/ModelGenerator/sj.* kiwipiepy/
+        mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
+        mv Kiwi/ModelGenerator/default.dict kiwipiepy/
+        rm -Recurse -Force Kiwi
+        
+        git clone https://github.com/microsoft/mimalloc
+        cd mimalloc
+        git checkout tags/v1.6.7
+        cd ..
+        
+        python -m pip install --upgrade pip setuptools
+        python -m pip install twine wheel
+        python setup.py bdist_wheel
+        twine upload --repository testpypi dist/*

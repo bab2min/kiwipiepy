@@ -249,3 +249,9 @@ __pycache__
 *.so
 /venv.lin/
 /html/
+/kiwipiepy/sj.morph
+/kiwipiepy/sj.lang
+/kiwipiepy/extract.mdl
+/kiwipiepy/default.dict
+/src/core
+/mimalloc
