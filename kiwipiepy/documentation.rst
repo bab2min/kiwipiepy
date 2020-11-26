@@ -3,7 +3,7 @@ Kiwipiepy란?
 Kiwipiepy는 한국어 형태소 분석기인 Kiwi(Korean Intelligent Word Identifier)의 Python 모듈입니다. 
 C++로 작성되었고 다른 패키지에 의존성이 없으므로 C++ 컴파일이 가능한 환경이라면 어디에서나 Kiwipiepy를 사용 가능합니다.
 
-현재 Kiwipiepy의 최신 버전은 0.8.2입니다.
+현재 Kiwipiepy의 최신 버전은 0.9.0입니다.
 
 .. image:: https://badge.fury.io/py/kiwipiepy.svg
 
@@ -134,7 +134,23 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
 
 ** 멀티스레딩 analyze **
 
-다음 예제 코드는 `test.txt` 파일을 줄별로 읽어들여 형태소 분석한 뒤 그 결과를 `result.txt`에 저장합니다.
+다음 예제 코드는 멀티스레드를 활용하여 `test.txt` 파일을 줄별로 읽어들여 형태소 분석한 뒤 그 결과를 `result.txt`에 저장합니다.
+
+::
+
+    from kiwipiepy import Kiwi
+    # 4개의 스레드에서 동시에 처리합니다.
+    # num_workers 생략시 현재 환경에서 사용가능한 모든 코어를 다 사용합니다.
+    kiwi = Kiwi(num_workers=4)
+    kiwi.load_user_dictionary('userDict.txt')
+    kiwi.prepare()
+    with open('result.txt', 'w', encoding='utf-8') as output:
+        for res in kiwi.analyze(open('test.txt', encoding='utf-8')):
+            output.write(' '.join(map(lambda x:x[0]+'/'+x[1], res[0][0])) + '\n')
+
+
+아래 코드는 0.9.0버전 이전에서 사용되던 멀티스레딩 코드입니다. 현재는 추천되지 않습니다.
+아래의 기능은 0.10.0버전부터 제거될 예정입니다.
 
 ::
 
@@ -171,6 +187,7 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
 ** async_analyze 예제 **
 
 다음 예제 코드에서는 async_analyze를 사용해 멀티스레딩 분석을 진행합니다.
+async_analyze 메소드 역시 0.10.0버전부터 제거될 예정입니다. 위의 analyze 메소드를 사용하길 권장합니다.
 
 ::
 
@@ -279,6 +296,14 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.9.0 (2020-11-26)
+    * analyze 메소드에서 오류 발생시 exception 발생대신 프로그램이 죽는 문제를 해결했습니다.
+    * `default.dict`에 포함된 활용형 단어 때문에 발생하는 오분석을 수정했습니다.
+    * 멀티스레딩 사용시 발생하는 메모리 누수 문제를 해결했습니다.
+    * 형태소 탐색 시 조사/어미의 결합조건을 미리 고려하도록 변경하여 속도가 개선되었습니다.
+    * 일부 명사(`전랑`처럼 받침 + 랑으로 끝나는 사전 미등재 명사) 입력시 분석이 실패하는 버그를 수정했습니다.
+    * 공백문자만 포함된 문자열 입력시 분석결과가 `/UN`로 잘못나오는 문제를 수정했습니다.
+
 * 0.8.2 (2020-10-13)
     * W_URL, W_EMAIL, W_HASHTAG 일치 이후 일반 텍스트가 잘못 분석되는 오류를 수정했습니다.
     * W_MENTION을 추가했습니다.

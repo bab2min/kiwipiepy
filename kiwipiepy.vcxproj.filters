@@ -73,6 +73,8 @@
     <None Include=".github\workflows\pull_request_test.yml" />
     <None Include="kiwipiepy\documentation.rst" />
     <None Include="test.py" />
+    <None Include=".github\workflows\deploy_test.yml" />
+    <None Include=".github\workflows\generate_documentation.yml" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\PyDoc.h">

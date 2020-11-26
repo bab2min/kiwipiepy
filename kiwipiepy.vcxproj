@@ -34,6 +34,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\workflows\deploy.yml" />
+    <None Include=".github\workflows\deploy_test.yml" />
+    <None Include=".github\workflows\generate_documentation.yml" />
     <None Include=".github\workflows\pull_request_test.yml" />
     <None Include="kiwipiepy\documentation.rst" />
     <None Include="kiwipiepy\__init__.py" />

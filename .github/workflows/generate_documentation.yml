@@ -25,6 +25,21 @@ jobs:
     - name: build
       run: |
         python3 -m pip install pdoc3
+        git clone https://github.com/bab2min/Kiwi
+        cd Kiwi
+        git checkout tags/v0.9.0
+        cd ..
+        mv Kiwi/src/core src/
+        mv Kiwi/ModelGenerator/sj.* kiwipiepy/
+        mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
+        mv Kiwi/ModelGenerator/default.dict kiwipiepy/
+        rm -r Kiwi
+        
+        git clone https://github.com/microsoft/mimalloc
+        cd mimalloc
+        git checkout tags/v1.6.7
+        cd ..
+        
         python3 setup.py install
     - name: gen doc
       run: |
