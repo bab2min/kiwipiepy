@@ -316,3 +316,6 @@ reader와 receiver를 사용한 예시는 다음과 같습니다.
 
 <sup>*</sup> 세종 품사 태그와 다른 독자적인 태그입니다.
 
+# 외부 라이브러리 라이센스
+
+* [mimalloc](https://github.com/microsoft/mimalloc) : [MIT License](https://github.com/microsoft/mimalloc/blob/master/LICENSE)

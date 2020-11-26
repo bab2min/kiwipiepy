@@ -148,6 +148,26 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
         for res in kiwi.analyze(open('test.txt', encoding='utf-8')):
             output.write(' '.join(map(lambda x:x[0]+'/'+x[1], res[0][0])) + '\n')
 
+Kiwi() 생성시 인자로 준 num_workers에 따라 여러 개의 스레드에서 작업이 동시에 처리됩니다. 반환되는 값은 입력되는 값의 순서와 동일합니다.
+
+`analyze`를 인자를 str의 iterable로 준 경우 이 iterable을 읽어들이는 시점은 analyze 호출 이후일 수도 있습니다. 
+따라서 이 인자가 다른 IO 자원(파일 입출력 등)과 연동되어 있다면 모든 분석이 끝나기 전까지 해당 자원을 종료하면 안됩니다.
+예를 들어 다음과 같이 open을 통해 생성한 파일 입출력 객체를 미리 종료하는 경우 오류가 발생할 수 있습니다.
+
+::
+
+    from kiwipiepy import Kiwi
+    kiwi = Kiwi(num_workers=4)
+    file = open('long_text.txt', encoding='utf-8')
+    result_iter = kiwi.analyze(file)
+    file.close() # 파일이 종료됨
+    next(result_iter) # 종료된 파일에서 분석해야할 다음 텍스트를 읽어들이려고 시도하여 오류 발생
+
+    # ValueError: I/O operation on closed file.
+    # The above exception was the direct cause of the following exception:
+    # Traceback (most recent call last):
+    #   File "<stdin>", line 1, in <module>
+    # SystemError: <built-in function next> returned a result with an error set
 
 아래 코드는 0.9.0버전 이전에서 사용되던 멀티스레딩 코드입니다. 현재는 추천되지 않습니다.
 아래의 기능은 0.10.0버전부터 제거될 예정입니다.
