@@ -20,8 +20,8 @@ for f in os.listdir(os.path.join(here, 'src/core')):
 
 largs = []
 if platform.system() == 'Windows': 
-    cargs = ['/O2', '/MT', '/Gy', '/Zi']
-    largs += ['advapi32.lib', '/DEBUG']
+    cargs = ['/O2', '/MT', '/Gy']
+    largs += ['advapi32.lib']
     sources += ['mimalloc/src/static.c']
 else: cargs = ['-std=c++1y', '-O3', '-fpermissive', '-g']
 
