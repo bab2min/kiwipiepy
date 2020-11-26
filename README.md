@@ -164,10 +164,10 @@ kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완�
 실제 형태소를 분석하는 메소드에는 다음이 있습니다.
 
     kiwi.analyze(text, top_n)
-    kiwi.analyze(reader, receiver, top_n)
+    kiwi.analyze(reader, receiver, top_n) # 0.10.0에서 제거될 예정
     
 
-**`analyze(text, top_n = 1)`**
+**`analyze(text, top_n=1)`**
 
 입력된 text를 형태소 분석하여 그 결과를 반환합니다. 총 top_n개의 결과를 출력합니다. 반환값은 다음과 같이 구성됩니다.
 
@@ -185,12 +185,47 @@ kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완�
      ([('테스트입니', 'NNG', 0, 5), ('이', 'VCP', 5, 1), ('다', 'EF', 5, 1), ('.', 'SF', 6, 1)], -31.221078872680664), 
      ([('테스트입니', 'NNP', 0, 5), ('이', 'VCP', 5, 1), ('다', 'EF', 5, 1), ('.', 'SF', 6, 1)], -32.20524978637695), 
      ([('테스트', 'NNG', 0, 3), ('이', 'MM', 3, 1), ('ᆸ니다', 'EF', 4, 2), ('.', 'SF', 6, 1)], -32.859375)]
-     
+
+만약 text가 str의 iterable인 경우 여러 개의 입력을 병렬로 처리합니다. 이때의 반환값은 단일 text를 입력한 경우의 반환값의 iterable입니다.
+Kiwi() 생성시 인자로 준 num_workers에 따라 여러 개의 스레드에서 작업이 동시에 처리됩니다. 반환되는 값은 입력되는 값의 순서와 동일합니다.
+
+    >> result_iter = kiwi.analyze(['테스트입니다.', '테스트가 아닙니다.', '사실 맞습니다.'])
+    >> next(result_iter)
+    [([('테스트', 'NNG', 0, 3), ('이', 'VCP', 3, 1), ('ᆸ니다', 'EF', 4, 2), ('.', 'SF', 6, 1)], -20.393310546875)]
+    >> next(result_iter)
+    [([('테스트', 'NNG', 0, 3), ('가', 'JKC', 3, 1), ('아니', 'VCN', 5, 2), ('ᆸ니다', 'EF', 7, 2), ('.', 'SF', 9, 1)], -30.220947265625)]
+    >> next(result_iter)
+    [([('사실', 'MAG', 0, 2), ('맞', 'VV', 3, 1), ('습니다', 'EF', 4, 3), ('.', 'SF', 7, 1)], -22.192138671875)]
+    >> next(result_iter)
+    Traceback (most recent call last):
+        File "<stdin>", line 1, in <module>
+    StopIteration
+
+for 반복문을 사용하면 좀더 간단하고 편리하게 병렬 처리를 수행할 수 있습니다. 이는 대량의 텍스트 데이터를 분석할 때 유용합니다.
+
+    >> for result in kiwi.analyze(long_list_of_text):
+          tokens, score = result[0]
+	  print(tokens)
+
+text를 str의 iterable로 준 경우 이 iterable을 읽어들이는 시점은 analyze 호출 이후일 수도 있습니다. 
+따라서 이 인자가 다른 IO 자원(파일 입출력 등)과 연동되어 있다면 모든 분석이 끝나기 전까지 해당 자원을 종료하면 안됩니다.
+
+    >> file = open('long_text.txt', encoding='utf-8')
+    >> result_iter = kiwi.analyze(file)
+    >> file.close() # 파일이 종료됨
+    >> next(result_iter) # 종료된 파일에서 분석해야할 다음 텍스트를 읽어들이려고 시도함
+    ValueError: I/O operation on closed file.
+    The above exception was the direct cause of the following exception:
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    SystemError: <built-in function next> returned a result with an error set
+
 **`analyze(reader, receiver, top_n = 1)`**
  
 analyze 메소드는 또 다른 형태로도 호출할 수 있습니다. reader와 receiver를 사용해 호출하는 경우,
 문자열 읽기/쓰기 부분과 분석 부분이 별도의 스레드에서 동작하며, 여분의 스레드가 있을 경우 분석 역시 멀티 코어를 활용하여 성능 향상을 꽤할 수 있습니다.
-대량의 텍스트를 분석하는 경우 이 형태를 사용하는 것을 추천합니다.
+이 방법은 Pythonic하지 않기에 더 이상 권장되지 않습니다. 0.10.0 버전에서 이 기능은 제거될 예정입니다. 
+대신 위에서 소개한 analyze()를 사용하기를 권장합니다.
  
 reader와 receiver를 사용한 예시는 다음과 같습니다.
  
