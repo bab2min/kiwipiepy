@@ -23,7 +23,7 @@ jobs:
       run: |
         git clone https://github.com/bab2min/Kiwi
         cd Kiwi
-        git checkout tags/v0.9.0
+        git checkout tags/v0.9.1
         cd ..
         mv Kiwi/src/core src/
         mv Kiwi/ModelGenerator/sj.* kiwipiepy/
@@ -42,7 +42,7 @@ jobs:
         for cp in cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39
         do
           /opt/python/${cp}/bin/python -m pip install twine wheel
-          /opt/python/${cp}/bin/python setup.py build bdist_wheel
+          USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
           auditwheel repair dist/*-${cp}-linux_x86_64.whl
         done
         /opt/python/cp38-cp38/bin/python -m twine upload wheelhouse/*.whl
@@ -69,7 +69,7 @@ jobs:
       run: |
         git clone https://github.com/bab2min/Kiwi
         cd Kiwi
-        git checkout tags/v0.9.0
+        git checkout tags/v0.9.1
         cd ..
         mv Kiwi/src/core src/
         mv Kiwi/ModelGenerator/sj.* kiwipiepy/
@@ -83,7 +83,7 @@ jobs:
         cd ..
         
         python -m pip install twine wheel
-        python setup.py bdist_wheel
+        USE_MIMALLOC=1 python setup.py bdist_wheel
         twine upload dist/*
 
   build_windows:
@@ -110,7 +110,7 @@ jobs:
       run: |
         git clone https://github.com/bab2min/Kiwi
         cd Kiwi
-        git checkout tags/v0.9.0
+        git checkout tags/v0.9.1
         cd ..
         mv Kiwi/src/core src/
         mv Kiwi/ModelGenerator/sj.* kiwipiepy/
@@ -125,5 +125,5 @@ jobs:
         
         python -m pip install --upgrade pip setuptools
         python -m pip install twine wheel
-        python setup.py bdist_wheel
+        $env:USE_MIMALLOC = 1; python setup.py bdist_wheel
         twine upload dist/*
