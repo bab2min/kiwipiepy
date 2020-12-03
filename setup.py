@@ -22,8 +22,11 @@ largs = []
 if platform.system() == 'Windows': 
     cargs = ['/O2', '/MT', '/Gy']
     largs += ['advapi32.lib']
-    sources += ['mimalloc/src/static.c']
-else: cargs = ['-std=c++1y', '-O3', '-fpermissive', '-g']
+    if os.environ.get('USE_MIMALLOC'): sources += ['mimalloc/src/static.c']
+else: 
+    cargs = ['-std=c++1y', '-fpermissive']
+    if os.environ.get('DEBUG'): cargs += ['-O0', '-g3', '-DDEBUG']
+    else: cargs += ['-O3', '-g']
 
 if platform.system() == 'Darwin':
     cargs += ['-stdlib=libc++']
@@ -33,18 +36,19 @@ modules = [Extension('_kiwipiepy',
     libraries=[],
     sources=sources,
     include_dirs=['mimalloc/include'],
-    define_macros=[('USE_MIMALLOC', '1')],
+    define_macros=[('USE_MIMALLOC', '1')] if os.environ.get('USE_MIMALLOC') else [],
     extra_compile_args=cargs, 
     extra_link_args=largs)
 ]
 
+if not os.environ.get('USE_MIMALLOC'): clib = []
 if platform.system() == 'Windows': clib = []
 else: clib = [('mimalloc', {'sources':['mimalloc/src/static.c'], 'include_dirs':['mimalloc/include']})]
 
 setup(
     name='kiwipiepy',
     libraries=clib,
-    version='0.9.0',
+    version='0.9.1',
 
     description='Kiwi, the Korean Tokenizer for Python',
     long_description=long_description,

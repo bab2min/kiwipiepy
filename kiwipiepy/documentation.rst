@@ -316,6 +316,9 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.9.1 (2020-12-03)
+    * kiwipiepy가 다른 Python 패키지와 함께 사용될 경우 종종 mimalloc이 충돌하는 문제를 해결했습니다.
+
 * 0.9.0 (2020-11-26)
     * analyze 메소드에서 오류 발생시 exception 발생대신 프로그램이 죽는 문제를 해결했습니다.
     * `default.dict`에 포함된 활용형 단어 때문에 발생하는 오분석을 수정했습니다.

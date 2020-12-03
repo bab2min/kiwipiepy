@@ -27,7 +27,7 @@ jobs:
         python3 -m pip install pdoc3
         git clone https://github.com/bab2min/Kiwi
         cd Kiwi
-        git checkout tags/v0.9.0
+        git checkout tags/v0.9.1
         cd ..
         mv Kiwi/src/core src/
         mv Kiwi/ModelGenerator/sj.* kiwipiepy/
