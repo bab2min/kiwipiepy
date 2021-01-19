@@ -22,6 +22,7 @@ Python3 API 문서: https://bab2min.github.io/kiwipiepy
 기타 버전의 Python에 대해서도 wheel를 추후 지원할 예정입니다.
 
 0.6.5 버전부터 macOS 10.12 이상에서 clang을 이용한 컴파일 설치가 가능합니다. gcc 혹은 xcode가 설치된 시스템에서 pip를 이용해 Kiwi를 설치할 수 있습니다.
+0.9.0 버전부터 Python 3.9를 지원합니다.
 
 ## 테스트해보기
 
