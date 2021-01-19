@@ -6,8 +6,8 @@ from setuptools.command.install import install
 here = os.path.abspath(os.path.dirname(__file__))
 exec(open('kiwipiepy_model/_version.py').read())
 
-long_description = '''model for kiwipiepy
-----------
+long_description = '''Model for kiwipiepy
+-------------------
 kiwipiepy is a python version package of Kiwi(Korean Intelligent Word Identifier) which is a morphological analyzer for Korean.
 
 https://github.com/bab2min/kiwipiepy '''

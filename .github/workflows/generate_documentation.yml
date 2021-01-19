@@ -1,8 +1,10 @@
 name: Generate the documentation
 
 on:
-  release:
-    types: published
+  push:
+    tags:
+      - 'v*.*.*'
+      - '!v*.*.*d'
 
 jobs:
   build_manylinux:
@@ -30,7 +32,14 @@ jobs:
         git checkout tags/v0.9.2
         cd ..
         mv Kiwi/src/core src/
+        mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
         rm -r Kiwi
+        
+        cd model
+        python3 setup.py install
+        cd ..
         
         git clone https://github.com/microsoft/mimalloc
         cd mimalloc
