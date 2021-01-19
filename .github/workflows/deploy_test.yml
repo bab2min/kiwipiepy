@@ -22,12 +22,12 @@ jobs:
       run: |
         git clone https://github.com/bab2min/Kiwi
         cd Kiwi
-        git checkout tags/v0.9.1
+        git checkout tags/v0.9.2
         cd ..
         mv Kiwi/src/core src/
-        mv Kiwi/ModelGenerator/sj.* kiwipiepy/
-        mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
-        mv Kiwi/ModelGenerator/default.dict kiwipiepy/
+        mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
         rm -r Kiwi
         
         git clone https://github.com/microsoft/mimalloc
@@ -35,9 +35,9 @@ jobs:
         git checkout tags/v1.6.7
         cd ..
         
-        /opt/python/cp35-cp35m/bin/python setup.py sdist
-        /opt/python/cp35-cp35m/bin/python -m pip install twine wheel
-        /opt/python/cp35-cp35m/bin/python -m twine upload --repository testpypi dist/*.tar.gz
+        /opt/python/cp38-cp38/bin/python setup.py sdist
+        /opt/python/cp38-cp38/bin/python -m pip install twine wheel
+        /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi dist/*.tar.gz
         for cp in cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39
         do
           /opt/python/${cp}/bin/python -m pip install twine wheel
@@ -45,6 +45,10 @@ jobs:
           auditwheel repair dist/*-${cp}-linux_x86_64.whl
         done
         /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi wheelhouse/*.whl
+        
+        cd model
+        /opt/python/cp38-cp38/bin/python setup.py sdist
+        /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi dist/*.tar.gz
 
   build_macos:
     name: Build for macOS
@@ -68,12 +72,9 @@ jobs:
       run: |
         git clone https://github.com/bab2min/Kiwi
         cd Kiwi
-        git checkout tags/v0.9.1
+        git checkout tags/v0.9.2
         cd ..
         mv Kiwi/src/core src/
-        mv Kiwi/ModelGenerator/sj.* kiwipiepy/
-        mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
-        mv Kiwi/ModelGenerator/default.dict kiwipiepy/
         rm -r Kiwi
         
         git clone https://github.com/microsoft/mimalloc
@@ -109,12 +110,9 @@ jobs:
       run: |
         git clone https://github.com/bab2min/Kiwi
         cd Kiwi
-        git checkout tags/v0.9.1
+        git checkout tags/v0.9.2
         cd ..
         mv Kiwi/src/core src/
-        mv Kiwi/ModelGenerator/sj.* kiwipiepy/
-        mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
-        mv Kiwi/ModelGenerator/default.dict kiwipiepy/
         rm -Recurse -Force Kiwi
         
         git clone https://github.com/microsoft/mimalloc
