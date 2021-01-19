@@ -4,7 +4,7 @@ import os, os.path, platform
 from setuptools.command.install import install
 
 here = os.path.abspath(os.path.dirname(__file__))
-
+exec(open('kiwipiepy/_version.py').read())
 
 long_description = '''kiwipiepy
 ----------
@@ -24,7 +24,7 @@ if platform.system() == 'Windows':
     largs += ['advapi32.lib']
     if os.environ.get('USE_MIMALLOC'): sources += ['mimalloc/src/static.c']
 else: 
-    cargs = ['-std=c++1y', '-fpermissive']
+    cargs = ['-std=c++1y']
     if os.environ.get('DEBUG'): cargs += ['-O0', '-g3', '-DDEBUG']
     else: cargs += ['-O3', '-g']
 
@@ -48,7 +48,7 @@ else: clib = [('mimalloc', {'sources':['mimalloc/src/static.c'], 'include_dirs':
 setup(
     name='kiwipiepy',
     libraries=clib,
-    version='0.9.1',
+    version=__version__,
 
     description='Kiwi, the Korean Tokenizer for Python',
     long_description=long_description,
@@ -75,8 +75,10 @@ setup(
     ],
 
     keywords='Korean morphological analysis',
-
+    install_requires=[
+        'kiwipiepy_model==0.9.0'
+    ],
     packages=['kiwipiepy'],
     include_package_data=True,
-    ext_modules = modules
+    ext_modules=modules
 )

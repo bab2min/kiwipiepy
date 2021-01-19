@@ -3,7 +3,7 @@ Kiwipiepy란?
 Kiwipiepy는 한국어 형태소 분석기인 Kiwi(Korean Intelligent Word Identifier)의 Python 모듈입니다. 
 C++로 작성되었고 다른 패키지에 의존성이 없으므로 C++ 컴파일이 가능한 환경이라면 어디에서나 Kiwipiepy를 사용 가능합니다.
 
-현재 Kiwipiepy의 최신 버전은 0.9.1입니다.
+현재 Kiwipiepy의 최신 버전은 0.9.2입니다.
 
 .. image:: https://badge.fury.io/py/kiwipiepy.svg
 
@@ -316,6 +316,10 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.9.2 (2020-12-03)
+    * 0.9.1에서 제대로 수정되지 않은 mimalloc 충돌 문제를 수정했습니다.
+    * 형태소 분석 모델을 분리하여 패키징하는 기능을 추가했습니다. 용량 문제로 업로드 못했던 대용량 모델을 차차 추가해나갈 예정입니다.
+
 * 0.9.1 (2020-12-03)
     * kiwipiepy가 다른 Python 패키지와 함께 사용될 경우 종종 mimalloc이 충돌하는 문제를 해결했습니다.
 

@@ -1,8 +1,10 @@
 name: Generate the documentation
 
 on:
-  release:
-    types: published
+  push:
+    tags:
+      - 'v*.*.*'
+      - '!v*.*.*d'
 
 jobs:
   build_manylinux:
@@ -27,13 +29,17 @@ jobs:
         python3 -m pip install pdoc3
         git clone https://github.com/bab2min/Kiwi
         cd Kiwi
-        git checkout tags/v0.9.1
+        git checkout tags/v0.9.2
         cd ..
         mv Kiwi/src/core src/
-        mv Kiwi/ModelGenerator/sj.* kiwipiepy/
-        mv Kiwi/ModelGenerator/extract.mdl kiwipiepy/
-        mv Kiwi/ModelGenerator/default.dict kiwipiepy/
+        mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
         rm -r Kiwi
+        
+        cd model
+        python3 setup.py install
+        cd ..
         
         git clone https://github.com/microsoft/mimalloc
         cd mimalloc

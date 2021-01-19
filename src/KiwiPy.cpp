@@ -52,27 +52,13 @@ struct UniquePyObj
 	}
 	};
 
-#if PY_MAJOR_VERSION < 3
-string PyUnicode_AsUTF8(PyObject* obj)
-{
-	PyObject* utf8Obj = PyUnicode_AsUTF8String(obj);
-	string str = PyString_AsString(utf8Obj);
-	Py_DECREF(utf8Obj);
-	return str;
-}
-
-#endif
-
 string getModuleFilename(PyObject* moduleObj)
 {
-#if PY_MAJOR_VERSION >= 3
-	PyObject* filePath = PyModule_GetFilenameObject(moduleObj);
+	if (!moduleObj) throw bad_exception{};
+	UniquePyObj filePath = PyModule_GetFilenameObject(moduleObj);
+	if (!filePath) throw bad_exception{};
 	string spath = PyUnicode_AsUTF8(filePath);
-	Py_DECREF(filePath);
 	return spath;
-#else
-	return PyModule_GetFilename(moduleObj);
-#endif
 }
 
 static PyObject* gModule;
@@ -91,31 +77,38 @@ struct KiwiObject
 
 	static int init(KiwiObject *self, PyObject *args, PyObject *kwargs)
 	{
-		const char* modelPath = "./";
+		const char* modelPath = nullptr;
 		size_t numThreads = 0, options = 3;
 		static const char* kwlist[] = { "num_workers", "model_path", "options", nullptr };
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nsn", (char**)kwlist, &numThreads, &modelPath, &options)) return -1;
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nzn", (char**)kwlist, &numThreads, &modelPath, &options)) return -1;
 		try
 		{
-			self->inst = nullptr;
-			try
+			string spath;
+			if (modelPath)
 			{
-				self->inst = new Kiwi{ modelPath, 0, numThreads, options };
+				spath = modelPath;
+				if (spath.back() != '/' || spath.back() != '\\') spath.push_back('/');
 			}
-			catch (const exception&)
+			else
 			{
-				string spath = getModuleFilename(PyImport_AddModule("kiwipiepy"));
-				spath = spath.substr(0, spath.rfind(spath.rfind('/') != spath.npos ? '/' : '\\') + 1);
-				self->inst = new Kiwi{ (spath + modelPath).c_str(), 0, numThreads, options };
+				UniquePyObj modelModule = PyImport_ImportModule("kiwipiepy_model");
+				if (!modelModule) throw bad_exception{};
+				spath = getModuleFilename(modelModule);
+				spath = spath.substr(0, (spath.rfind('/') != spath.npos ? spath.rfind('/') : spath.rfind('\\')) + 1);
 			}
+
+			self->inst = new Kiwi{ spath.c_str(), 0, numThreads, options };
+			return 0;
+		}
+		catch (const bad_exception&)
+		{
 		}
 		catch (const exception& e)
 		{
 			cerr << e.what() << endl;
 			PyErr_SetString(PyExc_Exception, e.what());
-			return -1;
 		}
-		return 0;
+		return -1;
 	}
 };
 
@@ -845,7 +838,6 @@ static PyObject* kiwi__version(KiwiObject* self, void* closure)
 
 PyObject* moduleInit()
 {
-#if PY_MAJOR_VERSION >= 3
 	static PyModuleDef mod =
 	{
 		PyModuleDef_HEAD_INIT,
@@ -856,9 +848,7 @@ PyObject* moduleInit()
 	};
 
 	gModule = PyModule_Create(&mod);
-#else
-	gModule = Py_InitModule3("_kiwipiepy", nullptr, "Kiwi API for Python");
-#endif
+
 	if (PyType_Ready(&Kiwi_type) < 0) return nullptr;
 	Py_INCREF(&Kiwi_type);
 	PyModule_AddObject(gModule, "Kiwi", (PyObject*)&Kiwi_type);
@@ -874,14 +864,7 @@ PyObject* moduleInit()
 	return gModule;
 }
 
-#if PY_MAJOR_VERSION >= 3
 PyMODINIT_FUNC PyInit__kiwipiepy()
 {
 	return moduleInit();
 }
-#else
-PyMODINIT_FUNC init_kiwipiepy()
-{
-	moduleInit();
-}
-#endif

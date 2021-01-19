@@ -2,6 +2,7 @@
 .. include:: ./documentation.rst
 """
 from _kiwipiepy import *
+from kiwipiepy._version import __version__
 from enum import IntEnum
 
 class Option(IntEnum):
