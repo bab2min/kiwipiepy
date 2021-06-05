@@ -8,12 +8,15 @@ Python3 API 문서: https://bab2min.github.io/kiwipiepy
 
 [Kiwi 0.5 버전](https://github.com/bab2min/kiwi)부터는 Python3용 API를 제공합니다. 이 프로젝트를 빌드하여 Python에 모듈을 import해서 사용하셔도 좋고, 
 혹은 더 간편하게 pip를 이용하여 이미 빌드된 kiwipiepy 모듈을 설치하셔도 좋습니다.
-
-    pip install kiwipiepy
-
+```console
+$ pip install --upgrade pip
+$ pip install kiwipiepy
+```
 또는
-
-    pip3 install kiwipiepy
+```console
+$ pip3 install --upgrade pip
+$ pip3 install kiwipiepy
+```
 
 단, 현재 kiwipiepy 패키지는 Vista 버전 이상의 Windows OS 및 Linux, macOS 10.12 이상을 지원합니다.
 
