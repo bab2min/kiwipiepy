@@ -63,3 +63,10 @@ def test_new_analyze_multi():
     kiwi.prepare()
     for res in kiwi.analyze(open(curpath + '/test_corpus/constitution.txt', encoding='utf-8')):
         pass
+
+def test_bug_33():
+    kiwi = Kiwi()
+    kiwi.add_user_word('김갑갑', 'NNP')
+    kiwi.prepare()
+
+    print(kiwi.analyze("김갑갑 김갑갑 김갑갑"))
