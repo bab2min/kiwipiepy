@@ -10,6 +10,7 @@ add_subdirectory( Kiwi )
 if(KIWI_USE_MIMALLOC)
   message(STATUS "Use mimalloc allocators")
   set ( ADDITIONAL_FLAGS "-DKIWI_USE_MIMALLOC" )
+  include_directories( Kiwi/third_party/mimalloc/include )
 endif()
 
 if(MSVC)
