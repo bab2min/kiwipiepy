@@ -91,8 +91,8 @@ cmake_extra_options, clean_build_folder = get_extra_cmake_options()
 
 
 class CMakeExtension(Extension):
-    def __init__(self, name, sourcedir=''):
-        Extension.__init__(self, name, sources=[])
+    def __init__(self, name, sourcedir='', *args, **kwargs):
+        Extension.__init__(self, name, sources=[], *args, **kwargs)
         self.sourcedir = os.path.abspath(sourcedir)
 
 class CMakeBuild(build_ext):
@@ -123,6 +123,7 @@ class CMakeBuild(build_ext):
             #'-DPYTHON_EXECUTABLE=' + sys.executable,
             '-DINCLUDE_DIRS={}'.format(';'.join(self.include_dirs)),
             '-DLIBRARY_DIRS={}'.format(';'.join(self.library_dirs)),
+            '-DLIBRARIES={}'.format(';'.join(self.get_libraries(ext))),
         ]
 
         cmake_args += cmake_extra_options 
@@ -183,10 +184,12 @@ https://github.com/bab2min/kiwipiepy '''
 sources = []
 for f in os.listdir(os.path.join(here, 'src')):
     if f.endswith('.cpp'): sources.append('src/' + f)
+libraries = []
 
 largs = []
 if platform.system() == 'Windows': 
     cargs = ['/O2', '/MT', '/Gy']
+    libraries.append('advapi32.lib')
 else: 
     cargs = ['-std=c++1y']
     if os.environ.get('DEBUG'): cargs += ['-O0', '-g3', '-DDEBUG']
@@ -241,6 +244,8 @@ setup(
     packages=['kiwipiepy'],
     include_package_data=True,
     #ext_modules=modules,
-    ext_modules=[CMakeExtension('_kiwipiepy')],
+    ext_modules=[CMakeExtension('_kiwipiepy',
+        libraries=libraries,
+    )],
     cmdclass=dict(build_ext=CMakeBuild),
 )
