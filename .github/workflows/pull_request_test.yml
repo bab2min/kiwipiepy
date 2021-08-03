@@ -19,7 +19,7 @@ jobs:
     steps:        
     - uses: actions/checkout@v1
       with:
-        submodules: true
+        submodules: recursive
     - name: Build
       run: |
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
@@ -46,7 +46,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
       with:
-        submodules: true
+        submodules: recursive
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
@@ -78,7 +78,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
       with:
-        submodules: true
+        submodules: recursive
     - name: Set up Python ${{ matrix.python-version }} ${{ matrix.architecture }}
       uses: actions/setup-python@v1
       with:
