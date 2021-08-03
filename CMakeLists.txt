@@ -1,6 +1,9 @@
+cmake_minimum_required(VERSION 3.9)
+
 project(Kiwipiepy)
 
 set ( CMAKE_CXX_STANDARD 11 )
+set ( CMAKE_VERBOSE_MAKEFILE true )
 
 add_subdirectory( Kiwi )
 include_directories(${INCLUDE_DIRS}

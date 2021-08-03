@@ -15,7 +15,7 @@ from distutils.version import LooseVersion
 def get_extra_cmake_options():
     """read --clean, --no, --set, --compiler-flags, and -G options from the command line and add them as cmake switches.
     """
-    _cmake_extra_options = ["-DKIWI_BUILD_TEST=0", "-DCMAKE_POSITION_INDEPENDENT_CODE=1"]
+    _cmake_extra_options = ["-DKIWI_BUILD_TEST=0", "-DCMAKE_POSITION_INDEPENDENT_CODE=1", "-DKIWI_USE_MIMALLOC=" + ("1" if os.environ.get('USE_MIMALLOC') else "0")]
     _clean_build_folder = False
 
     opt_key = None
@@ -79,10 +79,7 @@ def num_available_cpu_cores(ram_per_build_process_in_gb):
         mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')  
         mem_gib = mem_bytes/(1024.**3)
         num_cores = multiprocessing.cpu_count() 
-        # make sure we have enough ram for each build process.
         mem_cores = int(mem_gib/float(ram_per_build_process_in_gb)+0.5)
-        # We are limited either by RAM or CPU cores.  So pick the limiting amount
-        # and return that.
         return max(min(num_cores, mem_cores), 1)
     except ValueError:
         return 2 # just assume 2 if we can't get the os to tell us the right answer.
@@ -119,8 +116,6 @@ class CMakeBuild(build_ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
 
         cmake_args = [
-            #'-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-            #'-DPYTHON_EXECUTABLE=' + sys.executable,
             '-DINCLUDE_DIRS={}'.format(';'.join(self.include_dirs)),
             '-DLIBRARY_DIRS={}'.format(';'.join(self.library_dirs)),
             '-DLIBRARIES={}'.format(';'.join(self.get_libraries(ext))),
@@ -132,16 +127,11 @@ class CMakeBuild(build_ext):
         build_args = ['--config', cfg]
 
         if platform.system() == "Windows":
-            #cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
-            #cmake_args += ['-DCMAKE_RUNTIME_OUTPUT_DIRECTORY={}'.format(extdir)]
-            #cmake_args += ['-DCMAKE_RUNTIME_OUTPUT_DIRECTORY{}={}'.format(cfg.upper(), extdir)]
             if sys.maxsize > 2**32:
                 cmake_args += ['-A', 'x64']
-            # Do a parallel build
             build_args += ['--', '/m'] 
         else:
             cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
-            # Do a parallel build
             build_args += ['--', '-j'+str(num_available_cpu_cores(2))]
 
         build_folder = os.path.abspath(self.build_temp)
@@ -181,33 +171,13 @@ kiwipiepy is a python version package of Kiwi(Korean Intelligent Word Identifier
 
 https://github.com/bab2min/kiwipiepy '''
 
-sources = []
-for f in os.listdir(os.path.join(here, 'src')):
-    if f.endswith('.cpp'): sources.append('src/' + f)
+
 libraries = []
 
-largs = []
 if platform.system() == 'Windows': 
-    cargs = ['/O2', '/MT', '/Gy']
-    libraries.append('advapi32.lib')
+    if os.environ.get('USE_MIMALLOC'): libraries.append('advapi32.lib')
 else: 
-    cargs = ['-std=c++1y']
-    if os.environ.get('DEBUG'): cargs += ['-O0', '-g3', '-DDEBUG']
-    else: cargs += ['-O3', '-g']
-
-if platform.system() == 'Darwin':
-    cargs += ['-stdlib=libc++']
-    largs += ['-stdlib=libc++']
-
-modules = [Extension('_kiwipiepy',
-    libraries=['kiwi_static'],
-    library_dirs=[],
-    sources=sources,
-    include_dirs=['Kiwi/include'],
-    define_macros=[('KIWI_USE_MIMALLOC', '1')] if os.environ.get('USE_MIMALLOC') else [],
-    extra_compile_args=cargs, 
-    extra_link_args=largs)
-]
+    pass
 
 setup(
     name='kiwipiepy',
@@ -243,7 +213,6 @@ setup(
     ],
     packages=['kiwipiepy'],
     include_package_data=True,
-    #ext_modules=modules,
     ext_modules=[CMakeExtension('_kiwipiepy',
         libraries=libraries,
     )],
