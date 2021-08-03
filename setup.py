@@ -114,13 +114,15 @@ class CMakeBuild(build_ext):
 
     def build_extension(self, ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
+        libs = self.get_libraries(ext)
+        if not libs:
+            libs.append('python{}{}'.format(sys.version_info.major, sys.version_info.minor))
 
         cmake_args = [
             '-DINCLUDE_DIRS={}'.format(';'.join(self.include_dirs)),
             '-DLIBRARY_DIRS={}'.format(';'.join(self.library_dirs)),
-            '-DLIBRARIES={}'.format(';'.join(self.get_libraries(ext))),
+            '-DLIBRARIES={}'.format(';'.join(libs)),
         ]
-        print(self.get_libraries(ext), flush=True)
 
         cmake_args += cmake_extra_options 
 
