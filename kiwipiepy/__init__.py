@@ -9,6 +9,9 @@ class Option(IntEnum):
     """
     Kiwi 인스턴스 생성 시 사용 가능한 옵션 열거형. 
     bitwise or 연산으로 여러 개 선택하여 사용가능합니다.
+
+    .. deprecated:: 0.10.0
+        추후 버전에서 제거될 예정입니다.
     """
 
     LOAD_DEFAULT_DICTIONARY = 1

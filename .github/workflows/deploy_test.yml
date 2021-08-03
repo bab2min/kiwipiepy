@@ -14,26 +14,17 @@ jobs:
 
     steps:        
     - uses: actions/checkout@v1
+      with:
+        submodules: recursive
     - name: Deploy
       continue-on-error: True
       env:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        git clone https://github.com/bab2min/Kiwi
-        cd Kiwi
-        git checkout tags/v0.9.3
-        cd ..
-        mv Kiwi/src/core src/
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
-        rm -rf Kiwi
-        
-        git clone https://github.com/microsoft/mimalloc
-        cd mimalloc
-        git checkout tags/v1.6.7
-        cd ..
         
         /opt/python/cp38-cp38/bin/python setup.py sdist
         /opt/python/cp38-cp38/bin/python -m pip install twine wheel
@@ -60,6 +51,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+      with:
+        submodules: recursive
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
@@ -70,18 +63,6 @@ jobs:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        git clone https://github.com/bab2min/Kiwi
-        cd Kiwi
-        git checkout tags/v0.9.3
-        cd ..
-        mv Kiwi/src/core src/
-        rm -rf Kiwi
-        
-        git clone https://github.com/microsoft/mimalloc
-        cd mimalloc
-        git checkout tags/v1.6.7
-        cd ..
-        
         python -m pip install twine wheel
         USE_MIMALLOC=1 python setup.py bdist_wheel
         twine upload --repository testpypi dist/*
@@ -97,6 +78,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+      with:
+        submodules: recursive
     - name: Set up Python ${{ matrix.python-version }} ${{ matrix.architecture }}
       uses: actions/setup-python@v1
       with:
@@ -108,18 +91,6 @@ jobs:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        git clone https://github.com/bab2min/Kiwi
-        cd Kiwi
-        git checkout tags/v0.9.3
-        cd ..
-        mv Kiwi/src/core src/
-        rm -Recurse -Force Kiwi
-        
-        git clone https://github.com/microsoft/mimalloc
-        cd mimalloc
-        git checkout tags/v1.6.7
-        cd ..
-        
         python -m pip install --upgrade pip setuptools
         python -m pip install twine wheel
         $env:USE_MIMALLOC = 1; python setup.py bdist_wheel

@@ -17,6 +17,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+      with:
+        submodules: recursive
     - name: Set up Python
       uses: actions/setup-python@v1
       with:
@@ -27,23 +29,13 @@ jobs:
     - name: build
       run: |
         python3 -m pip install pdoc3
-        git clone https://github.com/bab2min/Kiwi
-        cd Kiwi
-        git checkout tags/v0.9.3
-        cd ..
-        mv Kiwi/src/core src/
+
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
-        rm -rf Kiwi
         
         cd model
         python3 setup.py install
-        cd ..
-        
-        git clone https://github.com/microsoft/mimalloc
-        cd mimalloc
-        git checkout tags/v1.6.7
         cd ..
         
         python3 setup.py install

@@ -3,56 +3,29 @@ curpath = os.path.dirname(os.path.abspath(__file__))
 
 from kiwipiepy import Kiwi
 
-class IOHandler:
-    def __init__(self, input, output=None):
-        self.input = input
-        self.output = output
-
-    def read(self, sent_id):
-        if sent_id == 0:
-            self.input.seek(0)
-            self.iter = iter(self.input)
-        try:
-            return next(self.iter)
-        except StopIteration:
-            return None
-
-    def write(self, sent_id, res):
-        self.output.write(' '.join(map(lambda x:x[0]+'/'+x[1], res[0][0])) + '\n')
-
-    def __del__(self):
-        self.input.close()
-        if self.output: self.output.close()
-
 def test_analyze_single():
     kiwi = Kiwi()
-    kiwi.prepare()
     for line in open(curpath + '/test_corpus/constitution.txt', encoding='utf-8'):
-        kiwi.analyze(line)
+        toks, score = kiwi.analyze(line)[0]
+    for t in toks:
+        print(t.form, t.tag, t.start, t.end, t.len)
+        break
 
-def test_analyze_multi():
-    kiwi = Kiwi()
-    kiwi.prepare()
-    handle = IOHandler(open(curpath + '/test_corpus/constitution.txt', encoding='utf-8'), open('result.txt', 'w', encoding='utf-8'))
-    kiwi.analyze(handle.read, handle.write)
 
-def test_async_analyze():
-    kiwi = Kiwi()
-    kiwi.prepare()
-    ret = []
-    for line in open(curpath + '/test_corpus/constitution.txt', encoding='utf-8'):
-        ret.append(kiwi.async_analyze(line))
-    ret = [r() for r in ret]
+class FileReader:
+    def __init__(self, path):
+        self.path = path
+
+    def __iter__(self):
+        yield from open(self.path, encoding='utf-8')
 
 def test_extract_words():
     kiwi = Kiwi()
-    kiwi.prepare()
-    handle = IOHandler(open(curpath + '/test_corpus/constitution.txt', encoding='utf-8'))
-    kiwi.extract_words(handle.read)
+    ret = kiwi.extract_words(FileReader(curpath + '/test_corpus/constitution.txt'), min_cnt=2)
+    print(ret)
 
 def test_tweet():
     kiwi = Kiwi()
-    kiwi.prepare()
     kiwi.analyze('''#바둑#장기#오목 귀요미#보드판🐥
 #어린이임블리의 놀이였는데, 이제는 가물갸물🙄모르겠
 장이요~멍이요~ㅎㅎㅎ다시 한 번 재미를 붙여 보까ㅎ
@@ -60,13 +33,27 @@ def test_tweet():
 
 def test_new_analyze_multi():
     kiwi = Kiwi()
-    kiwi.prepare()
     for res in kiwi.analyze(open(curpath + '/test_corpus/constitution.txt', encoding='utf-8')):
         pass
 
 def test_bug_33():
     kiwi = Kiwi()
     kiwi.add_user_word('김갑갑', 'NNP')
-    kiwi.prepare()
 
     print(kiwi.analyze("김갑갑 김갑갑 김갑갑"))
+
+def test_bug_38():
+    text = "이 예쁜 꽃은 독을 품었지만 진짜 아름다움을 가지고 있어요"
+    kiwi = Kiwi(integrate_allomorph=True)
+    print(kiwi.analyze(text))
+    kiwi = Kiwi(integrate_allomorph=False)
+    print(kiwi.analyze(text))
+
+def test_property():
+    kiwi = Kiwi()
+    print(kiwi.integrate_allomorph)
+    kiwi.integrate_allomorph = False
+    print(kiwi.integrate_allomorph)
+    print(kiwi.cutoff_threshold)
+    kiwi.cutoff_threshold = 1
+    print(kiwi.cutoff_threshold)
