@@ -29,7 +29,7 @@ jobs:
     - name: build
       run: |
         python3 -m pip install pdoc3
-        
+
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
@@ -55,6 +55,7 @@ jobs:
         popd
         cp html/kiwipiepy/* ../g/bab2min.github.io/kiwipiepy/v${KIWIPIEPY_VER}/${{ matrix.language }}
         pushd ../g/bab2min.github.io
+        echo "<meta http-equiv='refresh' content='0;url=/kiwipiepy/v${KIWIPIEPY_VER}/en/'' >" > kiwipiepy/index.html
         git config user.email "bab2min@gmail.com"
         git config user.name "bab2min"
         git add .
