@@ -120,6 +120,7 @@ class CMakeBuild(build_ext):
             '-DLIBRARY_DIRS={}'.format(';'.join(self.library_dirs)),
             '-DLIBRARIES={}'.format(';'.join(self.get_libraries(ext))),
         ]
+        print(self.get_libraries(ext), flush=True)
 
         cmake_args += cmake_extra_options 
 
