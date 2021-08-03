@@ -6,6 +6,12 @@ set ( CMAKE_CXX_STANDARD 11 )
 set ( CMAKE_VERBOSE_MAKEFILE true )
 
 add_subdirectory( Kiwi )
+
+if(KIWI_USE_MIMALLOC)
+  message(STATUS "Use mimalloc allocators")
+  set ( ADDITIONAL_FLAGS "-DKIWI_USE_MIMALLOC" )
+endif()
+
 include_directories(${INCLUDE_DIRS}
   Kiwi/include
 )

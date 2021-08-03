@@ -99,10 +99,9 @@ jobs:
     - name: Archive binary
       uses: actions/upload-artifact@v2
       with:
-        name: pyd ${{ matrix.python-version }} ${{ matrix.architecture }}
+        name: Windows Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
         path: |
-          build/**/*.pyd
-          build/**/*.pdb
+          build/*
     - name: Test
       run: |
         python -m pip install pytest
