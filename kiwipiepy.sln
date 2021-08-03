@@ -1,14 +1,18 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.421
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31424.327
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kiwipiepy", "kiwipiepy.vcxproj", "{C80344D4-D856-41C3-883E-1482D031CCB0}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kiwi_shared_library", "Kiwi\kiwi_shared_library.vcxproj", "{F790BC37-2732-4ED1-9CA5-7248BED3588E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
+		Release(LODA_TXT)|x64 = Release(LODA_TXT)|x64
+		Release(LODA_TXT)|x86 = Release(LODA_TXT)|x86
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
@@ -17,10 +21,26 @@ Global
 		{C80344D4-D856-41C3-883E-1482D031CCB0}.Debug|x64.Build.0 = Debug|x64
 		{C80344D4-D856-41C3-883E-1482D031CCB0}.Debug|x86.ActiveCfg = Debug|Win32
 		{C80344D4-D856-41C3-883E-1482D031CCB0}.Debug|x86.Build.0 = Debug|Win32
+		{C80344D4-D856-41C3-883E-1482D031CCB0}.Release(LODA_TXT)|x64.ActiveCfg = Release|x64
+		{C80344D4-D856-41C3-883E-1482D031CCB0}.Release(LODA_TXT)|x64.Build.0 = Release|x64
+		{C80344D4-D856-41C3-883E-1482D031CCB0}.Release(LODA_TXT)|x86.ActiveCfg = Release|Win32
+		{C80344D4-D856-41C3-883E-1482D031CCB0}.Release(LODA_TXT)|x86.Build.0 = Release|Win32
 		{C80344D4-D856-41C3-883E-1482D031CCB0}.Release|x64.ActiveCfg = Release|x64
 		{C80344D4-D856-41C3-883E-1482D031CCB0}.Release|x64.Build.0 = Release|x64
 		{C80344D4-D856-41C3-883E-1482D031CCB0}.Release|x86.ActiveCfg = Release|Win32
 		{C80344D4-D856-41C3-883E-1482D031CCB0}.Release|x86.Build.0 = Release|Win32
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Debug|x64.ActiveCfg = Debug|x64
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Debug|x64.Build.0 = Debug|x64
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Debug|x86.ActiveCfg = Debug|Win32
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Debug|x86.Build.0 = Debug|Win32
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Release(LODA_TXT)|x64.ActiveCfg = Release(LODA_TXT)|x64
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Release(LODA_TXT)|x64.Build.0 = Release(LODA_TXT)|x64
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Release(LODA_TXT)|x86.ActiveCfg = Release(LODA_TXT)|Win32
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Release(LODA_TXT)|x86.Build.0 = Release(LODA_TXT)|Win32
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Release|x64.ActiveCfg = Release|x64
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Release|x64.Build.0 = Release|x64
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Release|x86.ActiveCfg = Release|Win32
+		{F790BC37-2732-4ED1-9CA5-7248BED3588E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

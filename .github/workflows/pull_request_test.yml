@@ -20,22 +20,12 @@ jobs:
     - uses: actions/checkout@v1
     - name: Build
       run: |
-        git clone https://github.com/bab2min/Kiwi
-        cd Kiwi
-        git checkout tags/v0.9.2
-        cd ..
-        mv Kiwi/src/core src/
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
-        rm -r Kiwi
         
         cd model
         /opt/python/${{ matrix.cp }}/bin/python setup.py build install
-        cd ..
-        git clone https://github.com/microsoft/mimalloc
-        cd mimalloc
-        git checkout tags/v1.6.7
         cd ..
         /opt/python/${{ matrix.cp }}/bin/python setup.py build install
     - name: Test
@@ -59,22 +49,12 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Build
       run: |
-        git clone https://github.com/bab2min/Kiwi
-        cd Kiwi
-        git checkout tags/v0.9.2
-        cd ..
-        mv Kiwi/src/core src/
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
-        rm -r Kiwi
         
         cd model
         python setup.py build install
-        cd ..
-        git clone https://github.com/microsoft/mimalloc
-        cd mimalloc
-        git checkout tags/v1.6.7
         cd ..
         USE_MIMALLOC=1 python setup.py build install
     - name: Test
@@ -101,22 +81,12 @@ jobs:
     - name: Build
       run: |
         python -m pip install --upgrade pip setuptools
-        git clone https://github.com/bab2min/Kiwi
-        cd Kiwi
-        git checkout tags/v0.9.2
-        cd ..
-        mv Kiwi/src/core src/
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
-        rm  -Recurse -Force Kiwi
         
         cd model
         python setup.py build install
-        cd ..
-        git clone https://github.com/microsoft/mimalloc
-        cd mimalloc
-        git checkout tags/v1.6.7
         cd ..
         $env:USE_MIMALLOC = 1; python setup.py build install
     - name: Archive binary
