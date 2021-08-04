@@ -46,8 +46,6 @@ add_library("_kiwipiepy" SHARED
   src/KiwiPy.cpp
 )
 
-message("Linking: ${LIBRARIES}")
-
 target_link_libraries("_kiwipiepy" PRIVATE 
   kiwi_static
   ${LIBRARIES}

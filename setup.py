@@ -116,15 +116,24 @@ class CMakeBuild(build_ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
         libs = self.get_libraries(ext)
         if not libs:
-            libs.append('python{}{}'.format(sys.version_info.major, sys.version_info.minor))
+            from distutils import sysconfig
+            pythonlib = 'python{}.{}{}'.format(
+                sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff,
+                sysconfig.get_config_var('ABIFLAGS')
+            )
+            libs.append(pythonlib)
+            for k in ('LIBDIR', 'LIBPL'):
+                path = sysconfig.get_config_var(k)
+                if path: self.library_dirs.append(path)
 
         cmake_args = [
             '-DINCLUDE_DIRS={}'.format(';'.join(self.include_dirs)),
             '-DLIBRARY_DIRS={}'.format(';'.join(self.library_dirs)),
             '-DLIBRARIES={}'.format(';'.join(libs)),
+            '-DPYTHON_EXECUTABLE=' + sys.executable,
         ]
-
-        cmake_args += cmake_extra_options 
+        print(cmake_args)
+        cmake_args += cmake_extra_options
 
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
