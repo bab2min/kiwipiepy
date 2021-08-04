@@ -31,13 +31,12 @@ jobs:
         cd ..
         /opt/python/${{ matrix.cp }}/bin/python setup.py build install
 
-        tar -zcvf ~/build.tgz build
+    - run: tar -zcvf build.tgz build
     - name: Archive binary
       uses: actions/upload-artifact@v1
       with:
         name: Linux Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
-        path: |
-          ~/build.tgz
+        path: build.tgz
     - name: Test
       run: |
         /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
