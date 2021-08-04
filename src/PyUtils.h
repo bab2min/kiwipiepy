@@ -1451,7 +1451,7 @@ namespace py
 	template<typename Ty, typename Val, Val Ty::* mem>
 	setter set_property()
 	{
-		return (getter)[](PyObject* self, PyObject* val, void* closure) -> PyObject*
+		return (setter)[](PyObject* self, PyObject* val, void* closure) -> PyObject*
 		{
 			return handleExc([&]()
 			{

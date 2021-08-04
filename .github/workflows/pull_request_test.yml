@@ -30,6 +30,13 @@ jobs:
         /opt/python/${{ matrix.cp }}/bin/python setup.py build install
         cd ..
         /opt/python/${{ matrix.cp }}/bin/python setup.py build install
+
+    - run: tar -zcvf build.tgz build
+    - name: Archive binary
+      uses: actions/upload-artifact@v1
+      with:
+        name: Linux Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
+        path: build.tgz
     - name: Test
       run: |
         /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
@@ -61,6 +68,12 @@ jobs:
         python setup.py build install
         cd ..
         USE_MIMALLOC=1 python setup.py build install
+    - name: Archive binary
+      uses: actions/upload-artifact@v2
+      with:
+        name: macOS Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
+        path: |
+          build/*
     - name: Test
       run: |
         python -m pip install pytest
@@ -99,11 +112,11 @@ jobs:
     - name: Archive binary
       uses: actions/upload-artifact@v2
       with:
-        name: pyd ${{ matrix.python-version }} ${{ matrix.architecture }}
+        name: Windows Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
         path: |
-          build/**/*.pyd
-          build/**/*.pdb
+          build/*
     - name: Test
       run: |
         python -m pip install pytest
         python -m pytest --verbose test.py
+        
