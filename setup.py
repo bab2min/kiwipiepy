@@ -115,7 +115,7 @@ class CMakeBuild(build_ext):
     def build_extension(self, ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
         libs = self.get_libraries(ext)
-        if not libs:
+        if platform.system() == 'Darwin':
             from distutils import sysconfig
             pythonlib = 'python{}.{}{}'.format(
                 sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff,
