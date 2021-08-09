@@ -35,7 +35,7 @@ jobs:
     - name: Archive binary
       uses: actions/upload-artifact@v1
       with:
-        name: Linux Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
+        name: Linux Binary ${{ matrix.cp }}
         path: build.tgz
     - name: Test
       run: |
