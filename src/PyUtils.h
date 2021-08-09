@@ -1412,6 +1412,15 @@ namespace py
 		};
 	}
 
+	template<typename Ty, PyObject* (Ty::* memfn)()>
+	PyCFunction method()
+	{
+		return (PyCFunction)[](PyObject* self, PyObject*) -> PyObject*
+		{
+			return (((Ty*)self)->*memfn)();
+		};
+	}
+
 	template<typename Ty, typename Val, Val Ty::*mem>
 	getter get_property()
 	{

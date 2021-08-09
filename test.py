@@ -39,7 +39,6 @@ def test_new_analyze_multi():
 def test_bug_33():
     kiwi = Kiwi()
     kiwi.add_user_word('김갑갑', 'NNP')
-
     print(kiwi.analyze("김갑갑 김갑갑 김갑갑"))
 
 def test_bug_38():
