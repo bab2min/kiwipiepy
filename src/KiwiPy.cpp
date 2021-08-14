@@ -140,10 +140,10 @@ static PyMethodDef Kiwi_methods[] =
 
 static PyGetSetDef Kiwi_getsets[] = 
 {
-	{ (char*)"version", PY_GETTER_MEMFN(&KiwiObject::version), nullptr, "get version", nullptr },
-	{ (char*)"cutoff_threshold", PY_GETTER_MEMFN(&KiwiObject::getCutOffThreshold), PY_SETTER_MEMFN(&KiwiObject::setCutOffThreshold), "", nullptr },
-	{ (char*)"integrate_allomorph", PY_GETTER_MEMFN(&KiwiObject::getIntegrateAllomorph), PY_SETTER_MEMFN(&KiwiObject::setIntegrateAllomorph), "", nullptr },
-	{ (char*)"num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
+	{ (char*)"version", PY_GETTER_MEMFN(&KiwiObject::version), nullptr, Kiwi_version__doc__, nullptr },
+	{ (char*)"cutoff_threshold", PY_GETTER_MEMFN(&KiwiObject::getCutOffThreshold), PY_SETTER_MEMFN(&KiwiObject::setCutOffThreshold), Kiwi_cutoff_threshold__doc__, nullptr },
+	{ (char*)"integrate_allomorph", PY_GETTER_MEMFN(&KiwiObject::getIntegrateAllomorph), PY_SETTER_MEMFN(&KiwiObject::setIntegrateAllomorph), Kiwi_integrate_allomorph__doc__, nullptr },
+	{ (char*)"num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, Kiwi_num_workers__doc__, nullptr },
 	{ nullptr },
 };
 
@@ -188,7 +188,7 @@ static PyTypeObject Kiwi_type = {
 	(newfunc)KiwiObject::_new,
 };
 
-struct KiwiTokenObject : py::CObject<KiwiTokenObject>
+struct TokenObject : py::CObject<TokenObject>
 {
 	u16string _form;
 	const char* _tag = nullptr;
@@ -196,13 +196,9 @@ struct KiwiTokenObject : py::CObject<KiwiTokenObject>
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
 
-	static int init(KiwiTokenObject* self, PyObject* args, PyObject* kwargs)
+	static int init(TokenObject* self, PyObject* args, PyObject* kwargs)
 	{
-		return py::handleExc([&]()
-		{
-			new (&self->_form) u16string;
-			return 0;
-		});
+		return 0;
 	}
 
 	uint32_t end()
@@ -210,12 +206,12 @@ struct KiwiTokenObject : py::CObject<KiwiTokenObject>
 		return _pos + _len;
 	}
 
-	static Py_ssize_t len(KiwiTokenObject* self)
+	static Py_ssize_t len(TokenObject* self)
 	{
 		return 4;
 	}
 
-	static PyObject* getitem(KiwiTokenObject* self, Py_ssize_t idx)
+	static PyObject* getitem(TokenObject* self, Py_ssize_t idx)
 	{
 		return py::handleExc([&]()
 		{
@@ -231,7 +227,7 @@ struct KiwiTokenObject : py::CObject<KiwiTokenObject>
 		});
 	}
 
-	static PyObject* repr(KiwiTokenObject* self)
+	static PyObject* repr(TokenObject* self)
 	{
 		return py::handleExc([&]()
 		{
@@ -246,37 +242,37 @@ struct KiwiTokenObject : py::CObject<KiwiTokenObject>
 };
 
 
-static PyGetSetDef KiwiToken_getsets[] =
+static PyGetSetDef Token_getsets[] =
 {
-	{ (char*)"form", PY_GETTER_MEMPTR(&KiwiTokenObject::_form), nullptr, "", nullptr },
-	{ (char*)"tag", PY_GETTER_MEMPTR(&KiwiTokenObject::_tag), nullptr, "", nullptr },
-	{ (char*)"start", PY_GETTER_MEMPTR(&KiwiTokenObject::_pos), nullptr, "", nullptr },
-	{ (char*)"len", PY_GETTER_MEMPTR(&KiwiTokenObject::_len), nullptr, "", nullptr },
-	{ (char*)"end", PY_GETTER_MEMFN(&KiwiTokenObject::end), nullptr, "", nullptr },
-	{ (char*)"id", PY_GETTER_MEMPTR(&KiwiTokenObject::_morphId), nullptr, "", nullptr },
+	{ (char*)"form", PY_GETTER_MEMPTR(&TokenObject::_form), nullptr, Token_form__doc__, nullptr },
+	{ (char*)"tag", PY_GETTER_MEMPTR(&TokenObject::_tag), nullptr, Token_tag__doc__, nullptr },
+	{ (char*)"start", PY_GETTER_MEMPTR(&TokenObject::_pos), nullptr, Token_start__doc__, nullptr },
+	{ (char*)"len", PY_GETTER_MEMPTR(&TokenObject::_len), nullptr, Token_len__doc__, nullptr },
+	{ (char*)"end", PY_GETTER_MEMFN(&TokenObject::end), nullptr, Token_end__doc__, nullptr },
+	{ (char*)"id", PY_GETTER_MEMPTR(&TokenObject::_morphId), nullptr, Token_id__doc__, nullptr },
 	{ nullptr },
 };
 
-static PySequenceMethods KiwiToken_seqs = {
-	(lenfunc)KiwiTokenObject::len,
+static PySequenceMethods Token_seqs = {
+	(lenfunc)TokenObject::len,
 	nullptr,
 	nullptr,
-	(ssizeargfunc)KiwiTokenObject::getitem,
+	(ssizeargfunc)TokenObject::getitem,
 };
 
-static PyTypeObject KiwiToken_type = {
+static PyTypeObject Token_type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"kiwipiepy.KiwiToken",             /* tp_name */
-	sizeof(KiwiTokenObject), /* tp_basicsize */
+	"kiwipiepy.Token",             /* tp_name */
+	sizeof(TokenObject), /* tp_basicsize */
 	0,                         /* tp_itemsize */
-	(destructor)KiwiTokenObject::dealloc, /* tp_dealloc */
+	(destructor)TokenObject::dealloc, /* tp_dealloc */
 	0,                         /* tp_print */
 	0,                         /* tp_getattr */
 	0,                         /* tp_setattr */
 	0,                         /* tp_reserved */
-	(reprfunc)KiwiTokenObject::repr,                         /* tp_repr */
+	(reprfunc)TokenObject::repr,                         /* tp_repr */
 	0,                         /* tp_as_number */
-	&KiwiToken_seqs,                         /* tp_as_sequence */
+	&Token_seqs,                         /* tp_as_sequence */
 	0,                         /* tp_as_mapping */
 	0,                         /* tp_hash  */
 	0,                         /* tp_call */
@@ -285,7 +281,7 @@ static PyTypeObject KiwiToken_type = {
 	0,                         /* tp_setattro */
 	0,                         /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT,   /* tp_flags */
-	Kiwi__doc__,           /* tp_doc */
+	Token__doc__,           /* tp_doc */
 	0,                         /* tp_traverse */
 	0,                         /* tp_clear */
 	0,                         /* tp_richcompare */
@@ -294,15 +290,15 @@ static PyTypeObject KiwiToken_type = {
 	0,                         /* tp_iternext */
 	0,             /* tp_methods */
 	0,						 /* tp_members */
-	KiwiToken_getsets,        /* tp_getset */
+	Token_getsets,        /* tp_getset */
 	0,                         /* tp_base */
 	0,                         /* tp_dict */
 	0,                         /* tp_descr_get */
 	0,                         /* tp_descr_set */
 	0,                         /* tp_dictoffset */
-	(initproc)KiwiTokenObject::init,      /* tp_init */
+	(initproc)TokenObject::init,      /* tp_init */
 	PyType_GenericAlloc,
-	(newfunc)KiwiTokenObject::_new,
+	(newfunc)TokenObject::_new,
 };
 
 PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
@@ -322,8 +318,8 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 				if ((u & 0xFC00) == 0xD800) u32chrs++;
 			}
 
-			py::UniqueObj item{ PyObject_CallFunctionObjArgs((PyObject*)&KiwiToken_type, nullptr) };
-			auto* tItem = (KiwiTokenObject*)item.get();
+			py::UniqueObj item{ PyObject_CallFunctionObjArgs((PyObject*)&Token_type, nullptr) };
+			auto* tItem = (TokenObject*)item.get();
 			tItem->_form = move(q.str);
 			tItem->_tag = tagToString(q.tag);
 			tItem->_pos = q.position - u32offset;
@@ -463,12 +459,12 @@ PyObject* KiwiObject::extractWords(PyObject* args, PyObject *kwargs)
 	{
 		PyObject* sentences;
 		size_t minCnt = 10, maxWordLen = 10;
-		float minScore = 0.25f, posThreshold = -3;
+		float minScore = 0.25f, posScore = -3;
 		size_t lmFilter = 1;
-		static const char* kwlist[] = { "sentences", "min_cnt", "max_word_len", "min_score", "pos_threshold", "lm_filter", nullptr };
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnffp", (char**)kwlist, &sentences, &minCnt, &maxWordLen, &minScore, &posThreshold, &lmFilter)) return nullptr;
+		static const char* kwlist[] = { "texts", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnffp", (char**)kwlist, &sentences, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
 
-		auto res = builder.extractWords(obj2reader(sentences), minCnt, maxWordLen, minScore, posThreshold, lmFilter);
+		auto res = builder.extractWords(obj2reader(sentences), minCnt, maxWordLen, minScore, posScore, lmFilter);
 
 		py::UniqueObj retList{ PyList_New(res.size()) };
 		size_t idx = 0;
@@ -496,10 +492,12 @@ PyObject* KiwiObject::extractAddWords(PyObject* args, PyObject *kwargs)
 		size_t minCnt = 10, maxWordLen = 10;
 		float minScore = 0.25f, posScore = -3;
 		size_t lmFilter = 1;
-		static const char* kwlist[] = { "sentences", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
+		static const char* kwlist[] = { "texts", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnffp", (char**)kwlist, &sentences, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
 
 		auto res = builder.extractAddWords(obj2reader(sentences), minCnt, maxWordLen, minScore, posScore, lmFilter);
+		kiwi = Kiwi{};
+
 		py::UniqueObj retList{ PyList_New(res.size()) };
 		size_t idx = 0;
 		for (auto& r : res)
@@ -606,18 +604,31 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 
 PyObject* KiwiObject::perform(PyObject* args, PyObject *kwargs)
 {
-	size_t topN = 1, matchOptions = (size_t)Match::all;
-	PyObject* sentences;
-	size_t minCnt = 10, maxWordLen = 10;
-	float minScore = 0.25f, posScore = -3;
-	size_t lmFilter = 1;
-	static const char* kwlist[] = { "sentences", "top_n", "match_options", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr};
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnnnffp", (char**)kwlist, 
-		&sentences, &topN, &matchOptions, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
-	return py::handleExc([&]()
+	return py::handleExc([&]() -> PyObject*
 	{
-		Py_INCREF(Py_None);
-		return Py_None;
+		size_t topN = 1, matchOptions = (size_t)Match::all;
+		PyObject* sentences;
+		size_t minCnt = 10, maxWordLen = 10;
+		float minScore = 0.25f, posScore = -3;
+		size_t lmFilter = 1;
+		static const char* kwlist[] = { "texts", "top_n", "match_options", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnnnffp", (char**)kwlist,
+			&sentences, &topN, &matchOptions, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
+
+		if (PyErr_WarnEx(PyExc_DeprecationWarning, 
+			"`perform` will be removed in future version.", 1)
+		) return nullptr;
+
+		auto tBuilder = builder;
+		auto reader = obj2reader(sentences);
+		tBuilder.extractAddWords(reader, minCnt, maxWordLen, minScore, posScore, lmFilter);
+		auto tKiwi = tBuilder.build();
+		py::UniqueObj ret{ PyList_New(0) };
+		tKiwi.analyze(topN, reader(), [&](vector<TokenResult>&& res)
+		{
+			PyList_Append(ret, py::UniqueObj{ resToPyList(move(res), kiwi) });
+		}, (Match)matchOptions);
+		return ret.release();
 	});
 }
 
@@ -628,8 +639,8 @@ PyObject* KiwiObject::getMorpheme(PyObject* args, PyObject* kwargs)
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n", (char**)kwlist, &id)) return nullptr;
 	return py::handleExc([&]()
 	{
-		py::UniqueObj ret{ PyObject_CallFunctionObjArgs((PyObject*)&KiwiToken_type, nullptr) };
-		auto* obj = (KiwiTokenObject*)ret.get();
+		py::UniqueObj ret{ PyObject_CallFunctionObjArgs((PyObject*)&Token_type, nullptr) };
+		auto* obj = (TokenObject*)ret.get();
 		auto* morph = kiwi.idToMorph(id);
 		if (!morph) throw py::ValueError{ "out of range" };
 		auto& form = morph->getForm();
@@ -671,9 +682,9 @@ PyObject* moduleInit()
 	Py_INCREF(&KiwiResIter_type);
 	PyModule_AddObject(gModule, "_res_iter", (PyObject*)&KiwiResIter_type);
 
-	if (PyType_Ready(&KiwiToken_type) < 0) return nullptr;
-	Py_INCREF(&KiwiToken_type);
-	PyModule_AddObject(gModule, "_token", (PyObject*)&KiwiToken_type);
+	if (PyType_Ready(&Token_type) < 0) return nullptr;
+	Py_INCREF(&Token_type);
+	PyModule_AddObject(gModule, "Token", (PyObject*)&Token_type);
 
 	return gModule;
 }
