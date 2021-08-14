@@ -29,6 +29,7 @@ options: int
     Kiwi 생성시의 옵션을 설정합니다. 옵션에 대해서는 `kiwipiepy.Option`을 확인하십시오.
     .. deprecated:: 0.10.0
         차기 버전에서 제거될 예정입니다. `options` 대신 `integrate_allormoph` 및 `load_default_dict`를 사용해주세요.
+
 integrate_allormoph: bool
     True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다.
 load_default_dict: bool
@@ -70,6 +71,9 @@ DOC_SIGNATURE_EN_KO(Kiwi_extract_words__doc__,
 이 기능은 https://github.com/lovit/soynlp 의 Word Extraction 기법을 바탕으로 하되, 
 문자열 기반의 확률 모델을 추가하여 명사일 것으로 예측되는 단어만 추출합니다.
 
+.. versionchanged:: 0.10.0
+    입력을 단순히 문자열의 리스트로 줄 수 있도록 변경되었습니다.
+
 Parameters
 ----------
 texts: Iterable[str]
@@ -108,6 +112,9 @@ DOC_SIGNATURE_EN_KO(Kiwi_extract_add_words__doc__,
     u8R""(extract words from corpus and add them into model)"",
     u8R""(말뭉치로부터 새로운 단어를 추출하고 새로운 명사에 적합한 결과들만 추려냅니다. 그리고 그 결과를 현재 모델에 자동으로 추가합니다.
 
+.. versionchanged:: 0.10.0
+    입력을 단순히 문자열의 리스트로 줄 수 있도록 변경되었습니다.
+
 Parameters
 ----------
 texts: Iterable[str]
@@ -125,6 +132,7 @@ lm_filter: bool
     ..versionadded:: 0.10.0
 
     True일 경우 품사 점수 및 언어 모델을 이용한 필터링을 수행합니다.
+
 Returns
 -------
 result: List[Tuple[str, float, int, float]]
@@ -137,6 +145,9 @@ DOC_SIGNATURE_EN_KO(Kiwi_perform__doc__,
     u8R""(현재 모델의 사본을 만들어
 `kiwipiepy.Kiwi.extract_add_words`메소드로 말뭉치에서 단어를 추출하여 추가하고, `kiwipiepy.Kiwi.analyze`로 형태소 분석을 실시합니다.
 이 메소드 호출 후 모델의 사본은 파괴되므로, 말뭉치에서 추출된 단어들은 다시 모델에서 제거되고, 메소드 실행 전과 동일한 상태로 돌아갑니다.
+
+.. versionchanged:: 0.10.0
+    입력을 단순히 문자열의 리스트로 주고, 분석 결과 역시 별도의 `receiver`로 받지 않고 바로 메소드의 리턴값으로 받게 변경되었습니다.
 
 Parameters
 ----------
@@ -156,6 +167,11 @@ min_score: float
     단어 후보의 최소 점수입니다. 이 점수보다 낮은 단어 후보는 고려되지 않습니다.
 pos_score: float
     단어 후보의 품사 점수입니다. 품사 점수가 이 값보다 낮은 경우 후보에서 제외됩니다.
+
+Returns
+-------
+results: Iterable[List[Tuple[List[kiwipiepy.Token], float]]]
+    반환값은 `kiwipiepy.Kiwi.analyze`의 results와 동일합니다.
 )"");
 
 DOC_SIGNATURE_EN_KO(Kiwi_set_cutoff_threshold__doc__,
@@ -244,12 +260,82 @@ match_options: int
 
 Returns
 -------
-result: List[Tuple[List[Tuple[str, str, int, int]], float]]
+result: List[Tuple[List[kiwipiepy.Token], float]]
     text를 str으로 준 경우.
     분석 결과는 최대 `top_n`개 길이의 리스트로 반환됩니다. 리스트의 각 항목은 `(분석 결과, 분석 점수)`로 구성된 튜플입니다. 
-    `분석 결과`는 `(형태소, 품사태그, 시작 위치, 문자열 길이)` 튜플의 리스트로 구성됩니다.
+    `분석 결과`는 `kiwipiepy.Token`의 리스트로 구성됩니다.
 
-results: Iterable[List[Tuple[List[Tuple[str, str, int, int]], float]]]
+results: Iterable[List[Tuple[List[kiwipiepy.Token], float]]]
     text를 Iterable[str]으로 준 경우.
     반환값은 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 )"");
+
+
+DOC_VARIABLE_EN_KO(Kiwi_version__doc__,
+    u8R""()"",
+    u8R""(Kiwi의 버전을 반환합니다. 
+.. deprecated:: 0.10.0
+    차기 버전에서 제거될 예정입니다. 대신 `kiwipiepy.__version__`을 사용하십시오.
+)""
+);
+
+DOC_VARIABLE_EN_KO(Kiwi_cutoff_threshold__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.10.0
+
+Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 값이 클 수록 더 많은 후보를 탐색하게 되므로 분석 속도가 느려지지만 정확도가 올라갑니다.
+반대로 이 값을 낮추면 더 적은 후보를 탐색하여 속도가 빨라지지만 정확도는 낮아집니다. 초기값은 5입니다.
+)""
+);
+
+DOC_VARIABLE_EN_KO(Kiwi_integrate_allomorph__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.10.0
+
+True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다.
+)""
+);
+
+DOC_VARIABLE_EN_KO(Kiwi_num_workers__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.10.0
+
+병렬처리시 사용할 스레드의 개수입니다. (읽기 전용)
+)""
+);
+
+DOC_SIGNATURE_EN_KO(Token__doc__,
+    "Token(self)",
+    u8R""()"",
+    u8R""(Token은 분석 결과 얻어진 형태소 정보를 담는 데이터 클래스입니다. (`form`, `tag`, `start`, `len`) 형태의 길이 4의 `tuple`로 변환 가능합니다.)""
+);
+
+DOC_VARIABLE_EN_KO(Token_form__doc__,
+    u8R""()"",
+    u8R""(형태소의 형태)""
+);
+
+DOC_VARIABLE_EN_KO(Token_tag__doc__,
+    u8R""()"",
+    u8R""(형태소의 품사 태그)""
+);
+
+DOC_VARIABLE_EN_KO(Token_start__doc__,
+    u8R""()"",
+    u8R""(형태소의 입력 텍스트 내 시작 위치 (문자 단위))""
+);
+
+DOC_VARIABLE_EN_KO(Token_end__doc__,
+    u8R""()"",
+    u8R""(형태소의 입력 텍스트 내 끝 위치 (문자 단위))""
+);
+
+DOC_VARIABLE_EN_KO(Token_len__doc__,
+    u8R""()"",
+    u8R""(형태소의 입력 텍스트 내 차지 길이 (문자 단위))""
+);
+
+DOC_VARIABLE_EN_KO(Token_id__doc__,
+    u8R""()"",
+    u8R""(형태소의 내부 고유 ID)""
+);
