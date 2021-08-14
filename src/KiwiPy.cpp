@@ -463,12 +463,12 @@ PyObject* KiwiObject::extractWords(PyObject* args, PyObject *kwargs)
 	{
 		PyObject* sentences;
 		size_t minCnt = 10, maxWordLen = 10;
-		float minScore = 0.25f, posThreshold = -3;
+		float minScore = 0.25f, posScore = -3;
 		size_t lmFilter = 1;
-		static const char* kwlist[] = { "sentences", "min_cnt", "max_word_len", "min_score", "pos_threshold", "lm_filter", nullptr };
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnffp", (char**)kwlist, &sentences, &minCnt, &maxWordLen, &minScore, &posThreshold, &lmFilter)) return nullptr;
+		static const char* kwlist[] = { "texts", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnffp", (char**)kwlist, &sentences, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
 
-		auto res = builder.extractWords(obj2reader(sentences), minCnt, maxWordLen, minScore, posThreshold, lmFilter);
+		auto res = builder.extractWords(obj2reader(sentences), minCnt, maxWordLen, minScore, posScore, lmFilter);
 
 		py::UniqueObj retList{ PyList_New(res.size()) };
 		size_t idx = 0;
@@ -496,10 +496,12 @@ PyObject* KiwiObject::extractAddWords(PyObject* args, PyObject *kwargs)
 		size_t minCnt = 10, maxWordLen = 10;
 		float minScore = 0.25f, posScore = -3;
 		size_t lmFilter = 1;
-		static const char* kwlist[] = { "sentences", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
+		static const char* kwlist[] = { "texts", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnffp", (char**)kwlist, &sentences, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
 
 		auto res = builder.extractAddWords(obj2reader(sentences), minCnt, maxWordLen, minScore, posScore, lmFilter);
+		kiwi = Kiwi{};
+
 		py::UniqueObj retList{ PyList_New(res.size()) };
 		size_t idx = 0;
 		for (auto& r : res)
@@ -606,18 +608,31 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 
 PyObject* KiwiObject::perform(PyObject* args, PyObject *kwargs)
 {
-	size_t topN = 1, matchOptions = (size_t)Match::all;
-	PyObject* sentences;
-	size_t minCnt = 10, maxWordLen = 10;
-	float minScore = 0.25f, posScore = -3;
-	size_t lmFilter = 1;
-	static const char* kwlist[] = { "sentences", "top_n", "match_options", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr};
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnnnffp", (char**)kwlist, 
-		&sentences, &topN, &matchOptions, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
-	return py::handleExc([&]()
+	return py::handleExc([&]() -> PyObject*
 	{
-		Py_INCREF(Py_None);
-		return Py_None;
+		size_t topN = 1, matchOptions = (size_t)Match::all;
+		PyObject* sentences;
+		size_t minCnt = 10, maxWordLen = 10;
+		float minScore = 0.25f, posScore = -3;
+		size_t lmFilter = 1;
+		static const char* kwlist[] = { "texts", "top_n", "match_options", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnnnffp", (char**)kwlist,
+			&sentences, &topN, &matchOptions, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
+
+		if (PyErr_WarnEx(PyExc_DeprecationWarning, 
+			"`perform` will be removed in future version.", 1)
+		) return nullptr;
+
+		auto tBuilder = builder;
+		auto reader = obj2reader(sentences);
+		tBuilder.extractAddWords(reader, minCnt, maxWordLen, minScore, posScore, lmFilter);
+		auto tKiwi = tBuilder.build();
+		py::UniqueObj ret{ PyList_New(0) };
+		tKiwi.analyze(topN, reader(), [&](vector<TokenResult>&& res)
+		{
+			PyList_Append(ret, py::UniqueObj{ resToPyList(move(res), kiwi) });
+		}, (Match)matchOptions);
+		return ret.release();
 	});
 }
 
