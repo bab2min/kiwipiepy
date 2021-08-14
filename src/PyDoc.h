@@ -13,7 +13,7 @@
 #endif
 
 DOC_SIGNATURE_EN_KO(Kiwi__doc__, 
-    "Kiwi(self, num_workers=0, model_path=None, options=kiwipiepy.Option.DEFAULT)",
+    "Kiwi(self, num_workers=0, model_path=None, options=kiwipiepy.Option.DEFAULT, integrate_allomorph=True, load_default_dict=True)",
     u8R""()"",
     u8R""(Kiwi 클래스는 실제 형태소 분석을 수행하는 kiwipiepy 모듈의 핵심 클래스입니다.
 
@@ -27,6 +27,12 @@ model_path: str
     읽어들일 모델 파일의 경로. 모델 파일의 위치를 옮긴 경우 이 값을 지정해주어야 합니다.
 options: int
     Kiwi 생성시의 옵션을 설정합니다. 옵션에 대해서는 `kiwipiepy.Option`을 확인하십시오.
+    .. deprecated:: 0.10.0
+        차기 버전에서 제거될 예정입니다. `options` 대신 `integrate_allormoph` 및 `load_default_dict`를 사용해주세요.
+integrate_allormoph: bool
+    True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다.
+load_default_dict: bool
+    True일 경우 인스턴스 생성시 자동으로 기본 사전을 불러옵니다. 기본 사전은 위키백과와 나무위키에서 추출된 고유 명사 표제어들로 구성되어 있습니다.
 )"");
 
 DOC_SIGNATURE_EN_KO(Kiwi_add_user_word__doc__, 
@@ -49,6 +55,7 @@ DOC_SIGNATURE_EN_KO(Kiwi_load_user_dictionary__doc__,
     "load_user_dictionary(self, dict_path)",
     u8R""(load custom dictionary file into model)"",
     u8R""(사용자 정의 사전을 읽어옵니다. 사용자 정의 사전 파일은 UTF-8로 인코딩된 텍스트 파일이어야 합니다.
+사용자 정의 사전으로 추가된 단어의 개수를 반환합니다.
     
 Parameters
 ----------
@@ -57,16 +64,16 @@ dict_path: str
 )"");
 
 DOC_SIGNATURE_EN_KO(Kiwi_extract_words__doc__,
-    "extract_words(self, sentences, min_cnt=10, max_word_len=10, min_score=0.25)",
+    "extract_words(self, texts, min_cnt=10, max_word_len=10, min_score=0.25, pos_threshold=-3, lm_filter=True)",
     u8R""(extract words from corpus)"",
     u8R""(말뭉치로부터 새로운 단어를 추출합니다. 
-이 기능은 https://github.com/lovit/soynlp 의 Word Extraction 기법을 바탕으로 하고 있으며, 
-이에 문자열 기반의 명사 확률을 조합하여 명사일 것으로 예측되는 단어만 추출합니다.
+이 기능은 https://github.com/lovit/soynlp 의 Word Extraction 기법을 바탕으로 하되, 
+문자열 기반의 확률 모델을 추가하여 명사일 것으로 예측되는 단어만 추출합니다.
 
 Parameters
 ----------
-reader: Callable[int, str]
-    분석할 문자열을 읽어들이는 호출 가능한 객체입니다.
+texts: Iterable[str]
+    분석할 문자열의 리스트, 혹은 Iterable입니다.
 min_cnt: int
     추출할 단어의 최소 출현 빈도입니다. 이 빈도보다 적게 등장한 문자열은 단어 후보에서 제외됩니다.
 max_word_len: int
@@ -74,7 +81,15 @@ max_word_len: int
 min_score: float
     단어 후보의 최소 점수입니다. 이 점수보다 낮은 단어 후보는 고려되지 않습니다.
     이 값을 낮출수록 단어가 아닌 형태가 추출될 가능성이 높아지고, 반대로 이 값을 높일 수록 추출되는 단어의 개수가 줄어들므로 적절한 수치로 설정할 필요가 있습니다.
+pos_score: float
+    ..versionadded:: 0.10.0
 
+    단어 후보의 품사 점수입니다. 품사 점수가 이 값보다 낮은 경우 후보에서 제외됩니다.
+
+lm_filter: bool
+    ..versionadded:: 0.10.0
+    
+    True일 경우 품사 점수 및 언어 모델을 이용한 필터링을 수행합니다.
 Returns
 -------
 result: List[Tuple[str, float, int, float]]
@@ -82,40 +97,21 @@ result: List[Tuple[str, float, int, float]]
 )"");
 
 DOC_SIGNATURE_EN_KO(Kiwi_extract_filter_words__doc__,
-    "extract_filter_words(self, sentences, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3)",
+    "extract_filter_words(self, texts, min_cnt=10, max_word_len=10, min_score=0.25, pos_threshold=-3, lm_filter=True)",
     u8R""(extract words from corpus and filter the results)"",
-    u8R""(말뭉치로부터 새로운 단어를 추출하고 새로운 명사에 적합한 결과들만 추려냅니다.
-
-Parameters
-----------
-reader: Callable[int, str]
-    분석할 문자열을 읽어들이는 호출 가능한 객체입니다.
-min_cnt: int
-    추출할 단어의 최소 출현 빈도입니다. 이 빈도보다 적게 등장한 문자열은 단어 후보에서 제외됩니다.
-max_word_len: int
-    추출할 단어 후보의 최대 길이입니다. 이 길이보다 긴 단어 후보는 탐색되지 않습니다.
-min_score: float
-    단어 후보의 최소 점수입니다. 이 점수보다 낮은 단어 후보는 고려되지 않습니다.
-    이 값을 낮출수록 단어가 아닌 형태가 추출될 가능성이 높아지고, 반대로 이 값을 높일 수록 추출되는 단어의 개수가 줄어들므로 적절한 수치로 설정할 필요가 있습니다.
-pos_score: float
-    단어 후보의 품사 점수입니다. 품사 점수가 이 값보다 낮은 경우 후보에서 제외됩니다.
-
-Returns
--------
-result: List[Tuple[str, float, int, float]]
-    추출된 단어후보의 목록을 반환합니다. 리스트의 각 항목은 (단어 형태, 최종 점수, 출현 빈도, 품사 점수)로 구성된 튜플입니다.
+    u8R""(.. deprecated:: 0.10.0
+    이 메소드의 기능은 `Kiwi.extract_words`로 통합되었습니다.
 )"");
 
 DOC_SIGNATURE_EN_KO(Kiwi_extract_add_words__doc__,
-    "extract_add_words(self, sentences, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3)",
+    "extract_add_words(self, texts, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3, lm_filter=True)",
     u8R""(extract words from corpus and add them into model)"",
     u8R""(말뭉치로부터 새로운 단어를 추출하고 새로운 명사에 적합한 결과들만 추려냅니다. 그리고 그 결과를 현재 모델에 자동으로 추가합니다.
-이 메소드는 `kiwipiepy.Kiwi.prepare`를 호출하기 전에만 사용 가능합니다.
 
 Parameters
 ----------
-reader: Callable[int, str]
-    분석할 문자열을 읽어들이는 호출 가능한 객체입니다.
+texts: Iterable[str]
+    분석할 문자열의 리스트, 혹은 Iterable입니다.
 min_cnt: int
     추출할 단어의 최소 출현 빈도입니다. 이 빈도보다 적게 등장한 문자열은 단어 후보에서 제외됩니다.
 max_word_len: int
@@ -125,7 +121,10 @@ min_score: float
     이 값을 낮출수록 단어가 아닌 형태가 추출될 가능성이 높아지고, 반대로 이 값을 높일 수록 추출되는 단어의 개수가 줄어들므로 적절한 수치로 설정할 필요가 있습니다.
 pos_score: float
     단어 후보의 품사 점수입니다. 품사 점수가 이 값보다 낮은 경우 후보에서 제외됩니다.
+lm_filter: bool
+    ..versionadded:: 0.10.0
 
+    True일 경우 품사 점수 및 언어 모델을 이용한 필터링을 수행합니다.
 Returns
 -------
 result: List[Tuple[str, float, int, float]]
@@ -133,7 +132,7 @@ result: List[Tuple[str, float, int, float]]
 )"");
 
 DOC_SIGNATURE_EN_KO(Kiwi_perform__doc__,
-    "perform(self, sentences, receiver, top_n=1, match_options=kiwipiepy.Match.ALL, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3)",
+    "perform(self, texts, top_n=1, match_options=kiwipiepy.Match.ALL, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3)",
     u8R""(extract_add_words + prepare + analyze)"",
     u8R""(현재 모델의 사본을 만들어
 `kiwipiepy.Kiwi.extract_add_words`메소드로 말뭉치에서 단어를 추출하여 추가하고, `kiwipiepy.Kiwi.analyze`로 형태소 분석을 실시합니다.
@@ -141,11 +140,8 @@ DOC_SIGNATURE_EN_KO(Kiwi_perform__doc__,
 
 Parameters
 ----------
-reader: Callable[int, str]
-    분석할 문자열을 읽어들이는 호출 가능한 객체입니다.
-receiver: Callable[[int, Any], None]
-    분석된 결과물을 받아들이는 호출 가능한 객체입니다. 
-    첫번째 인자는 분석 결과의 인덱스 번호이며, 두번째 인자는 분석 결과입니다. 분석 결과는 `kiwipiepy.Kiwi.analyze`의 반환값과 동일한 형태입니다.
+texts: Iterable[str]
+    분석할 문자열의 리스트, 혹은 Iterable입니다.
 top_n: int
     분석 결과 후보를 상위 몇 개까지 생성할 지 설정합니다.
 match_options: int
