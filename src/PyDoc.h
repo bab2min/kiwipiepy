@@ -72,7 +72,7 @@ DOC_SIGNATURE_EN_KO(Kiwi_extract_words__doc__,
 문자열 기반의 확률 모델을 추가하여 명사일 것으로 예측되는 단어만 추출합니다.
 
 .. versionchanged:: 0.10.0
-    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#_3 를 확인해주세요.
+    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#0100 를 확인해주세요.
 
 Parameters
 ----------
@@ -114,7 +114,7 @@ DOC_SIGNATURE_EN_KO(Kiwi_extract_add_words__doc__,
     u8R""(말뭉치로부터 새로운 단어를 추출하고 새로운 명사에 적합한 결과들만 추려냅니다. 그리고 그 결과를 현재 모델에 자동으로 추가합니다.
 
 .. versionchanged:: 0.10.0
-    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#_3 를 확인해주세요.
+    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#0100 를 확인해주세요.
 
 Parameters
 ----------
@@ -149,7 +149,7 @@ DOC_SIGNATURE_EN_KO(Kiwi_perform__doc__,
 
 .. versionchanged:: 0.10.0
     입력을 단순히 문자열의 리스트로 주고, 분석 결과 역시 별도의 `receiver`로 받지 않고 바로 메소드의 리턴값으로 받게 변경되었습니다.
-    자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#_3 를 확인해주세요.
+    자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#0100 를 확인해주세요.
 
 Parameters
 ----------
@@ -247,7 +247,7 @@ DOC_SIGNATURE_EN_KO(Kiwi_analyze__doc__,
     u8R""(형태소 분석을 실시합니다.
 
 .. versionchanged:: 0.10.0
-    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#_3 를 확인해주세요.
+    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#0100 를 확인해주세요.
 
 Parameters
 ----------
