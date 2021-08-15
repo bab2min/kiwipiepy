@@ -32,13 +32,13 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
 ::
 
     >> 안녕?
-    [('안녕', 'IC', 0, 2), ('?', 'SF', 2, 3)]
+    [Token(form='안녕', tag='IC', start=0, len=2), Token(form='?', tag='SF', start=2, len=3)]
 
 인터페이스를 종료하려면 Ctrl + C 를 누르십시오.
 
 예제
 ----
-** 간단한 분석 **
+**간단한 분석**
 
 다음 예제 코드는 kiwipiepy 인스턴스를 생성해 형태소 분석을 수행하는 간단한 예제 코드입니다.
 
@@ -46,18 +46,18 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
 
     from kiwipiepy import Kiwi
     kiwi = Kiwi()
-    kiwi.prepare()
     for result, score in kiwi.analyze("형태소 분석 결과입니다", top_n=5):
         print(score, result, sep='\t')
     
     # 위 코드를 실행하면 다음과 같은 결과가 나옵니다.
-    # -34.40869140625	[('형태소', 'NNG', 0, 3), ('분석', 'NNG', 4, 2), ('결과', 'NNG', 7, 2), ('이', 'VCP', 9, 1), ('ᆸ니다', 'EF', 10, 2)]
-    # -41.41796875	[('형태소', 'NNG', 0, 3), ('분석', 'NNG', 4, 2), ('결과', 'NNG', 7, 2), ('이', 'MM', 9, 1), ('ᆸ니다', 'EF', 10, 2)]
-    # -54.265869140625	[('형태소', 'NNG', 0, 3), ('분석', 'NNG', 4, 2), ('결과', 'NNG', 7, 2), ('입', 'NNG', 9, 1), ('니', 'EC', 10, 1), ('다', 'EC', 11, 1)]
-    # -54.470458984375	[('형태소', 'NNG', 0, 3), ('분석', 'NNG', 4, 2), ('결과', 'NNG', 7, 2), ('입', 'NNG', 9, 1), ('니다', 'EF', 10, 2)]
-    # -54.705078125	[('형태소', 'NNG', 0, 3), ('분석', 'NNG', 4, 2), ('결과', 'NNG', 7, 2), ('입', 'NNG', 9, 1), ('이', 'VCP', 10, 1), ('니', 'EC', 10, 1), ('다', 'EC', 11, 1)]
+    # -34.33329391479492      [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='VCP', start=9, len=1), Token(form='ᆸ니다', tag='EF', start=10, len=2)]
+    # -38.10548400878906      [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ니다', tag='EC', start=10, len=2)]
+    # -51.977012634277344     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ니다', tag='NNP', start=10, len=2)]
+    # -51.978363037109375     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ', tag='NNG', start=10, len=0), Token(form='니', tag='EC', start=10, len=1), Token(form='다', tag='EC', start=11, len=1)]
+    # -52.152374267578125     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ', tag='NNG', start=10, len=0), Token(form='니다', tag='EF', start=10, len=2)]
 
-** 사용자 단어 추가 **
+
+**사용자 단어 추가**
 
 사용자 정의 단어를 추가하여 형태소 분석을 수행하는 예제입니다. 사용자 정의 단어를 등록하면 이는 Kiwi 분석기의 사전에 포함되어 결과의 후보로 등장할 수 있게 됩니다.
 
@@ -71,7 +71,6 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
     # 사용자 단어 추가 없이 분석해보겠습니다.
 
     kiwi = Kiwi()
-    kiwi.prepare()
 
     print(*kiwi.analyze('사람을 골리다', top_n=5), sep='\n')
     # 결과
@@ -92,7 +91,6 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
     # 사용자 단어 '골리'를 추가해보도록 하겠습니다.
     kiwi = Kiwi()
     kiwi.add_user_word('골리', 'NNP', 0)
-    kiwi.prepare()
 
     print(*kiwi.analyze('사람을 골리다', top_n=5), sep='\n')
     # 결과
@@ -113,7 +111,6 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
     # 사용자 단어 '골리'의 점수를 낮춰서 추가해보도록 하겠습니다.
     kiwi = Kiwi()
     kiwi.add_user_word('골리', 'NNP', -6)
-    kiwi.prepare()
 
     print(*kiwi.analyze('사람을 골리다', top_n=5), sep='\n')
     # 결과
@@ -131,9 +128,9 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
     # ([('골리', 'NNP', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -35.90185546875)
     # ([('골리', 'NNP', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EF', 7, 1)], -37.94677734375)
 
-** 멀티스레딩 analyze **
+**멀티스레딩 analyze**
 
-다음 예제 코드는 멀티스레드를 활용하여 `test.txt` 파일을 줄별로 읽어들여 형태소 분석한 뒤 그 결과를 `result.txt`에 저장합니다.
+다음 예제 코드는 멀티스레드를 활용하여 ``test.txt`` 파일을 줄별로 읽어들여 형태소 분석한 뒤 그 결과를 ``result.txt`` 에 저장합니다.
 
 ::
 
@@ -147,9 +144,9 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
         for res in kiwi.analyze(open('test.txt', encoding='utf-8')):
             output.write(' '.join(map(lambda x:x[0]+'/'+x[1], res[0][0])) + '\n')
 
-Kiwi() 생성시 인자로 준 num_workers에 따라 여러 개의 스레드에서 작업이 동시에 처리됩니다. 반환되는 값은 입력되는 값의 순서와 동일합니다.
+``Kiwi()`` 생성시 인자로 준 num_workers에 따라 여러 개의 스레드에서 작업이 동시에 처리됩니다. 반환되는 값은 입력되는 값의 순서와 동일합니다.
 
-`analyze`를 인자를 str의 iterable로 준 경우 이 iterable을 읽어들이는 시점은 analyze 호출 이후일 수도 있습니다. 
+``analyze`` 를 인자를 str의 iterable로 준 경우 이 iterable을 읽어들이는 시점은 analyze 호출 이후일 수도 있습니다. 
 따라서 이 인자가 다른 IO 자원(파일 입출력 등)과 연동되어 있다면 모든 분석이 끝나기 전까지 해당 자원을 종료하면 안됩니다.
 예를 들어 다음과 같이 open을 통해 생성한 파일 입출력 객체를 미리 종료하는 경우 오류가 발생할 수 있습니다.
 
@@ -168,9 +165,14 @@ Kiwi() 생성시 인자로 준 num_workers에 따라 여러 개의 스레드에�
     #   File "<stdin>", line 1, in <module>
     # SystemError: <built-in function next> returned a result with an error set
 
-아래 코드는 0.9.0버전 이전에서 사용되던 멀티스레딩 코드입니다. 현재는 추천되지 않습니다.
-아래의 기능은 0.10.0버전부터 제거될 예정입니다.
+0.10.0 버전 변경사항
+--------------------
+0.10.0 버전에서는 일부 불편한 메소드들이 좀 더 편한 형태로 개량되었습니다. 
+변경된 메소드들은 ``analyze`` , ``perform`` , ``extract_words`` , ``extract_filter_words`` , ``extract_add_words`` 입니다.
+그리고 ``async_analyze`` 함수는 ``analyze`` 함수의 멀티스레딩 버전으로 통합되어 제거되었습니다.
+또한 ``prepare`` 함수를 별도로 호출할 필요가 없도록 변경되었습니다.
 
+**0.9.3 버전까지의 analyze, perform 사용법**
 ::
 
     from kiwipiepy import Kiwi
@@ -203,23 +205,81 @@ Kiwi() 생성시 인자로 준 num_workers에 따라 여러 개의 스레드에�
     handle = IOHandler('test.txt', 'result.txt')
     kiwi.analyze(handle.read, handle.write)
 
-** async_analyze 예제 **
+    # perform 함수의 경우
+    kiwi.perform(handle.read, handle.write)
 
-다음 예제 코드에서는 async_analyze를 사용해 멀티스레딩 분석을 진행합니다.
-async_analyze 메소드 역시 0.10.0버전부터 제거될 예정입니다. 위의 analyze 메소드를 사용하길 권장합니다.
-
+**0.10.0 이후 버전의 analyze, perform 사용법**
 ::
 
     from kiwipiepy import Kiwi
-    kiwi = Kiwi()
-    kiwi.prepare()
-    ret = []
-    # input.txt 파일의 라인별로 분석 작업을 할당합니다.
-    for line in open('input.txt', encoding='utf-8'):
-        ret.append(kiwi.async_analyze(line))
 
-    for r in ret:
-        print(r()) # r을 호출하여 분석 결과를 얻습니다.
+    kiwi = Kiwi()
+    kiwi.load_user_dictionary('userDict.txt')
+    with open('result.txt', 'w', encoding='utf-8') as out:
+        for res in kiwi.analyze(open('test.txt', encoding='utf-8')):
+            score, tokens = res[0] # top-1 결과를 가져옴
+            print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
+
+    # perform 함수의 경우
+    '''
+    perform 함수의 입력은 여러 번 순회 가능해야합니다.
+    따라서 str의 list 형태이거나 iterable을 반환하도록 입력을 넣어주어야 합니다.
+    '''
+    inputs = list(open('test.txt', encoding='utf-8'))
+    with open('result.txt', 'w', encoding='utf-8') as out:
+        for res in kiwi.perform(inputs):
+            score, tokens = res[0] # top-1 결과를 가져옴
+            print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
+
+    '''
+    list(open('test.txt', encoding='utf-8'))의 경우 
+    모든 입력을 미리 list로 저장해두므로
+    test.txt 파일이 클 경우 많은 메모리를 소모할 수 있습니다.
+    그 대신 파일에서 필요한 부분만 가져와 사용하도록(streaming) 할 수도 있습니다.
+    '''
+
+    class IterableTextFile:
+        def __init__(self, path):
+            self.path = path
+
+        def __iter__(self):
+            yield from open(path, encoding='utf-8')
+    
+    with open('result.txt', 'w', encoding='utf-8') as out:
+        for res in kiwi.perform(IterableTextFile('test.txt')):
+            score, tokens = res[0] # top-1 결과를 가져옴
+            print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
+
+``extract_words`` , ``extract_add_words`` 역시 ``perform``과 마찬가지로 str의 list를 입력하거나
+위의 예시의 ``IterableTextFile`` 처럼 str의 iterable을 반환하는 객체를 만들어 사용하면 됩니다.
+
+**0.9.3 버전까지의 extract_words의 사용법**
+::
+
+    class ReaderExam:
+        def __init__(self, filePath):
+            self.file = open(filePath)
+
+        def read(self, id):
+            if id == 0: self.file.seek(0)
+            return self.file.readline()
+
+    reader = ReaderExam('test.txt')
+    kiwi.extract_words(reader.read, 10, 10, 0.25)
+
+**0.10.0 이후 버전의 extract_words의 사용법**
+
+    class IterableTextFile:
+        def __init__(self, path):
+            self.path = path
+
+        def __iter__(self):
+            yield from open(path, encoding='utf-8')
+
+    kiwi.extract_words(IterableTextFile('test.txt'), 10, 10, 0.25)
+    # 아니면 그냥 str의 list를 입력해도 됩니다.
+
+
 
 사용자 정의 사전 포맷
 ---------------------
@@ -315,6 +375,14 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.10.0 (2021-08-15)
+    * API를 Python에 걸맞게 개편하였습니다. 일부 불편한 메소드들은 사용법이 변경되거나 삭제되었습니다. 이에 대해서는 `0.10.0 버전 변경사항` 단락을 확인해주세요.
+    * `prepare` 없이 `analyze` 를 호출할 때 크래시가 발생하던 문제를 수정했습니다.
+    * Linux 환경에서 `extract_words` 를 호출할 때 크래시가 발생하던 문제를 수정했습니다.
+    * Linux 환경에서 `Options.INTEGRATE_ALLOMORPH` 를 사용시 크래시가 발생하던 문제를 수정했습니다.
+    * 이제 형태소 분석 결과가 `tuple` 이 아니라 `Token` 타입으로 반환됩니다. 
+    * 형태소 분석 모델 포맷이 최적화되어 파일 크기가 약 20% 작아졌습니다.
+
 * 0.9.3 (2021-06-06)
     * Linux 환경에서 특정 단어가 포함된 텍스트를 분석할 때 크래시가 발생하던 문제를 수정했습니다.
     
@@ -327,16 +395,16 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 * 0.9.0 (2020-11-26)
     * analyze 메소드에서 오류 발생시 exception 발생대신 프로그램이 죽는 문제를 해결했습니다.
-    * `default.dict`에 포함된 활용형 단어 때문에 발생하는 오분석을 수정했습니다.
+    * `default.dict` 에 포함된 활용형 단어 때문에 발생하는 오분석을 수정했습니다.
     * 멀티스레딩 사용시 발생하는 메모리 누수 문제를 해결했습니다.
     * 형태소 탐색 시 조사/어미의 결합조건을 미리 고려하도록 변경하여 속도가 개선되었습니다.
-    * 일부 명사(`전랑`처럼 받침 + 랑으로 끝나는 사전 미등재 명사) 입력시 분석이 실패하는 버그를 수정했습니다.
-    * 공백문자만 포함된 문자열 입력시 분석결과가 `/UN`로 잘못나오는 문제를 수정했습니다.
+    * 일부 명사(`전랑` 처럼 받침 + 랑으로 끝나는 사전 미등재 명사) 입력시 분석이 실패하는 버그를 수정했습니다.
+    * 공백문자만 포함된 문자열 입력시 분석결과가 `/UN` 로 잘못나오는 문제를 수정했습니다.
 
 * 0.8.2 (2020-10-13)
     * W_URL, W_EMAIL, W_HASHTAG 일치 이후 일반 텍스트가 잘못 분석되는 오류를 수정했습니다.
     * W_MENTION을 추가했습니다.
-    * 특정 상황에서 결합조건이 무시되던 문제를 해결했습니다. (ex: `고기를 굽다 -> 고기/NNG + 를/JKO + 굽/VV + 이/VCP + 다/EF + ./SF`)
+    * 특정 상황에서 결합조건이 무시되던 문제를 해결했습니다. (ex: `고기를 굽다 -> 고기/NNG + 를/JKO + 굽/VV + 이/VCP + 다/EF + ./SF` )
 
 * 0.8.1 (2020-04-01)
     * U+10000 이상의 유니코드 문자를 입력시 Python 모듈에서 오류가 발생하는 문제를 수정했습니다.
