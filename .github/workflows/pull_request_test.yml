@@ -67,7 +67,7 @@ jobs:
         cd model
         python setup.py build install
         cd ..
-        USE_MIMALLOC=1 python setup.py build install
+        MACOSX_DEPLOYMENT_TARGET=10.14 USE_MIMALLOC=1 python setup.py build install
     - name: Archive binary
       uses: actions/upload-artifact@v2
       with:

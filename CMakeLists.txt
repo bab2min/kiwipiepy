@@ -5,6 +5,9 @@ project(Kiwipiepy)
 set ( CMAKE_CXX_STANDARD 11 )
 set ( CMAKE_VERBOSE_MAKEFILE true )
 
+set ( CMAKE_SKIP_RPATH ON )
+set ( CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "Minimum OS X deployment version" )
+
 add_subdirectory( Kiwi )
 
 if(KIWI_USE_MIMALLOC)
@@ -37,6 +40,16 @@ else()
   set ( CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELEASE}" )
 endif()
 
+if (APPLE)
+  message(STATUS "Apple Clang: use undefined=dynamic_lookup")
+  set ( CMAKE_C_FLAGS_DEBUG "-undefined dynamic_lookup ${CMAKE_C_FLAGS_DEBUG}" )
+  set ( CMAKE_CXX_FLAGS_DEBUG "-undefined dynamic_lookup ${CMAKE_CXX_FLAGS_DEBUG}" )
+  set ( CMAKE_C_FLAGS_RELEASE "-undefined dynamic_lookup ${CMAKE_C_FLAGS_RELEASE}" )
+  set ( CMAKE_CXX_FLAGS_RELEASE "-undefined dynamic_lookup ${CMAKE_CXX_FLAGS_RELEASE}" )
+  set ( CMAKE_C_FLAGS_RELWITHDEBINFO "-undefined dynamic_lookup ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  set ( CMAKE_CXX_FLAGS_RELWITHDEBINFO "-undefined dynamic_lookup ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+endif()
+
 include_directories(${INCLUDE_DIRS}
   Kiwi/include
 )
@@ -50,3 +63,4 @@ target_link_libraries("_kiwipiepy" PRIVATE
   kiwi_static
   ${LIBRARIES}
 )
+

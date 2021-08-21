@@ -1,6 +1,6 @@
-from kiwipiepy import *
+from kiwipiepy import Kiwi, __version__
+print("kiwipiepy v{}".format(__version__))
 kiwi = Kiwi()
-kiwi.prepare()
 try:
     while True:
         txt = input('>>')
