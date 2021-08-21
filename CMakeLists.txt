@@ -6,6 +6,7 @@ set ( CMAKE_CXX_STANDARD 11 )
 set ( CMAKE_VERBOSE_MAKEFILE true )
 
 set ( CMAKE_MACOSX_RPATH OFF )
+set ( CMAKE_SKIP_RPATH ON )
 set ( CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "Minimum OS X deployment version" )
 
 add_subdirectory( Kiwi )
