@@ -115,16 +115,16 @@ class CMakeBuild(build_ext):
     def build_extension(self, ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
         libs = self.get_libraries(ext)
-        if platform.system() == 'Darwin':
-            from distutils import sysconfig
-            pythonlib = 'python{}.{}{}'.format(
-                sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff,
-                sysconfig.get_config_var('ABIFLAGS')
-            )
-            libs.append(pythonlib)
-            for k in ('LIBDIR', 'LIBPL'):
-                path = sysconfig.get_config_var(k)
-                if path: self.library_dirs.append(path)
+        #if platform.system() == 'Darwin':
+        #    from distutils import sysconfig
+        #    pythonlib = 'python{}.{}{}'.format(
+        #        sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff,
+        #        sysconfig.get_config_var('ABIFLAGS')
+        #    )
+        #    libs.append(pythonlib)
+        #    for k in ('LIBDIR', 'LIBPL'):
+        #        path = sysconfig.get_config_var(k)
+        #        if path: self.library_dirs.append(path)
 
         cmake_args = [
             '-DINCLUDE_DIRS={}'.format(';'.join(self.include_dirs)),
