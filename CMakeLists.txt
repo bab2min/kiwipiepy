@@ -40,6 +40,12 @@ else()
   set ( CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELEASE}" )
 endif()
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  set ( CMAKE_CXX_FLAGS_DEBUG "-undefined dynamic_lookup ${CMAKE_CXX_FLAGS_DEBUG}" )
+  set ( CMAKE_CXX_FLAGS_RELEASE "-undefined dynamic_lookup ${CMAKE_CXX_FLAGS_RELEASE}" )
+  set ( CMAKE_CXX_FLAGS_RELWITHDEBINFO "-undefined dynamic_lookup ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+endif()
+
 include_directories(${INCLUDE_DIRS}
   Kiwi/include
 )
@@ -54,6 +60,3 @@ target_link_libraries("_kiwipiepy" PRIVATE
   ${LIBRARIES}
 )
 
-if(CLANG)
-  target_compile_options("_kiwipiepy" PRIVATE "-undefined dynamic_lookup")
-endif()
