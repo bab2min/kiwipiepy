@@ -157,7 +157,6 @@ jobs:
           tar -zcvf /artifacts/build.tgz build/*
           mv dist /artifacts/
 
-    - run: tar -zcvf build.tgz build
     - name: Archive binary
       uses: actions/upload-artifact@v2
       with:
