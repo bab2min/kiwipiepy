@@ -157,6 +157,9 @@ jobs:
           tar -zcvf /artifacts/build.tgz build/*
           cp -r dist /artifacts/
 
+          /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
+          /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test.py
+
     - name: Archive binary
       uses: actions/upload-artifact@v2
       with:
@@ -167,7 +170,3 @@ jobs:
       with:
         name: Linux ${{ matrix.arch }} Wheel ${{ matrix.cp }}
         path: artifacts/dist/*.whl
-    - name: Test
-      run: |
-        /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
-        /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test.py
