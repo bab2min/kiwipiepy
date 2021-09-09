@@ -155,7 +155,7 @@ jobs:
           /opt/python/${{ matrix.cp }}/bin/python setup.py build install bdist_wheel
 
           tar -zcvf /artifacts/build.tgz build/*
-          mv dist /artifacts/
+          cp -r dist /artifacts/
 
     - name: Archive binary
       uses: actions/upload-artifact@v2
@@ -163,7 +163,7 @@ jobs:
         name: Linux ${{ matrix.arch }} Binary ${{ matrix.cp }}
         path: artifacts/build.tgz
     - name: Archive binary
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: Linux ${{ matrix.arch }} Wheel ${{ matrix.cp }}
         path: artifacts/dist/*.whl
