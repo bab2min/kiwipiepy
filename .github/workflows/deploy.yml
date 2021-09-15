@@ -140,4 +140,4 @@ jobs:
       run: |
         python3 -m pip install --upgrade pip setuptools
         python3 -m pip install twine wheel
-        python3 -m twine upload --repository testpypi artifacts/*.whl
+        python3 -m twine upload artifacts/*.whl
