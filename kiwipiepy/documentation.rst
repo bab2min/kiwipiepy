@@ -16,10 +16,10 @@ pip를 이용해 쉽게 설치할 수 있습니다. (https://pypi.org/project/ki
 
 지원하는 OS와 Python 버전은 다음과 같습니다:
 
-* Python 3.5 이상이 설치된 Linux (x86-64) 
-* Python 3.5 이상이 설치된 macOS 10.13이나 그 이후 버전
-* Python 3.5 이상이 설치된 Windows 7 이나 그 이후 버전 (x86, x86-64)
-* Python 3.5 이상이 설치된 다른 OS: 이 경우 소스 코드 컴파일을 위해 C++11이 지원되는 컴파일러가 필요합니다.
+* Python 3.6 이상이 설치된 Linux (x86-64) 
+* Python 3.6 이상이 설치된 macOS 10.13이나 그 이후 버전
+* Python 3.6 이상이 설치된 Windows 7 이나 그 이후 버전 (x86, x86-64)
+* Python 3.6 이상이 설치된 다른 OS: 이 경우 소스 코드 컴파일을 위해 C++11이 지원되는 컴파일러가 필요합니다.
 
 Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명령어를 실행해보십시오.
 
@@ -55,6 +55,12 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
     # -51.977012634277344     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ니다', tag='NNP', start=10, len=2)]
     # -51.978363037109375     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ', tag='NNG', start=10, len=0), Token(form='니', tag='EC', start=10, len=1), Token(form='다', tag='EC', start=11, len=1)]
     # -52.152374267578125     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ', tag='NNG', start=10, len=0), Token(form='니다', tag='EF', start=10, len=2)]
+
+    # 간단하게 형태소 분석 결과만 얻고 싶다면 `tokenize` 메소드를 사용하면 됩니다.
+
+    result = kiwi.tokenize("형태소 분석 결과입니다")
+    print(result)
+    # [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='VCP', start=9, len=1), Token(form='ᆸ니다', tag='EF', start=10, len=2)]
 
 
 **사용자 단어 추가**
@@ -164,6 +170,20 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
     # Traceback (most recent call last):
     #   File "<stdin>", line 1, in <module>
     # SystemError: <built-in function next> returned a result with an error set
+
+
+**normalize_coda**
+0.10.2버전부터 normalize_coda 기능이 추가되었습니다. 이 기능은 웹이나 채팅 텍스트 데이터에서 자주 쓰이는 
+ㅋㅋㅋ, ㅎㅎㅎ와 같은 초성체가 어절 뒤에 붙는 경우 분석에 실패하는 경우를 막아줍니다.
+
+::
+
+    from kiwipiepy import Kiwi
+    kiwi = Kiwi()
+    kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=False)
+    # [Token(form='안', tag='NNP', start=0, len=1), Token(form='먹었엌', tag='NNP', start=2, len=3), Token(form='ㅋㅋ', tag='SW', start=5, len=2)]
+    kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=True)
+    # [Token(form='안', tag='MAG', start=0, len=1), Token(form='먹', tag='VV', start=2, len=1), Token(form='었', tag='EP', start=3, len=1), Token(form='어', tag='EF', start=4, len=1), Token(form='ㅋㅋㅋ', tag='SW', start=5, len=2)]
 
 0.10.0 버전 변경사항
 --------------------
@@ -375,6 +395,13 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.10.2 (2021-11-12)
+    * Kiwi 0.10.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.10.2 )이 반영되었습니다.
+        * `Token`에 `word_position` 프로퍼티가 추가되었습니다.
+        * `Kiwi.analyze`에 `normalize_coda` 인자가 추가되었습니다.
+    * `Kiwi.tokenize` 메소드가 추가되었습니다. `analyze` 메소드와는 다르게 바로 분서결과인 `Token`의 `list`를 반환하므로 더 간편하게 사용할 수 있습니다.
+    * 불용어 관리 기능을 제공하는 `kiwipiepy.utils.Stopwords` 클래스가 추가되었습니다. (@HyeJuSeon)
+
 * 0.10.1 (2021-09-06)
     * macOS에서 pip를 통한 설치가 제대로 지원되지 않던 문제를 해결했습니다.
     * `load_user_dictionary` 사용시 품사 태그 뒤에 공백문자가 뒤따르는 경우 태그 해석에 실패하는 문제를 해결했습니다.
