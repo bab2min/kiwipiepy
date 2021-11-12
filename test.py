@@ -2,6 +2,7 @@ import os
 curpath = os.path.dirname(os.path.abspath(__file__))
 
 from kiwipiepy import Kiwi
+from kiwipiepy.utils import Stopwords
 
 def test_analyze_single():
     kiwi = Kiwi()
@@ -62,3 +63,20 @@ def test_property():
     print(kiwi.cutoff_threshold)
     kiwi.cutoff_threshold = 1
     print(kiwi.cutoff_threshold)
+
+def test_stopwords():
+    kiwi = Kiwi()
+    tokens, _ = kiwi.analyze('불용어 처리 테스트 중입니다 '
+                             '우리는 강아지를 좋아한다 쟤도 강아지를 좋아한다 '
+                             '지금은 2021년 11월이다.')[0]
+    stopwords = Stopwords()
+    print(set(tokens) - set(stopwords.filter(tokens)))
+    filename = curpath + '/test_corpus/custom_stopwords.txt'
+    stopwords = Stopwords(filename)
+
+    stopwords.add(('강아지', 'NNP'))
+    assert (('강아지', 'NNP') in stopwords) == True
+
+    stopwords.remove(('강아지', 'NNP'))
+    assert (('강아지', 'NNP') in stopwords) == False
+    print(set(tokens) - set(stopwords.filter(tokens)))
