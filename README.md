@@ -150,13 +150,36 @@ score는 등록할 단어의 점수입니다.
 # 형태소 분석
 
 kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완료되었으면 다음 메소드를 사용하여 형태소 분석을 수행할 수 있습니다.
+
 ```python
-kiwi.analyze(text, top_n, match_option)
+kiwi.tokenize(text, match_option, normalize_coda)
+kiwi.analyze(text, top_n, match_option, normalize_coda)
 ``` 
 
-**`analyze(text, top_n=1, match_option=Match.ALL)`**
+**`tokenize(text, match_option=Match.ALL, normalize_coda=False)`**
+입력된 text를 형태소 분석하여 그 결과를 간단하게 반환합니다. 분석결과는 다음과 같이 `Token`의 리스트 형태로 반환됩니다.
 
-입력된 text를 형태소 분석하여 그 결과를 반환합니다. 총 top_n개의 결과를 출력합니다. 반환값은 다음과 같이 구성됩니다.
+```python
+>> kiwi.tokenize('테스트입니다.')
+[Token(form='테스트', tag='NNG', start=0, len=3), Token(form='이', tag='VCP', start=3, len=1), Token(form='ᆸ니다', tag='EF', start=4, len=2)]
+```
+
+`normalize_coda`는 ㅋㅋㅋ,ㅎㅎㅎ와 같은 초성체가 뒤따라와서 받침으로 들어갔을때 분석에 실패하는 문제를 해결해줍니다.
+```python
+>> kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=False)
+[Token(form='안', tag='NNP', start=0, len=1), 
+ Token(form='먹었엌', tag='NNP', start=2, len=3), 
+ Token(form='ㅋㅋ', tag='SW', start=5, len=2)]
+>> kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=True)
+[Token(form='안', tag='MAG', start=0, len=1), 
+ Token(form='먹', tag='VV', start=2, len=1), 
+ Token(form='었', tag='EP', start=3, len=1), 
+ Token(form='어', tag='EF', start=4, len=1), 
+ Token(form='ㅋㅋㅋ', tag='SW', start=5, len=2)]
+```
+
+**`analyze(text, top_n=1, match_option=Match.ALL, normalize_coda=False)`**
+입력된 text를 형태소 분석하여 그 결과를 반환합니다. 총 top_n개의 결과를 자세하게 출력합니다. 반환값은 다음과 같이 구성됩니다.
 ```python
 [(분석결과1, 점수), (분석결과2, 점수), ... ]
 ```
