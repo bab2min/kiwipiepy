@@ -135,6 +135,11 @@ tag: str
 score: float
     추가할 단어의 가중치 점수. 
     해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
+
+Returns
+-------
+inserted: bool
+    사용자 정의 단어가 정상적으로 삽입된 경우 True, 중복 단어 등의 이유로 삽입에 실패한 경우 False를 반환합니다.
         '''
 
         return super().add_user_word(word, tag, score)
@@ -149,6 +154,11 @@ Parameters
 ----------
 dict_path: str
     사용자 정의 사전 파일의 경로
+
+Returns
+-------
+added_cnt: int
+    사용자 정의 사전 파일을 이용해 추가된 단어의 개수를 반환합니다.
         '''
 
         return super().load_user_dictionary(dict_path)
