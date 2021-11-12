@@ -504,3 +504,40 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         '''
         
         return super().num_workers
+    
+    def tokenize(self, 
+        text, 
+        match_options:int = Match.ALL,
+        normalize_coda:bool = False,
+    ):
+        '''.. versionadded:: 0.10.2
+
+간단하게 분석결과만 반환합니다.
+Parameters
+----------
+text: Union[str, Iterable[str]]
+    분석할 문자열입니다. 
+    이 인자를 단일 str로 줄 경우, 싱글스레드에서 처리하며
+    str의 Iterable로 줄 경우, 멀티스레드로 분배하여 처리합니다.
+match_options: int
+    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.Match`의 조합으로 설정할 수 있습니다.
+normalize_coda: bool
+    True인 경우 '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다.
+
+Returns
+-------
+result: List[kiwipiepy.Token]
+    text를 str으로 준 경우.
+    `kiwipiepy.Token`의 리스트를 반환합니다.
+
+results: Iterable[List[kiwipiepy.Token]]
+    text를 Iterable[str]으로 준 경우.
+    반환값은 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
+        '''
+        def _refine_result(results):
+            return results[0][0]
+
+        if isinstance(text, str):
+            return _refine_result(self.analyze(text, top_n=1, match_options=match_options, normalize_coda=normalize_coda))
+            
+        return map(_refine_result, self.analyze(text, top_n=1, match_options=match_options, normalize_coda=normalize_coda))
