@@ -177,7 +177,7 @@ struct TokenObject : py::CObject<TokenObject>
 {
 	u16string _form;
 	const char* _tag = nullptr;
-	uint32_t _pos = 0, _len = 0;
+	uint32_t _pos = 0, _len = 0, _wordPosition = 0;
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
 
@@ -235,6 +235,7 @@ static PyGetSetDef Token_getsets[] =
 	{ (char*)"len", PY_GETTER_MEMPTR(&TokenObject::_len), nullptr, Token_len__doc__, nullptr },
 	{ (char*)"end", PY_GETTER_MEMFN(&TokenObject::end), nullptr, Token_end__doc__, nullptr },
 	{ (char*)"id", PY_GETTER_MEMPTR(&TokenObject::_morphId), nullptr, Token_id__doc__, nullptr },
+	{ (char*)"word_position", PY_GETTER_MEMPTR(&TokenObject::_wordPosition), nullptr, Token_word_position__doc__, nullptr },
 	{ nullptr },
 };
 
@@ -309,6 +310,7 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_tag = tagToString(q.tag);
 			tItem->_pos = q.position - u32offset;
 			tItem->_len = q.length - u32chrs;
+			tItem->_wordPosition = q.wordPosition;
 			tItem->_morph = q.morph;
 			tItem->_morphId = kiwi.morphToId(q.morph);
 

@@ -47,3 +47,10 @@ DOC_VARIABLE_EN_KO(Token_id__doc__,
     u8R""()"",
     u8R""(형태소의 내부 고유 ID)""
 );
+
+DOC_VARIABLE_EN_KO(Token_word_position__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.10.2
+
+형태소의 입력 텍스트 내 어절 위치 (공백 기준))""
+);
