@@ -29,17 +29,12 @@ struct KiwiObject : py::CObject<KiwiObject>
 			const char* modelPath = nullptr;
 			size_t numThreads = 0, options = 3;
 			int integrateAllomorph = -1, loadDefaultDict = -1;
-			static const char* kwlist[] = { "num_workers", "model_path", "options", "integrate_allomorph", "load_default_dict", nullptr };
-			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nznpp", (char**)kwlist,
-				&numThreads, &modelPath, &options, &integrateAllomorph, &loadDefaultDict
+			static const char* kwlist[] = { "num_workers", "model_path", "integrate_allomorph", "load_default_dict", nullptr };
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nzpp", (char**)kwlist,
+				&numThreads, &modelPath, &integrateAllomorph, &loadDefaultDict
 			)) return -1;
 
-			BuildOption boptions = (BuildOption)options;
-
-			if (kwargs && PyDict_GetItemString(kwargs, "options"))
-			{
-				if (PyErr_WarnEx(PyExc_DeprecationWarning, "Argument `options` will be removed in future version. Use `integrate_allomorph` or `load_default_dict` instead.", 1)) return -1;
-			}
+			BuildOption boptions = BuildOption::integrateAllomorph | BuildOption::loadDefaultDict;
 
 			if (integrateAllomorph >= 0)
 			{
@@ -83,16 +78,11 @@ struct KiwiObject : py::CObject<KiwiObject>
 	PyObject* addUserWord(PyObject* args, PyObject* kwargs);
 	PyObject* analyze(PyObject* args, PyObject* kwargs);
 	PyObject* extractAddWords(PyObject* args, PyObject* kwargs);
-	PyObject* extractFilterWords(PyObject* args, PyObject* kwargs);
 	PyObject* extractWords(PyObject* args, PyObject* kwargs);
 	PyObject* loadUserDictionary(PyObject* args, PyObject* kwargs);
 	PyObject* perform(PyObject* args, PyObject* kwargs);
-	PyObject* prepare(PyObject* args, PyObject* kwargs);
 	PyObject* setCutOffThreshold2(PyObject* args, PyObject* kwargs);
-	PyObject* get_option(PyObject* args, PyObject* kwargs);
-	PyObject* set_option(PyObject* args, PyObject* kwargs);
 	PyObject* getMorpheme(PyObject* args, PyObject* kwargs);
-	py::UniqueObj version();
 
 	float getCutOffThreshold() const
 	{
@@ -123,33 +113,28 @@ struct KiwiObject : py::CObject<KiwiObject>
 
 static PyMethodDef Kiwi_methods[] =
 {
-	{ "add_user_word", PY_METHOD_MEMFN(&KiwiObject::addUserWord), METH_VARARGS | METH_KEYWORDS, Kiwi_add_user_word__doc__ },
-	{ "load_user_dictionary", PY_METHOD_MEMFN(&KiwiObject::loadUserDictionary), METH_VARARGS | METH_KEYWORDS, Kiwi_load_user_dictionary__doc__ },
-	{ "extract_words", PY_METHOD_MEMFN(&KiwiObject::extractWords), METH_VARARGS | METH_KEYWORDS, Kiwi_extract_words__doc__ },
-	{ "extract_filter_words", PY_METHOD_MEMFN(&KiwiObject::extractFilterWords), METH_VARARGS | METH_KEYWORDS, Kiwi_extract_filter_words__doc__ },
-	{ "extract_add_words", PY_METHOD_MEMFN(&KiwiObject::extractAddWords), METH_VARARGS | METH_KEYWORDS, Kiwi_extract_add_words__doc__ },
-	{ "perform", PY_METHOD_MEMFN(&KiwiObject::perform), METH_VARARGS | METH_KEYWORDS, Kiwi_perform__doc__ },
-	{ "set_cutoff_threshold", PY_METHOD_MEMFN(&KiwiObject::setCutOffThreshold2), METH_VARARGS | METH_KEYWORDS, Kiwi_set_cutoff_threshold__doc__ },
-	{ "prepare", PY_METHOD_MEMFN(&KiwiObject::prepare), METH_VARARGS | METH_KEYWORDS, Kiwi_prepare__doc__ },
-	{ "analyze", PY_METHOD_MEMFN(&KiwiObject::analyze), METH_VARARGS | METH_KEYWORDS, Kiwi_analyze__doc__ },
-	{ "get_option", PY_METHOD_MEMFN(&KiwiObject::get_option), METH_VARARGS | METH_KEYWORDS, Kiwi_get_option__doc__ },
-	{ "set_option", PY_METHOD_MEMFN(&KiwiObject::set_option), METH_VARARGS | METH_KEYWORDS, Kiwi_set_option__doc__ },
+	{ "add_user_word", PY_METHOD_MEMFN(&KiwiObject::addUserWord), METH_VARARGS | METH_KEYWORDS, "" },
+	{ "load_user_dictionary", PY_METHOD_MEMFN(&KiwiObject::loadUserDictionary), METH_VARARGS | METH_KEYWORDS, "" },
+	{ "extract_words", PY_METHOD_MEMFN(&KiwiObject::extractWords), METH_VARARGS | METH_KEYWORDS, "" },
+	{ "extract_add_words", PY_METHOD_MEMFN(&KiwiObject::extractAddWords), METH_VARARGS | METH_KEYWORDS, "" },
+	{ "perform", PY_METHOD_MEMFN(&KiwiObject::perform), METH_VARARGS | METH_KEYWORDS, "" },
+	{ "set_cutoff_threshold", PY_METHOD_MEMFN(&KiwiObject::setCutOffThreshold2), METH_VARARGS | METH_KEYWORDS, "" },
+	{ "analyze", PY_METHOD_MEMFN(&KiwiObject::analyze), METH_VARARGS | METH_KEYWORDS, "" },
 	{ "morpheme", PY_METHOD_MEMFN(&KiwiObject::getMorpheme), METH_VARARGS | METH_KEYWORDS, "" },
 	{ nullptr }
 };
 
 static PyGetSetDef Kiwi_getsets[] = 
 {
-	{ (char*)"version", PY_GETTER_MEMFN(&KiwiObject::version), nullptr, Kiwi_version__doc__, nullptr },
-	{ (char*)"cutoff_threshold", PY_GETTER_MEMFN(&KiwiObject::getCutOffThreshold), PY_SETTER_MEMFN(&KiwiObject::setCutOffThreshold), Kiwi_cutoff_threshold__doc__, nullptr },
-	{ (char*)"integrate_allomorph", PY_GETTER_MEMFN(&KiwiObject::getIntegrateAllomorph), PY_SETTER_MEMFN(&KiwiObject::setIntegrateAllomorph), Kiwi_integrate_allomorph__doc__, nullptr },
-	{ (char*)"num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, Kiwi_num_workers__doc__, nullptr },
+	{ (char*)"cutoff_threshold", PY_GETTER_MEMFN(&KiwiObject::getCutOffThreshold), PY_SETTER_MEMFN(&KiwiObject::setCutOffThreshold), "", nullptr },
+	{ (char*)"integrate_allomorph", PY_GETTER_MEMFN(&KiwiObject::getIntegrateAllomorph), PY_SETTER_MEMFN(&KiwiObject::setIntegrateAllomorph), "", nullptr },
+	{ (char*)"num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
 	{ nullptr },
 };
 
 static PyTypeObject Kiwi_type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"kiwipiepy.Kiwi",             /* tp_name */
+	"kiwipiepy._Kiwi",             /* tp_name */
 	sizeof(KiwiObject), /* tp_basicsize */
 	0,                         /* tp_itemsize */
 	(destructor)KiwiObject::dealloc, /* tp_dealloc */
@@ -167,8 +152,8 @@ static PyTypeObject Kiwi_type = {
 	0,                         /* tp_getattro */
 	0,                         /* tp_setattro */
 	0,                         /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,   /* tp_flags */
-	Kiwi__doc__,           /* tp_doc */
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
+	"",           /* tp_doc */
 	0,                         /* tp_traverse */
 	0,                         /* tp_clear */
 	0,                         /* tp_richcompare */
@@ -478,12 +463,6 @@ PyObject* KiwiObject::extractWords(PyObject* args, PyObject *kwargs)
 	});
 }
 
-PyObject* KiwiObject::extractFilterWords(PyObject* args, PyObject *kwargs)
-{
-	if (PyErr_WarnEx(PyExc_DeprecationWarning, "`extract_filter_words` has same effect to `extract_words` and will be removed in future version.", 1)) return nullptr;
-	return extractWords(args, kwargs);
-}
-
 PyObject* KiwiObject::extractAddWords(PyObject* args, PyObject *kwargs)
 {
 	return py::handleExc([&]() -> PyObject*
@@ -518,49 +497,7 @@ PyObject* KiwiObject::setCutOffThreshold2(PyObject* args, PyObject *kwargs)
 		static const char* kwlist[] = { "threshold", nullptr };
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "f", (char**)kwlist, &threshold)) return nullptr;
 
-		if (PyErr_WarnEx(PyExc_DeprecationWarning, "`set_cutoff_threshold(v)` will be removed in future version. Use `Kiwi.cutoff_threshold = v` instead.", 1)) return nullptr;
 		kiwi.setCutOffThreshold(threshold);
-		Py_INCREF(Py_None);
-		return Py_None;
-	});
-}
-
-PyObject* KiwiObject::prepare(PyObject* args, PyObject *kwargs)
-{
-	return py::handleExc([&]() -> PyObject*
-	{
-		static const char* kwlist[] = { nullptr };
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "", (char**)kwlist)) return nullptr;
-
-		if (PyErr_WarnEx(PyExc_DeprecationWarning, "`prepare()` has no effect and will be removed in future version.", 1)) return nullptr;
-		Py_INCREF(Py_None);
-		return Py_None;
-	});
-}
-
-PyObject* KiwiObject::get_option(PyObject* args, PyObject *kwargs)
-{
-	return py::handleExc([&]() -> PyObject*
-	{
-		size_t option;
-		static const char* kwlist[] = { "option", nullptr };
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n", (char**)kwlist, &option)) return nullptr;
-
-		if (PyErr_WarnEx(PyExc_DeprecationWarning, "`get_option()` will be removed in future version.", 1)) return nullptr;
-		return py::buildPyValue(kiwi.getIntegrateAllomorph());
-	});
-}
-
-PyObject* KiwiObject::set_option(PyObject* args, PyObject *kwargs)
-{
-	return py::handleExc([&]() -> PyObject*
-	{
-		size_t option, value;
-		static const char* kwlist[] = { "option", "value", nullptr };
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "nn", (char**)kwlist, &option, &value)) return nullptr;
-
-		if (PyErr_WarnEx(PyExc_DeprecationWarning, "`set_option()` will be removed in future version.", 1)) return nullptr;
-		kiwi.setIntegrateAllomorph(value);
 		Py_INCREF(Py_None);
 		return Py_None;
 	});
@@ -615,10 +552,6 @@ PyObject* KiwiObject::perform(PyObject* args, PyObject *kwargs)
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnnnffp", (char**)kwlist,
 			&sentences, &topN, &matchOptions, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
 
-		if (PyErr_WarnEx(PyExc_DeprecationWarning, 
-			"`perform` will be removed in future version.", 1)
-		) return nullptr;
-
 		auto tBuilder = builder;
 		auto reader = obj2reader(sentences);
 		tBuilder.extractAddWords(reader, minCnt, maxWordLen, minScore, posScore, lmFilter);
@@ -652,15 +585,6 @@ PyObject* KiwiObject::getMorpheme(PyObject* args, PyObject* kwargs)
 	});
 }
 
-py::UniqueObj KiwiObject::version()
-{
-	return py::UniqueObj{ py::handleExc([&]() -> PyObject*
-	{
-		if (PyErr_WarnEx(PyExc_DeprecationWarning, "`version` will be removed in future version.", 1)) return nullptr;
-		return py::buildPyValue("0.10.0");
-	}) };
-}
-
 PyObject* moduleInit()
 {
 	static PyModuleDef mod =
@@ -676,7 +600,7 @@ PyObject* moduleInit()
 
 	if (PyType_Ready(&Kiwi_type) < 0) return nullptr;
 	Py_INCREF(&Kiwi_type);
-	PyModule_AddObject(gModule, "Kiwi", (PyObject*)&Kiwi_type);
+	PyModule_AddObject(gModule, "_Kiwi", (PyObject*)&Kiwi_type);
 
 	if (PyType_Ready(&KiwiResIter_type) < 0) return nullptr;
 	Py_INCREF(&KiwiResIter_type);
