@@ -16,6 +16,14 @@ jobs:
     - uses: actions/checkout@v1
       with:
         submodules: recursive
+    - name: Install Git LFS
+      run: |
+        mkdir gitlfs && pushd gitlfs
+        curl -L https://github.com/git-lfs/git-lfs/releases/download/v2.13.2/git-lfs-linux-amd64-v2.13.2.tar.gz | tar -zxv
+        ./install.sh
+        popd
+    - name: Pull LFS files
+      run: cd Kiwi && git lfs pull
     - name: Deploy
       continue-on-error: True
       env:
@@ -29,7 +37,7 @@ jobs:
         /opt/python/cp38-cp38/bin/python setup.py sdist
         /opt/python/cp38-cp38/bin/python -m pip install twine wheel
         /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi dist/*.tar.gz
-        for cp in cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39
+        for cp in cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310
         do
           /opt/python/${cp}/bin/python -m pip install twine wheel
           USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
@@ -41,18 +49,46 @@ jobs:
         /opt/python/cp38-cp38/bin/python setup.py sdist
         /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi dist/*.tar.gz
 
-  build_macos:
-    name: Build for macOS
-    runs-on: macOS-latest
+  build_macos_10_15:
+    name: Build for macOS 10.15
+    runs-on: macOS-10.15
     strategy:
       max-parallel: 4
       matrix:
         python-version: [3.6, 3.7, 3.8, 3.9]
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
       with:
         submodules: recursive
+        lfs: true
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Deploy
+      continue-on-error: True
+      env:
+        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: |
+        python -m pip install twine wheel
+        MACOSX_DEPLOYMENT_TARGET=10.14 USE_MIMALLOC=1 python setup.py bdist_wheel
+        twine upload --repository testpypi dist/*
+
+  build_macos_11:
+    name: Build for macOS 11
+    runs-on: macOS-11
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: ["3.10"]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        lfs: true
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
@@ -73,13 +109,14 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.6, 3.7, 3.8, 3.9, "3.10"]
         architecture: [x86, x64]
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
       with:
         submodules: recursive
+        lfs: true
     - name: Set up Python ${{ matrix.python-version }} ${{ matrix.architecture }}
       uses: actions/setup-python@v1
       with:
@@ -104,9 +141,10 @@ jobs:
         arch: [aarch64, ppc64le]
 
     steps:        
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
       with:
         submodules: recursive
+        lfs: true
     - uses: bab2min/run-on-arch-action@use-custom-image
       name: Deploy
       id: runcmd
@@ -125,7 +163,7 @@ jobs:
           mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
           mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
           
-          for cp in cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39
+          for cp in cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310
           do
             /opt/python/${cp}/bin/python -m pip install wheel
             USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
