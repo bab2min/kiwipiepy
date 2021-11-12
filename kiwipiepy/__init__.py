@@ -345,7 +345,7 @@ threshold: float
             "`set_cutoff_threshold(v)` will be removed in future version. Use `Kiwi.cutoff_threshold = v` instead.",
             DeprecationWarning
         )
-        return super().set_cutoff_threshold(threshold)
+        self._cutoff_threshold = threshold
     
     def prepare(self):
         '''.. deprecated:: 0.10.0
@@ -428,7 +428,7 @@ value: int
             DeprecationWarning
         )
         if option != Option.INTEGRATE_ALLOMORPH: raise ValueError("Wrong `option` value: {}".format(option))
-        return int(super().integrate_allomorph)
+        return int(self._integrate_allomorph)
     
     def set_option(self, 
         option:int,
@@ -453,7 +453,7 @@ value: int
             DeprecationWarning
         )
         if option != Option.INTEGRATE_ALLOMORPH: raise ValueError("Wrong `option` value: {}".format(option))
-        super().integrate_allomorph = bool(value)
+        self._integrate_allomorph = bool(value)
     
     def morpheme(self,
         idx:int,
@@ -477,11 +477,11 @@ Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 �
 반대로 이 값을 낮추면 더 적은 후보를 탐색하여 속도가 빨라지지만 정확도는 낮아집니다. 초기값은 5입니다.
         '''
 
-        return super().cutoff_threshold
+        return self._cutoff_threshold
     
     @cutoff_threshold.setter
     def cutoff_threshold(self, v:float):
-        super().cutoff_threshold = v
+        self._cutoff_threshold = v
     
     @property
     def integrate_allomorph(self):
@@ -490,11 +490,11 @@ Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 �
 True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다.
         '''
 
-        return super().integrate_allomorph
+        return self._integrate_allomorph
     
     @integrate_allomorph.setter
     def integrate_allomorph(self, v:bool):
-        super().integrate_allomorph = v
+        self._integrate_allomorph = v
     
     @property
     def num_workers(self):
@@ -503,7 +503,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
 병렬처리시 사용할 스레드의 개수입니다. (읽기 전용)
         '''
         
-        return super().num_workers
+        return self._num_workers
     
     def tokenize(self, 
         text, 

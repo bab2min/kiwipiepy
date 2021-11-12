@@ -81,7 +81,6 @@ struct KiwiObject : py::CObject<KiwiObject>
 	PyObject* extractWords(PyObject* args, PyObject* kwargs);
 	PyObject* loadUserDictionary(PyObject* args, PyObject* kwargs);
 	PyObject* perform(PyObject* args, PyObject* kwargs);
-	PyObject* setCutOffThreshold2(PyObject* args, PyObject* kwargs);
 	PyObject* getMorpheme(PyObject* args, PyObject* kwargs);
 
 	float getCutOffThreshold() const
@@ -118,7 +117,6 @@ static PyMethodDef Kiwi_methods[] =
 	{ "extract_words", PY_METHOD_MEMFN(&KiwiObject::extractWords), METH_VARARGS | METH_KEYWORDS, "" },
 	{ "extract_add_words", PY_METHOD_MEMFN(&KiwiObject::extractAddWords), METH_VARARGS | METH_KEYWORDS, "" },
 	{ "perform", PY_METHOD_MEMFN(&KiwiObject::perform), METH_VARARGS | METH_KEYWORDS, "" },
-	{ "set_cutoff_threshold", PY_METHOD_MEMFN(&KiwiObject::setCutOffThreshold2), METH_VARARGS | METH_KEYWORDS, "" },
 	{ "analyze", PY_METHOD_MEMFN(&KiwiObject::analyze), METH_VARARGS | METH_KEYWORDS, "" },
 	{ "morpheme", PY_METHOD_MEMFN(&KiwiObject::getMorpheme), METH_VARARGS | METH_KEYWORDS, "" },
 	{ nullptr }
@@ -126,9 +124,9 @@ static PyMethodDef Kiwi_methods[] =
 
 static PyGetSetDef Kiwi_getsets[] = 
 {
-	{ (char*)"cutoff_threshold", PY_GETTER_MEMFN(&KiwiObject::getCutOffThreshold), PY_SETTER_MEMFN(&KiwiObject::setCutOffThreshold), "", nullptr },
-	{ (char*)"integrate_allomorph", PY_GETTER_MEMFN(&KiwiObject::getIntegrateAllomorph), PY_SETTER_MEMFN(&KiwiObject::setIntegrateAllomorph), "", nullptr },
-	{ (char*)"num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
+	{ (char*)"_cutoff_threshold", PY_GETTER_MEMFN(&KiwiObject::getCutOffThreshold), PY_SETTER_MEMFN(&KiwiObject::setCutOffThreshold), "", nullptr },
+	{ (char*)"_integrate_allomorph", PY_GETTER_MEMFN(&KiwiObject::getIntegrateAllomorph), PY_SETTER_MEMFN(&KiwiObject::setIntegrateAllomorph), "", nullptr },
+	{ (char*)"_num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
 	{ nullptr },
 };
 
@@ -488,20 +486,6 @@ PyObject* KiwiObject::extractAddWords(PyObject* args, PyObject *kwargs)
 			PyList_SetItem(retList, idx++, v);
 		}
 		return retList.release();
-	});
-}
-
-PyObject* KiwiObject::setCutOffThreshold2(PyObject* args, PyObject *kwargs)
-{
-	return py::handleExc([&]() -> PyObject*
-	{
-		float threshold;
-		static const char* kwlist[] = { "threshold", nullptr };
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "f", (char**)kwlist, &threshold)) return nullptr;
-
-		kiwi.setCutOffThreshold(threshold);
-		Py_INCREF(Py_None);
-		return Py_None;
 	});
 }
 
