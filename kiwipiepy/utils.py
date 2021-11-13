@@ -53,7 +53,15 @@ filename: str
         return (token.form, token.tag) not in self.stopwords
 
     def add(self, tokens):
-        '''
+        '''불용어 사전에 사용자 정의 불용어를 추가합니다.
+
+Parameters
+----------
+tokens: Union[str, Tuple[str, str]]
+    추가할 불용어입니다.
+    이 인자는 Iterable로 줄 수 있습니다.
+    str로 줄 경우, 품사 태그는 'NNP'로 처리합니다.
+    Tuple로 줄 경우, `(단어 형태, 품사 태그)`로 처리합니다.
         '''
 
         if type(tokens) is str:
@@ -70,7 +78,15 @@ filename: str
                     self.stopwords.add(token)
 
     def remove(self, tokens):
-        '''
+        '''불용어 사전에서 입력 불용어를 제거합니다.
+
+Parameters
+----------
+tokens: Union[str, Tuple[str, str]]
+    제거할 불용어입니다.
+    이 인자는 Iterable로 줄 수 있습니다.
+    str로 줄 경우, 품사 태그는 'NNP'로 처리합니다.
+    Tuple로 줄 경우, `(단어 형태, 품사 태그)`로 처리합니다.
         '''
 
         if type(tokens) is str and self._token_exists((tokens, 'NNP')):
@@ -85,7 +101,16 @@ filename: str
                     self.stopwords.remove(token)
 
     def filter(self, tokens):
-        '''
+        '''불용어를 필터링합니다.
+Parameters
+----------
+tokens: Iterable[kiwipiepy.Token]
+    필터링할 `kiwipiepy.Token`의 리스트, 혹은 Iterable입니다.
+
+Returns
+-------
+filtered_tokens: List[Tuple[str,str]]
+    필터링 결과를 반환합니다. 리스트의 각 항목은 (단어 형태, 품사 태그)로 구성된 튜플입니다.
         '''
         
         return list(filter(self._is_not_stopword, tokens))
