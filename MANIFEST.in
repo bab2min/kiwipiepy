@@ -1,6 +1,7 @@
 recursive-include kiwipiepy *
 recursive-include src *
-recursive-include mimalloc/src *
-recursive-include mimalloc/include *
+recursive-include Kiwi *
+prune Kiwi/ModelGenerator
+prune Kiwi/eval_data
 
 include LICENSE.txt
