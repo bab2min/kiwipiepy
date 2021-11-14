@@ -400,7 +400,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
         * `Token`에 `word_position` 프로퍼티가 추가되었습니다.
         * `Kiwi.analyze`에 `normalize_coda` 인자가 추가되었습니다.
     * `Kiwi.tokenize` 메소드가 추가되었습니다. `analyze` 메소드와는 다르게 바로 분서결과인 `Token`의 `list`를 반환하므로 더 간편하게 사용할 수 있습니다.
-    * 불용어 관리 기능을 제공하는 `kiwipiepy.utils.Stopwords` 클래스가 추가되었습니다. (@HyeJuSeon)
+    * 불용어 관리 기능을 제공하는 `kiwipiepy.utils.Stopwords` 클래스가 추가되었습니다.
 
 * 0.10.1 (2021-09-06)
     * macOS에서 pip를 통한 설치가 제대로 지원되지 않던 문제를 해결했습니다.
