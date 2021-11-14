@@ -1,3 +1,31 @@
+'''
+utils 모듈은 kiwipiepy를 사용하는 데에 있어서 다양한 편의 기능을 제공하기 위한 유틸리티성 클래스 및 함수를 제공합니다.
+현재는 Stopwords 클래스만 포함되어 있으며, 이 클래스는 불용어를 관리하고 Kiwi의 형태소 분석 결과 중 불용어를 쉽게 필터링하는 기능을 제공합니다.
+이 기능은 [HyeJuSeon](https://github.com/HyeJuSeon/)님의 기여로 추가되었습니다.
+
+::
+    
+    from kiwipiepy import Kiwi
+    from kiwipiepy.utils import Stopwords
+    
+    kiwi = Kiwi()
+    stopwords = Stopwords()
+
+    print(kiwi.tokenize("나는 학교에 방문한다"))
+    #[Token(form='나', tag='NP', start=0, len=1), 
+    # Token(form='는', tag='JX', start=1, len=1), 
+    # Token(form='학교', tag='NNG', start=3, len=2), 
+    # Token(form='에', tag='JKB', start=5, len=1), 
+    # Token(form='방문', tag='NNG', start=7, len=2), 
+    # Token(form='하', tag='XSV', start=9, len=1), 
+    # Token(form='ᆫ다', tag='EC', start=10, len=1)]
+
+    print(stopwords.filter(kiwi.tokenize("나는 학교에 방문한다")))
+    #[Token(form='학교', tag='NNG', start=3, len=2), 
+    # Token(form='방문', tag='NNG', start=7, len=2), 
+    # Token(form='ᆫ다', tag='EC', start=10, len=1)]
+'''
+
 import os
 
 _tag_set = {'NNG', 'NNP', 'NNB', 'NR', 'NP', 'VV', 'VA', 'VX', 'VCP', 'VCN', 'MM', 'MAG', 'MAJ', 'IC', 'JKS',
@@ -102,6 +130,7 @@ tokens: Union[str, Tuple[str, str]]
 
     def filter(self, tokens):
         '''불용어를 필터링합니다.
+
 Parameters
 ----------
 tokens: Iterable[kiwipiepy.Token]
@@ -109,8 +138,8 @@ tokens: Iterable[kiwipiepy.Token]
 
 Returns
 -------
-filtered_tokens: List[Tuple[str,str]]
-    필터링 결과를 반환합니다. 리스트의 각 항목은 (단어 형태, 품사 태그)로 구성된 튜플입니다.
+filtered_tokens: List[kiwipiepy.Token]
+    필터링 결과를 반환합니다. 리스트의 각 항목은 `kiwipiepy.Token`입니다.
         '''
         
         return list(filter(self._is_not_stopword, tokens))
