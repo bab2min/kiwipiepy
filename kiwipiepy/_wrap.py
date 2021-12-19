@@ -64,6 +64,11 @@ class Match(IntEnum):
     """
 
 Sentence = namedtuple('Sentence', ['text', 'start', 'end', 'tokens'])
+Sentence.__doc__ = '문장 분할 결과를 담기 위한 `namedtuple`입니다.'
+Sentence.text.__doc__ = '분할된 문장의 텍스트'
+Sentence.start.__doc__ = '전체 텍스트 내에서 분할된 문장이 시작하는 위치 (문자 단위)'
+Sentence.end.__doc__ = '전체 텍스트 내에서 분할된 문장이 끝나는 위치 (문자 단위)'
+Sentence.tokens.__doc__ = '분할된 문장의 형태소 분석 결과'
 
 class Kiwi(_Kiwi):
     '''Kiwi 클래스는 실제 형태소 분석을 수행하는 kiwipiepy 모듈의 핵심 클래스입니다.
@@ -572,7 +577,7 @@ split_sents: bool
 stopwords: Optional[Stopwords]
     .. versionadded:: 0.10.3
 
-    이 인자로 None이 아닌 `Stopwords` 객체를 줄 경우, 형태소 분석 결과 중 그 객체에 포함되는 불용어를 제외한 나머지 결과만을 반환합니다.
+    이 인자로 None이 아닌 `kiwipiepy.utils.Stopwords` 객체를 줄 경우, 형태소 분석 결과 중 그 객체에 포함되는 불용어를 제외한 나머지 결과만을 반환합니다.
 
 Returns
 -------
@@ -623,7 +628,7 @@ Returns
 -------
 sentences: List[kiwipiepy.Sentence]
     text를 str으로 준 경우.
-    각 문장별 분석 결과의 리스트를 반환합니다.
+    문장 분할 결과인 `kiwipiepy.Sentence`의 리스트를 반환합니다.
 
 iterable_of_sentences: Iterable[List[kiwipiepy.Sentence]]
     text를 Iterable[str]으로 준 경우.
