@@ -43,6 +43,7 @@
     <None Include=".github\workflows\deploy_test.yml" />
     <None Include=".github\workflows\generate_documentation.yml" />
     <None Include="kiwipiepy\_version.py" />
+    <None Include="kiwipiepy\_wrap.py" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\PyDoc.h">

@@ -1,4 +1,3 @@
 [submodule "Kiwi"]
 	path = Kiwi
 	url = https://github.com/bab2min/Kiwi
-	branch = main
