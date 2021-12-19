@@ -1486,6 +1486,7 @@ namespace py
 		{
 			return handleExc([&]()
 			{
+				if (!val) return -1;
 				(((Ty*)self)->*memfn)(toCpp<Val>(val));
 				return 0;
 			});

@@ -55,7 +55,7 @@ jobs:
         popd
         cp html/kiwipiepy/* ../g/bab2min.github.io/kiwipiepy/v${KIWIPIEPY_VER}/${{ matrix.language }}
         pushd ../g/bab2min.github.io
-        echo "<meta http-equiv='refresh' content='0;url=/kiwipiepy/v${KIWIPIEPY_VER}/en/'' >" > kiwipiepy/index.html
+        echo "<meta http-equiv='refresh' content='0;url=/kiwipiepy/v${KIWIPIEPY_VER}/kr/' >" > kiwipiepy/index.html
         git config user.email "bab2min@gmail.com"
         git config user.name "bab2min"
         git add .
