@@ -80,3 +80,34 @@ def test_stopwords():
     stopwords.remove(('강아지', 'NNP'))
     assert (('강아지', 'NNP') in stopwords) == False
     print(set(tokens) - set(stopwords.filter(tokens)))
+
+def test_tokenize():
+    kiwi = Kiwi()
+    text = "다녀온 후기\n\n<강남 토끼정에 다녀왔습니다.> 음식도 맛있었어요 다만 역시 토끼정 본점 답죠?ㅎㅅㅎ 그 맛이 크으.. 아주 맛있었음...! ^^"
+    tokens = kiwi.tokenize(text, normalize_coda=True)
+    print(tokens)
+
+    tokens_by_sent = kiwi.tokenize(text, normalize_coda=True, split_sents=True)
+    for tokens in tokens_by_sent:
+        print(tokens)
+
+def test_tokenize_with_stopwords():
+    kiwi = Kiwi()
+    stopwords = Stopwords()
+    tokens = kiwi.tokenize("[^^ 우리는 강아지를 좋아한다.]", stopwords=stopwords)
+
+    assert tokens[0].form == '강아지'
+    assert tokens[1].form == '좋아하'
+
+def test_split_into_sents():
+    kiwi = Kiwi()
+    text = "다녀온 후기\n\n<강남 토끼정에 다녀왔습니다.> 음식도 맛있었어요 다만 역시 토끼정 본점 답죠?ㅎㅅㅎ 그 맛이 크으.. 아주 맛있었음...! ^^"
+    sents = kiwi.split_into_sents(text, normalize_coda=True)
+    assert len(sents) == 6
+
+    assert sents[0].text == "다녀온 후기"
+    assert sents[1].text == "<강남 토끼정에 다녀왔습니다.>"
+    assert sents[2].text == "음식도 맛있었어요"
+    assert sents[3].text == "다만 역시 토끼정 본점 답죠?ㅎㅅㅎ"
+    assert sents[4].text == "그 맛이 크으.."
+    assert sents[5].text == "아주 맛있었음...! ^^"
