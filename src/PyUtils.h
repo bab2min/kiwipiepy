@@ -635,6 +635,16 @@ namespace py
 	};
 
 	template<>
+	struct ValueBuilder<std::nullptr_t>
+	{
+		PyObject* operator()(std::nullptr_t)
+		{
+			Py_INCREF(Py_None);
+			return Py_None;
+		}
+	};
+
+	template<>
 	struct ValueBuilder<PyObject*>
 	{
 		PyObject* operator()(PyObject* v)
