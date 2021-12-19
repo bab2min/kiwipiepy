@@ -52,5 +52,19 @@ DOC_VARIABLE_EN_KO(Token_word_position__doc__,
     u8R""()"",
     u8R""(.. versionadded:: 0.10.2
 
-형태소의 입력 텍스트 내 어절 위치 (공백 기준))""
+형태소의 입력 텍스트 내 어절 위치 (공백 기준, 문장별로 0부터 시작))""
+);
+
+DOC_VARIABLE_EN_KO(Token_sent_position__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.10.3
+
+형태소의 입력 텍스트 내 문장 번호 (0부터 시작))""
+);
+
+DOC_VARIABLE_EN_KO(Token_line_number__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.10.3
+
+형태소의 입력 텍스트 내 줄 번호 (0부터 시작))""
 );
