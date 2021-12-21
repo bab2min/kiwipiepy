@@ -28,6 +28,7 @@
     <None Include=".github\workflows\pull_request_test.yml" />
     <None Include="kiwipiepy\documentation.rst" />
     <None Include="kiwipiepy\_version.py" />
+    <None Include="kiwipiepy\_wrap.py" />
     <None Include="kiwipiepy\__init__.py" />
     <None Include="kiwipiepy\__main__.py" />
     <None Include="README.md" />

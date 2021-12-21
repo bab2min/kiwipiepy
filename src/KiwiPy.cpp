@@ -175,7 +175,7 @@ struct TokenObject : py::CObject<TokenObject>
 {
 	u16string _form;
 	const char* _tag = nullptr;
-	uint32_t _pos = 0, _len = 0, _wordPosition = 0;
+	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _lineNumber = 0;
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
 
@@ -234,6 +234,8 @@ static PyGetSetDef Token_getsets[] =
 	{ (char*)"end", PY_GETTER_MEMFN(&TokenObject::end), nullptr, Token_end__doc__, nullptr },
 	{ (char*)"id", PY_GETTER_MEMPTR(&TokenObject::_morphId), nullptr, Token_id__doc__, nullptr },
 	{ (char*)"word_position", PY_GETTER_MEMPTR(&TokenObject::_wordPosition), nullptr, Token_word_position__doc__, nullptr },
+	{ (char*)"sent_position", PY_GETTER_MEMPTR(&TokenObject::_sentPosition), nullptr, Token_sent_position__doc__, nullptr },
+	{ (char*)"line_number", PY_GETTER_MEMPTR(&TokenObject::_lineNumber), nullptr, Token_line_number__doc__, nullptr },
 	{ nullptr },
 };
 
@@ -309,6 +311,8 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_pos = q.position - u32offset;
 			tItem->_len = q.length - u32chrs;
 			tItem->_wordPosition = q.wordPosition;
+			tItem->_sentPosition = q.sentPosition;
+			tItem->_lineNumber = q.lineNumber;
 			tItem->_morph = q.morph;
 			tItem->_morphId = kiwi.morphToId(q.morph);
 
@@ -493,10 +497,10 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 {
 	return py::handleExc([&]() -> PyObject*
 	{
-		size_t topN = 1, matchOptions = (size_t)Match::all;
+		size_t topN = 1, matchOptions = (size_t)Match::all, echo = 0;
 		PyObject* text;
-		static const char* kwlist[] = { "text", "top_n", "match_options", nullptr };
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nn", (char**)kwlist, &text, &topN, &matchOptions)) return nullptr;
+		static const char* kwlist[] = { "text", "top_n", "match_options", "echo", nullptr};
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnp", (char**)kwlist, &text, &topN, &matchOptions, &echo)) return nullptr;
 
 		doPrepare();
 		if (PyUnicode_Check(text))
@@ -516,6 +520,7 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 			ret->inputIter = move(iter);
 			ret->topN = topN;
 			ret->matchOptions = (Match)matchOptions;
+			ret->echo = !!echo;
 			for (int i = 0; i < kiwi.getNumThreads() * 16; ++i)
 			{
 				if (!ret->feed()) break;

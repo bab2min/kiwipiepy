@@ -27,6 +27,7 @@ utils 모듈은 kiwipiepy를 사용하는 데에 있어서 다양한 편의 기�
 '''
 
 import os
+import warnings
 
 _tag_set = {'NNG', 'NNP', 'NNB', 'NR', 'NP', 'VV', 'VA', 'VX', 'VCP', 'VCN', 'MM', 'MAG', 'MAJ', 'IC', 'JKS',
              'JKC', 'JKG', 'JKO', 'JKB', 'JKV', 'JKQ', 'JX', 'JC', 'EP', 'EF', 'EC', 'ETN', 'ETM', 'XPN', 'XSN',
@@ -48,24 +49,44 @@ filename: str
 
     def _load_stopwords(self, filename):
         stopwords = set()
+        stoptags = set()
         for stopword in open(filename, 'r', encoding='utf-8'):
             stopword = stopword.strip()
             try:
                 form, tag = stopword.split('/')
             except:
                 raise ValueError(f"Line in format 'form/tag' expected, but {repr(stopword)} found.")
-            stopwords.add((form, tag))
-        return stopwords
+            if form: stopwords.add((form, tag))
+            else: stoptags.add(tag)
+        return stopwords, stoptags
+
+    def _save_stopwords(self, filename, stopwords, stoptags):
+        with open(filename, 'w', encoding='utf-8') as fout:
+            for tag in stoptags:
+                print(f"/{tag}", file=fout)
+            for form, tag in stopwords:
+                print(f"{form}/{tag}", file=fout)
 
     def __init__(self, filename=None):
         if filename is None:
             path = os.path.abspath(__file__)
             dir_path = os.path.dirname(path)
             filename = dir_path + '/corpus/stopwords.txt'
-        self.stopwords = self._load_stopwords(filename)
+        self.stopwords, self.stoptags = self._load_stopwords(filename)
+
+    def save(self, filename):
+        self._save_stopwords(filename, self.stopwords, self.stoptags)
 
     def __contains__(self, word):
-        return word in self.stopwords
+        if isinstance(word, str):
+            warnings.warn("`word` should be in a tuple of `(form, tag)`.", RuntimeWarning)
+        
+        try:
+            form, tag = word
+        except:
+            raise ValueError("`word` should be in a tuple of `(form, tag)`.")
+
+        return word in self.stopwords or tag in self.stoptags
 
     def _tag_exists(self, tag):
         if tag in _tag_set:
@@ -78,7 +99,7 @@ filename: str
         raise ValueError(f"{repr(token)} doesn't exist in stopwords")
 
     def _is_not_stopword(self, token):
-        return (token.form, token.tag) not in self.stopwords
+        return (token.form, token.tag) not in self.stopwords and token.tag not in self.stoptags
 
     def add(self, tokens):
         '''불용어 사전에 사용자 정의 불용어를 추가합니다.

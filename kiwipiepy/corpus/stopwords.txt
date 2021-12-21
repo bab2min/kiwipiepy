@@ -1,3 +1,9 @@
+/SF
+/SP
+/SS
+/SE
+/SO
+/SW
 하/XSV
 을/JKO
 ᆫ/ETM
