@@ -5,3 +5,4 @@ prune Kiwi/ModelGenerator
 prune Kiwi/eval_data
 
 include LICENSE.txt
+include CMakeLists.txt
