@@ -38,7 +38,115 @@ $ python3 -m kiwipiepy
 인터페이스를 종료하려면 Ctrl + C 를 누르십시오.
 
 Kiwi에서 사용하는 품사 태그는 세종 말뭉치의 품사 태그를 기초로 하고 일부 태그들을 개량하여 사용하고 있습니다. 자세한 태그 체계에 대해서는 [여기](https://github.com/bab2min/kiwipiepy#%ED%92%88%EC%82%AC-%ED%83%9C%EA%B7%B8)를 참조하십시오.
-	
+
+## 간단 예제
+
+```python
+>>> from kiwipiepy import Kiwi
+>>> kiwi = Kiwi()
+# tokenize 함수로 형태소 분석 결과를 얻을 수 있습니다.
+>>> kiwi.tokenize("안녕하세요 형태소 분석기 키위입니다.")
+[Token(form='안녕', tag='NNG', start=0, len=2),
+ Token(form='하', tag='XSA', start=2, len=1),
+ Token(form='시', tag='EP', start=4, len=1),
+ Token(form='어요', tag='EC', start=3, len=2),
+ Token(form='형태소', tag='NNG', start=6, len=3),
+ Token(form='분석', tag='NNG', start=10, len=2),
+ Token(form='기', tag='NNG', start=12, len=1),
+ Token(form='키위', tag='NNG', start=14, len=2),
+ Token(form='이', tag='VCP', start=16, len=1),
+ Token(form='ᆸ니다', tag='EF', start=17, len=2),
+ Token(form='.', tag='SF', start=19, len=1)]
+
+# normalize_coda 옵션을 사용하면 
+# 덧붙은 받침 때문에 분석이 깨지는 경우를 방지할 수 있습니다.
+>>> kiwi.tokenize("ㅋㅋㅋ 이런 것도 분석이 될까욬ㅋㅋ?", normalize_coda=True)
+[Token(form='ㅋㅋㅋ', tag='SW', start=0, len=3),
+ Token(form='이런', tag='MM', start=4, len=2),
+ Token(form='것', tag='NNB', start=7, len=1),
+ Token(form='도', tag='JX', start=8, len=1),
+ Token(form='분석', tag='NNG', start=10, len=2),
+ Token(form='이', tag='JKS', start=12, len=1),
+ Token(form='되', tag='VV', start=14, len=1),
+ Token(form='ᆯ까요', tag='EC', start=15, len=2),
+ Token(form='ㅋㅋㅋ', tag='SW', start=17, len=2),
+ Token(form='?', tag='SF', start=19, len=1)]
+
+# 불용어 관리를 위한 Stopwords 클래스도 제공합니다.
+>>> from kiwipiepy.utils import Stopwords
+>>> stopwords = Stopwords()
+>>> kiwi.tokenize("분석 결과에서 불용어만 제외하고 출력할 수도 있다.", stopwords=stopwords)
+[Token(form='분석', tag='NNG', start=0, len=2),
+ Token(form='결과', tag='NNG', start=3, len=2),
+ Token(form='불', tag='XPN', start=8, len=1),
+ Token(form='용어', tag='NNG', start=9, len=2),
+ Token(form='제외', tag='NNG', start=13, len=2),
+ Token(form='출력', tag='NNG', start=18, len=2)]
+
+# add, remove 메소드를 이용해 불용어 목록에 단어를 추가하거나 삭제할 수도 있습니다.
+>>> stopwords.add(('결과', 'NNG'))
+>>> kiwi.tokenize("분석 결과에서 불용어만 제외하고 출력할 수도 있다.", stopwords=stopwords)
+[Token(form='분석', tag='NNG', start=0, len=2),
+ Token(form='불', tag='XPN', start=8, len=1),
+ Token(form='용어', tag='NNG', start=9, len=2),
+ Token(form='제외', tag='NNG', start=13, len=2),
+ Token(form='출력', tag='NNG', start=18, len=2)]
+
+>>> tokens = kiwi.tokenize("각 토큰은 여러 정보를 담고 있습니다.")
+>>> tokens[0]
+Token(form='각', tag='MM', start=0, len=1)
+>>> tokens[0].form # 형태소의 형태 정보
+'각'
+>>> tokens[0].tag # 형태소의 품사 정보
+'MM'
+>>> tokens[0].start # 시작 및 끝 지점 (문자 단위)
+0
+>>> tokens[0].end
+1
+>>> tokens[0].word_position # 현 문장에서의 어절 번호
+0
+>>> tokens[0].sent_position # 형태소가 속한 문장 번호
+0
+>>> tokens[0].line_number # 형태소가 속한 줄의 번호
+0
+
+# 문장 분리 기능도 지원합니다.
+>>> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘")
+[Sentence(text='여러 문장으로 구성된 텍스트네', start=0, end=16, tokens=None),
+ Sentence(text='이걸 분리해줘', start=17, end=24, tokens=None)]
+
+# 문장 분리와 형태소 분석을 함께 수행할 수도 있습니다.
+>>> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘", return_tokens=True)
+[Sentence(text='여러 문장으로 구성된 텍스트네', start=0, end=16, tokens=[
+  Token(form='여러', tag='MM', start=0, len=2), 
+  Token(form='문장', tag='NNG', start=3, len=2), 
+  Token(form='으로', tag='JKB', start=5, len=2), 
+  Token(form='구성', tag='NNG', start=8, len=2), 
+  Token(form='되', tag='XSV', start=10, len=1), 
+  Token(form='ᆫ', tag='ETM', start=11, len=0), 
+  Token(form='텍스트', tag='NNG', start=12, len=3), 
+  Token(form='이', tag='VCP', start=15, len=1), 
+  Token(form='네', tag='EF', start=15, len=1)]),
+ Sentence(text='이걸 분리해줘', start=17, end=24, tokens=[
+  Token(form='이거', tag='NP', start=17, len=2), 
+  Token(form='ᆯ', tag='JKO', start=19, len=0), 
+  Token(form='분리', tag='NNG', start=20, len=2), 
+  Token(form='하', tag='XSV', start=22, len=1), 
+  Token(form='어', tag='EC', start=22, len=1), 
+  Token(form='주', tag='VX', start=23, len=1), 
+  Token(form='어', tag='EF', start=23, len=1)])]
+
+# 사전에 새로운 단어를 추가할 수 있습니다.
+>>> kiwi.add_user_word("김갑갑", "NNP")
+True
+>>> kiwi.tokenize("김갑갑이 누구야")
+[Token(form='김갑갑', tag='NNP', start=0, len=3),
+ Token(form='이', tag='JKS', start=3, len=1),
+ Token(form='누구', tag='NP', start=5, len=2),
+ Token(form='야', tag='JKV', start=7, len=1)]
+
+```
+
 ## 시작하기
 
 kiwipiepy 패키지 설치가 성공적으로 완료되었다면, 다음과 같이 패키지를 import후 Kiwi 객체를 생성했을때 오류가 발생하지 않습니다.
@@ -286,3 +394,6 @@ SystemError: <built-in function next> returned a result with an error set
 </table>
 
 <sup>*</sup> 세종 품사 태그와 다른 독자적인 태그입니다.
+
+## 문장 분리 기능
+0.10.3 버전부터 문장 분리 기능을 지원합니다. 문장 분리 기능의 성능에 대해서는 [이 페이지](benchmark/sentence_split)를 참조해주세요.

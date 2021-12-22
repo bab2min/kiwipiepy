@@ -395,10 +395,19 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.10.3 (2021-12-22)
+    * Kiwi 0.10.3의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.10.3 )이 반영되었습니다.
+        * `Token`에 `sent_position`, `line_number` 프로퍼티가 추가되었습니다.
+        * `Kiwi.split_into_sents` 메소드가 추가되었습니다.
+        * SIMD 최적화가 강화되었습니다.
+    * pip를 통해 소스코드 설치가 잘 작동하지 않던 문제가 해결되었습니다.
+    * `Kiwi.tokenize` 메소드에 stopwords 인자가 추가되었습니다.
+    * `kiwipiepy.utils.Stopwords` 에 불용 태그 기능이 추가되었습니다.
+
 * 0.10.2 (2021-11-12)
     * Kiwi 0.10.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.10.2 )이 반영되었습니다.
-        * `Token`에 `word_position` 프로퍼티가 추가되었습니다.
-        * `Kiwi.analyze`에 `normalize_coda` 인자가 추가되었습니다.
+        * `Token` 에 `word_position` 프로퍼티가 추가되었습니다.
+        * `Kiwi.analyze` 에 `normalize_coda` 인자가 추가되었습니다.
     * `Kiwi.tokenize` 메소드가 추가되었습니다. `analyze` 메소드와는 다르게 바로 분서결과인 `Token`의 `list`를 반환하므로 더 간편하게 사용할 수 있습니다.
     * 불용어 관리 기능을 제공하는 `kiwipiepy.utils.Stopwords` 클래스가 추가되었습니다.
 
