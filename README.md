@@ -19,6 +19,12 @@ $ pip3 install kiwipiepy
 ```
 
 현재 kiwipiepy 패키지는 Vista 버전 이상의 Windows OS 및 Linux, macOS 10.12 이상을 지원합니다.
+**macOS M1** 등 binary distribution이 제공되지 않는 경우 소스 코드 컴파일을 위해 **cmake가 필요**합니다.
+```console
+$ pip install cmake
+$ pip install --upgrade pip
+$ pip install kiwipiepy
+```
 
 ## 테스트해보기
 
