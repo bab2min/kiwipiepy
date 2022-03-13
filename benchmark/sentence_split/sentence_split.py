@@ -79,12 +79,14 @@ def evaluate_split(gold, pred):
             matches[n] = (0,)
     return final_score, em, em_pred, pred_matches
 
-def run_evaluate(dataset, split_func, err_output=None):
+def run_evaluate(dataset, split_func, result_output=None, err_output=None):
     import time
     f1, em = [], []
     system_sents = 0
     elapsed = 0
     
+    if result_output is not None:
+        rout = open(result_output, 'w', encoding='utf-8')
     if err_output is not None:
         fout = open(err_output, 'w', encoding='utf-8')
 
@@ -93,6 +95,9 @@ def run_evaluate(dataset, split_func, err_output=None):
         pred = split_func(text)
         elapsed += time.perf_counter() - pcount
         s, e, ep, pred_matches = evaluate_split(gold, pred)
+        if result_output is not None:
+            rout.write('\n'.join(pred) + '\n\n')
+            rout.flush()
         if err_output is not None:
             for exact, sent, matched_gold in zip(ep, pred, pred_matches):
                 if exact: continue
@@ -105,6 +110,8 @@ def run_evaluate(dataset, split_func, err_output=None):
         em += e
         system_sents += len(ep)
     
+    if result_output is not None:
+        rout.close()
     if err_output is not None:
         fout.close()
 
@@ -122,6 +129,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('datasets', nargs='+')
+    parser.add_argument('--write_result')
     parser.add_argument('--write_err')
     args = parser.parse_args()
 
@@ -134,4 +142,4 @@ if __name__ == '__main__':
     kiwi = Kiwi()
     kiwi.tokenize("foo-bar") # warm-up
     for dataset in args.datasets:
-        run_evaluate(dataset, lambda text:[sent.text for sent in kiwi.split_into_sents(text, normalize_coda=True)], args.write_err)
+        run_evaluate(dataset, lambda text:[sent.text for sent in kiwi.split_into_sents(text, normalize_coda=True)], args.write_result, args.write_err)

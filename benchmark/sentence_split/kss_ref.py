@@ -6,6 +6,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('datasets', nargs='+')
+    parser.add_argument('--write_result')
     parser.add_argument('--write_err')
     parser.add_argument('--backend', default='pynori', choices=['pynori', 'mecab', 'none'])
     args = parser.parse_args()
@@ -13,4 +14,4 @@ if __name__ == '__main__':
     split_sentences("foo-bar", backend=args.backend) # warm-up
 
     for dataset in args.datasets:
-        run_evaluate(dataset, lambda text:split_sentences(text, backend=args.backend), args.write_err)
+        run_evaluate(dataset, lambda text:split_sentences(text, backend=args.backend), args.write_result, args.write_err)
