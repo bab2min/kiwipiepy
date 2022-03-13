@@ -111,3 +111,38 @@ def test_split_into_sents():
     assert sents[3].text == "다만 역시 토끼정 본점 답죠?ㅎㅅㅎ"
     assert sents[4].text == "그 맛이 크으.."
     assert sents[5].text == "아주 맛있었음...! ^^"
+
+def test_add_rule():
+    kiwi = Kiwi()
+    ores, oscore = kiwi.analyze("했어요! 하잖아요! 할까요?")[0]
+
+    assert len(kiwi.add_re_rule("EF", r"요$", "용", score=0)) > 0
+    res, score = kiwi.analyze("했어용! 하잖아용! 할까용?")[0]
+    assert score == oscore
+
+    kiwi = Kiwi()
+    assert len(kiwi.add_re_rule("EF", r"요$", "용", score=-1)) > 0
+    res, score = kiwi.analyze("했어용! 하잖아용! 할까용?")[0]
+    assert score == oscore - 3
+
+def test_add_pre_analyzed_word():
+    kiwi = Kiwi()
+    ores = kiwi.tokenize("팅겼어")
+
+    try:
+        kiwi.add_pre_analyzed_word("팅겼어", [("팅기", "VV"), "었/EP", "어/EF"])
+        raise AssertionError("expected to raise `ValueError`")
+    except ValueError:
+        pass
+    except:
+        raise AssertionError("expected to raise `ValueError`")
+
+    kiwi.add_user_word("팅기", "VV", orig_word="튕기")
+    kiwi.add_pre_analyzed_word("팅겼어", [("팅기", "VV", 0, 2), ("었", "EP", 1, 2), ("어", "EF", 2, 3)])
+
+    res = kiwi.tokenize("팅겼어...")
+
+    assert res[0].form == "팅기" and res[0].tag == "VV" and res[0].start == 0 and res[0].end == 2
+    assert res[1].form == "었" and res[1].tag == "EP" and res[1].start == 1 and res[1].end == 2
+    assert res[2].form == "어" and res[2].tag == "EF" and res[2].start == 2 and res[2].end == 3
+    assert res[3].form == "..." and res[3].tag == "SF" and res[3].start == 3 and res[3].end == 6
