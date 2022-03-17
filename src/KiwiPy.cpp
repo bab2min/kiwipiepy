@@ -152,6 +152,7 @@ struct TokenObject : py::CObject<TokenObject>
 	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _lineNumber = 0;
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
+	const Morpheme* _baseMorph = nullptr;
 
 	static int init(TokenObject* self, PyObject* args, PyObject* kwargs)
 	{
@@ -161,6 +162,16 @@ struct TokenObject : py::CObject<TokenObject>
 	uint32_t end()
 	{
 		return _pos + _len;
+	}
+
+	u16string baseForm()
+	{
+	 	return kiwi::joinHangul(_baseMorph->getForm());
+	}
+
+	size_t baseId()
+	{
+		return (_baseMorph - _morph) + _morphId;
 	}
 
 	static Py_ssize_t len(TokenObject* self)
@@ -211,6 +222,8 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [&](PyTypeObject& obj)
 		{ (char*)"word_position", PY_GETTER_MEMPTR(&TokenObject::_wordPosition), nullptr, Token_word_position__doc__, nullptr },
 		{ (char*)"sent_position", PY_GETTER_MEMPTR(&TokenObject::_sentPosition), nullptr, Token_sent_position__doc__, nullptr },
 		{ (char*)"line_number", PY_GETTER_MEMPTR(&TokenObject::_lineNumber), nullptr, Token_line_number__doc__, nullptr },
+		{ (char*)"base_form", PY_GETTER_MEMFN(&TokenObject::baseForm), nullptr, Token_base_form__doc__, nullptr },
+		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, Token_base_id__doc__, nullptr },
 		{ nullptr },
 	};
 
@@ -253,6 +266,7 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_lineNumber = q.lineNumber;
 			tItem->_morph = q.morph;
 			tItem->_morphId = kiwi.morphToId(q.morph);
+			tItem->_baseMorph = kiwi.idToMorph(q.morph->lmMorphemeId);
 
 			PyList_SetItem(rList, jdx++, item.release());
 			u32offset += u32chrs;

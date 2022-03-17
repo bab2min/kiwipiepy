@@ -68,3 +68,17 @@ DOC_VARIABLE_EN_KO(Token_line_number__doc__,
 
 형태소의 입력 텍스트 내 줄 번호 (0부터 시작))""
 );
+
+DOC_VARIABLE_EN_KO(Token_base_form__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.11.0
+
+이형태의 경우 원본 형태소의 형태. 일반 형태소의 경우 `form`과 동일.)""
+);
+
+DOC_VARIABLE_EN_KO(Token_base_id__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.11.0
+
+이형태의 경우 원본 형태소의 고유 ID. 일반 형태소의 경우 `id`와 동일.)""
+);
