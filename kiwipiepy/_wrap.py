@@ -55,13 +55,37 @@ class Match(IntEnum):
     
     .. versionadded:: 0.8.2
     """
-    ALL = 15
+    ALL = URL | EMAIL | HASHTAG | MENTION
     """
     URL, EMAIL, HASHTAG, MENTION를 모두 사용합니다.
     """
-    NORMALIZING_CODA = 65536
+    NORMALIZING_CODA = 1 << 16
     """
     '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다.
+    """
+    JOIN_NOUN_PREFIX = 1 << 17
+    """
+    명사의 접두사를 분리하지 않고 결합합니다. 풋/XPN 사과/NNG -> 풋사과/NNG
+    """
+    JOIN_NOUN_SUFFIX = 1 << 18
+    """
+    명사의 접미사를 분리하지 않고 결합합니다. 사과/NNG 들/XSN -> 사과들/NNG
+    """
+    JOIN_VERB_SUFFIX = 1 << 19
+    """
+    동사형 전성어미를 분리하지 않고 결합합니다. 사랑/NNG 하/XSV 다/EF -> 사랑하/VV 다/EF
+    """
+    JOIN_ADJ_SUFFIX = 1 << 20
+    """
+    형용사형 전성어미를 분리하지 않고 결합합니다. 매콤/XR 하/XSA 다/EF -> 매콤하/VA 다/EF
+    """
+    JOIN_V_SUFFIX = JOIN_VERB_SUFFIX | JOIN_ADJ_SUFFIX
+    """
+    동사/형용사형 전성어미를 분리하지 않고 결합합니다.
+    """
+    JOIN_AFFIX = JOIN_NOUN_PREFIX | JOIN_NOUN_SUFFIX | JOIN_V_SUFFIX
+    """
+    모든 접두사/접미사를 분리하지 않고 결합합니다.
     """
 
 Sentence = namedtuple('Sentence', ['text', 'start', 'end', 'tokens'])
@@ -226,7 +250,7 @@ inserted_forms: List[str]
     
     def add_re_rule(self,
         tag:str,
-        pattern:Union[str, re.Pattern],
+        pattern:Union[str, 're.Pattern'],
         repl:Union[str, Callable],
         score:Optional[float] = 0.,
     ):
