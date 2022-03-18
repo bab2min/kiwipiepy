@@ -1,4 +1,5 @@
-from typing import Optional, Union, Iterable
+import re
+from typing import Callable, List, Optional, Tuple, Union, Iterable
 from collections import namedtuple
 from enum import IntEnum
 import warnings
@@ -54,13 +55,37 @@ class Match(IntEnum):
     
     .. versionadded:: 0.8.2
     """
-    ALL = 15
+    ALL = URL | EMAIL | HASHTAG | MENTION
     """
     URL, EMAIL, HASHTAG, MENTION를 모두 사용합니다.
     """
-    NORMALIZING_CODA = 65536
+    NORMALIZING_CODA = 1 << 16
     """
     '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다.
+    """
+    JOIN_NOUN_PREFIX = 1 << 17
+    """
+    명사의 접두사를 분리하지 않고 결합합니다. 풋/XPN 사과/NNG -> 풋사과/NNG
+    """
+    JOIN_NOUN_SUFFIX = 1 << 18
+    """
+    명사의 접미사를 분리하지 않고 결합합니다. 사과/NNG 들/XSN -> 사과들/NNG
+    """
+    JOIN_VERB_SUFFIX = 1 << 19
+    """
+    동사형 전성어미를 분리하지 않고 결합합니다. 사랑/NNG 하/XSV 다/EF -> 사랑하/VV 다/EF
+    """
+    JOIN_ADJ_SUFFIX = 1 << 20
+    """
+    형용사형 전성어미를 분리하지 않고 결합합니다. 매콤/XR 하/XSA 다/EF -> 매콤하/VA 다/EF
+    """
+    JOIN_V_SUFFIX = JOIN_VERB_SUFFIX | JOIN_ADJ_SUFFIX
+    """
+    동사/형용사형 전성어미를 분리하지 않고 결합합니다.
+    """
+    JOIN_AFFIX = JOIN_NOUN_PREFIX | JOIN_NOUN_SUFFIX | JOIN_V_SUFFIX
+    """
+    모든 접두사/접미사를 분리하지 않고 결합합니다.
     """
 
 Sentence = namedtuple('Sentence', ['text', 'start', 'end', 'tokens'])
@@ -126,27 +151,145 @@ load_default_dict: bool
         word:str,
         tag:Optional[str] = 'NNP',
         score:Optional[float] = 0.,
-    ):
-        '''현재 모델에 사용자 정의 단어를 추가합니다.
+        orig_word:Optional[str] = None,
+    ) -> bool:
+        '''현재 모델에 사용자 정의 형태소를 추가합니다.
 
 Parameters
 ----------
 word: str
-    추가할 단어
+    추가할 형태소
 tag: str
-    추가할 단어의 품사 태그
+    추가할 형태소의 품사 태그
 score: float
-    추가할 단어의 가중치 점수. 
+    추가할 형태소의 가중치 점수. 
+    해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
+orig_word : str
+    .. versionadded:: 0.11.0
+
+    추가할 형태소의 원본 형태소.
+    추가할 형태소가 특정 형태소의 변이형인 경우 이 인자로 원본 형태소를 넘겨줄 수 있습니다. 없는 경우 생략할 수 있습니다.
+    `orig_word`가 주어진 경우 현재 사전 내에 `orig_word`/`tag` 조합의 형태소가 반드시 존재해야 하며, 그렇지 않으면 `ValueError` 예외를 발생시킵니다.
+
+Returns
+-------
+inserted: bool
+    사용자 정의 형태소가 정상적으로 삽입된 경우 True, 이미 동일한 형태소가 존재하여 삽입되지 않은 경우 False를 반환합니다.
+        '''
+
+        return super().add_user_word(word, tag, score, orig_word)
+    
+    def add_pre_analyzed_word(self,
+        form:str,
+        analyzed:Iterable[Tuple[str, str]],
+        score:Optional[float] = 0.,
+    ) -> bool:
+        '''.. versionadded:: 0.11.0
+
+현재 모델에 기분석 형태소열을 추가합니다.
+
+Parameters
+----------
+form: str
+    추가할 형태
+analyzed: str
+    `form`의 형태소 분석 결과.
+    이 값은 (형태, 품사) 모양의 tuple, 혹은 (형태, 품사, 시작지점, 끝지점) 모양의 tuple로 구성된 Iterable이어야합니다.
+    이 값으로 지정되는 형태소는 현재 사전 내에 반드시 존재해야 하며, 그렇지 않으면 `ValueError` 예외를 발생시킵니다.
+score: float
+    추가할 형태소열의 가중치 점수. 
     해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
 
 Returns
 -------
 inserted: bool
-    사용자 정의 단어가 정상적으로 삽입된 경우 True, 중복 단어 등의 이유로 삽입에 실패한 경우 False를 반환합니다.
-        '''
+    기분석 형태소열이 정상적으로 삽입된 경우 True, 이미 동일한 대상이 존재하여 삽입되지 않은 경우 False를 반환합니다.
 
-        return super().add_user_word(word, tag, score)
+Notes
+-----
+이 메소드는 불규칙적인 분석 결과를 분석기에 추가하는 데에 용이합니다. 
+예를 들어 `사귀다` 동사의 과거형은 `사귀었다`가 맞지만, 흔히 `사겼다`로 잘못 쓰이기도 합니다.
+`사겼다`가 `사귀/VV + 었/EP + 다/EF`로 바르게 분석되도록 하는데에 이 메소드를 사용할 수 있습니다.
+
+`kiwi.add_pre_analyzed_word('사겼다', ['사귀/VV', '었/EP', '다/EF'], -3)`
+
+`kiwi.add_pre_analyzed_word('사겼다', [('사귀', 'VV', 0, 2), ('었', 'EP', 1, 2), ('다', 'EF', 2, 3)], -3)`
+
+후자의 경우 분석 결과의 각 형태소가 원본 문자열에서 차지하는 위치를 정확하게 지정해줌으로써, 
+Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나오도록 합니다.
+        '''
+        return super().add_pre_analyzed_word(form, analyzed, score)
+
+    def add_rule(self,
+        tag:str,
+        replacer:Callable[[str], str],
+        score:Optional[float] = 0.,
+    ) -> List[str]:
+        '''.. versionadded:: 0.11.0
+
+규칙에 의해 변형된 형태소를 일괄적으로 추가합니다.
+
+Parameters
+----------
+tag: str
+    추가할 형태소들의 품사
+replacer: Callable[[str], str]
+    형태소를 변형시킬 규칙. 
+    이 값은 호출가능한 Callable 형태로 제공되어야 하며, 원본 형태소 str를 입력으로 받아 변형된 형태소의 str을 반환해야합니다.
+    만약 입력과 동일한 값을 반환하면 해당 변형 결과는 무시됩니다.
+score: float
+    추가할 변형된 형태소의 가중치 점수. 
+    해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
+
+Returns
+-------
+inserted_forms: List[str]
+    규칙에 의해 새로 생성된 형태소의 `list`를 반환합니다.
+        '''
+        return super().add_rule(tag, replacer, score)
     
+    def add_re_rule(self,
+        tag:str,
+        pattern:Union[str, 're.Pattern'],
+        repl:Union[str, Callable],
+        score:Optional[float] = 0.,
+    ):
+        '''.. versionadded:: 0.11.0
+
+`kiwipiepy.add_rule`과 동일한 역할을 수행하되, 변형 규칙에 정규표현식을 사용합니다.
+
+Parameters
+----------
+tag: str
+    추가할 형태소들의 품사
+pattern: Union[str, re.Pattern]
+    변형시킬 형태소의 규칙. 이 값은 `re.compile`로 컴파일가능한 정규표현식이어야 합니다.
+repl: Union[str, Callable]
+    `pattern`에 의해 발견된 패턴은 이 값으로 교체됩니다. `re.sub` 함수의 `repl` 인자와 동일합니다.
+score: float
+    추가할 변형된 형태소의 가중치 점수. 
+    해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
+
+Returns
+-------
+inserted_forms: List[str]
+    규칙에 의해 새로 생성된 형태소의 `list`를 반환합니다.
+
+Notes
+-----
+이 메소드는 규칙에 의해 변형되는 이형태들을 일괄적으로 추가할 때 굉장히 용이합니다.
+예를 들어 `-요`가 `-염`으로 교체된 종결어미들(`먹어염`, `뛰었구염`, `배불러염` 등)을 일괄 등록하기 위해서는
+다음을 수행하면 됩니다.
+
+`kiwi.add_re_rule('EF', r'요$', r'염', -3.0)`
+
+이런 이형태들을 대량으로 등록할 경우 이형태가 원본 형태보다 분석결과에서 높은 우선권을 가지지 않도록
+score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
+        '''
+        if isinstance(pattern, str):
+            pattern = re.compile(pattern)
+        return super().add_rule(tag, lambda x:pattern.sub(repl, x), score)
+
     def load_user_dictionary(self,
         dict_path:str
     ):

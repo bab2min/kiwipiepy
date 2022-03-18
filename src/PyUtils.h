@@ -1,6 +1,7 @@
 #pragma once
 #include <type_traits>
 #include <vector>
+#include <map>
 #include <unordered_map>
 #include <tuple>
 #include <set>
@@ -739,19 +740,59 @@ namespace py
 		{
 			PyObject* ret = PyTuple_New(2);
 			size_t id = 0;
-			PyTuple_SetItem(ret, id++, buildPyValue(std::get<0>(v)));
-			PyTuple_SetItem(ret, id++, buildPyValue(std::get<1>(v)));
+			PyTuple_SET_ITEM(ret, id++, buildPyValue(std::get<0>(v)));
+			PyTuple_SET_ITEM(ret, id++, buildPyValue(std::get<1>(v)));
 			return ret;
 		}
 
 		template<typename _FailMsg>
 		std::pair<_Ty1, _Ty2> _toCpp(PyObject* obj, _FailMsg&&)
 		{
-			if (PyTuple_Size(obj) != 2) throw ConversionFail{ "input is not tuple with len=2" };
-			return std::make_tuple(
-				toCpp<_Ty1>(PyTuple_GetItem(obj, 0)),
-				toCpp<_Ty2>(PyTuple_GetItem(obj, 1))
+			if (Py_SIZE(obj) != 2) throw ConversionFail{ "input is not tuple with len=2" };
+			return std::make_pair(
+				toCpp<_Ty1>(PySequence_ITEM(obj, 0)),
+				toCpp<_Ty2>(PySequence_ITEM(obj, 1))
 			);
+		}
+	};
+
+	template<typename... _Tys>
+	struct ValueBuilder<std::tuple<_Tys...>>
+	{
+	private:
+		void setValue(PyObject* o, const std::tuple<_Tys...>& v, std::integer_sequence<size_t>)
+		{
+		}
+
+		template<size_t i, size_t ...rest>
+		void setValue(PyObject* o, const std::tuple<_Tys...>& v, std::integer_sequence<size_t, i, rest...>)
+		{
+			PyTuple_SET_ITEM(o, i, buildPyValue(std::get<i>(v)));
+			return setValue<rest...>(o, v, {});
+		}
+
+		template<size_t ...idx>
+		std::tuple<_Tys...> getValue(PyObject* o, std::integer_sequence<size_t, idx...>)
+		{
+			return std::make_tuple(
+				toCpp<typename std::tuple_element<idx, std::tuple<_Tys...>>::type>(PySequence_ITEM(o, idx))...
+			);
+		}
+
+	public:
+		PyObject* operator()(const std::tuple<_Tys...>& v)
+		{
+			PyObject* ret = PyTuple_New(sizeof...(_Tys));
+			size_t id = 0;
+			setValue(ret, v, std::make_index_sequence<sizeof...(_Tys)>{});
+			return ret;
+		}
+
+		template<typename _FailMsg>
+		std::tuple<_Tys...> _toCpp(PyObject* obj, _FailMsg&&)
+		{
+			if (Py_SIZE(obj) != sizeof...(_Tys)) throw ConversionFail{ "input is not tuple with len=2" };
+			return getValue(obj, std::make_index_sequence<sizeof...(_Tys)>{});
 		}
 	};
 
@@ -1211,6 +1252,9 @@ namespace py
 		return tuple;
 	}
 
+	template<typename Ty>
+	class TypeWrapper;
+
 	template<class Derived>
 	struct CObject
 	{
@@ -1231,6 +1275,18 @@ namespace py
 			self->~Derived();
 			Py_TYPE(self)->tp_free((PyObject*)self);
 		}
+
+	private:
+		static void init() { }
+		static void iter() {}
+		static void iternext() {}
+		static void repr() {}
+
+		static constexpr const char* _name = "";
+		static constexpr const char* _name_in_module = "";
+		static constexpr const char* _doc = "";
+		static constexpr int _flags = Py_TPFLAGS_DEFAULT;
+		friend class TypeWrapper<Derived>;
 	};
 
 	template<class Derived, class RetTy>
@@ -1301,6 +1357,66 @@ namespace py
 		{
 			return py::buildPyValue(std::move(v));
 		}
+	};
+
+	class TypeManager
+	{
+	private:
+		std::map<const char*, PyTypeObject*> types;
+		TypeManager() {}
+	public:
+		static TypeManager& getInst()
+		{
+			static TypeManager inst;
+			return inst;
+		}
+
+		static void registerType(PyTypeObject* type, const char* name)
+		{
+			getInst().types[name] = type;
+		}
+
+		static void addToModule(PyObject* mod)
+		{
+			for (auto& p : getInst().types)
+			{
+				if (PyType_Ready(p.second) < 0) throw ExcPropagation{};
+				Py_INCREF(p.second);
+				PyModule_AddObject(mod, p.first, (PyObject*)p.second);
+			}
+		}
+	};
+
+	template<typename Ty>
+	class TypeWrapper
+	{
+	public:
+		static PyTypeObject obj;
+
+		template<class Fn>
+		TypeWrapper(Fn&& fn)
+		{
+			obj.tp_basicsize = sizeof(Ty);
+			obj.tp_dealloc = (destructor)Ty::dealloc;
+			obj.tp_new = (newfunc)Ty::_new;
+			obj.tp_alloc = PyType_GenericAlloc;
+			obj.tp_flags = Ty::_flags;
+			obj.tp_name = Ty::_name;
+			obj.tp_doc = Ty::_doc;
+			if ((void*)&CObject<Ty>::init != (void*)Ty::init) obj.tp_init = (initproc)Ty::init;
+			if ((void*)&CObject<Ty>::iter != (void*)Ty::iter) obj.tp_iter = (getiterfunc)Ty::iter;
+			if ((void*)&CObject<Ty>::iternext != (void*)Ty::iternext) obj.tp_iternext = (iternextfunc)Ty::iternext;
+			if ((void*)&CObject<Ty>::repr != (void*)Ty::repr) obj.tp_repr = (reprfunc)Ty::repr;
+			fn(obj);
+			TypeManager::registerType(&obj, Ty::_name_in_module);
+		}
+	};
+
+	template<typename Ty>
+	PyTypeObject* Type = &TypeWrapper<Ty>::obj;
+
+	template<typename Ty> PyTypeObject TypeWrapper<Ty>::obj = {
+		PyVarObject_HEAD_INIT(nullptr, 0)
 	};
 
 	template<typename _Fn>
@@ -1386,6 +1502,167 @@ namespace py
 		}
 		return -1;
 	}
+
+	namespace detail
+	{
+		template <typename T>
+		struct IsFunctionObjectImpl
+		{
+		private:
+			using Yes = char(&)[1];
+			using No = char(&)[2];
+
+			struct Fallback
+			{
+				void operator()();
+			};
+
+			struct Derived : T, Fallback
+			{
+			};
+
+			template <typename U, U>
+			struct Check;
+
+			template <typename>
+			static Yes Test(...);
+
+			template <typename C>
+			static No Test(Check<void(Fallback::*)(), &C::operator()>*);
+
+		public:
+			static constexpr bool value{ sizeof(Test<Derived>(0)) == sizeof(Yes) };
+		};
+	}
+
+	template <typename T>
+	struct IsFunctionObject : std::conditional<
+		std::is_class<T>::value,
+		detail::IsFunctionObjectImpl<T>,
+		std::false_type
+	>::type
+	{
+	};
+
+	namespace detail
+	{
+		template <typename T>
+		struct TypeDecomposerImpl;
+
+		template <typename R, typename... Ts>
+		struct TypeDecomposerImpl<R(Ts...)>
+		{
+			using Type = R(Ts...);
+			using FunctionPointerType = R(*)(Ts...);
+			using ReturnType = R;
+			using ArgsTuple = std::tuple<Ts...>;
+
+			template <std::size_t N>
+			using Arg = typename std::tuple_element<N, ArgsTuple>::type;
+
+			static const std::size_t nargs{ sizeof...(Ts) };
+
+			template<Type func>
+			static FunctionPointerType GetCFunctionPointer()
+			{
+				return [](Ts... ts)
+				{
+					return func(std::forward<Ts>(ts)...);
+				};
+			}
+		};
+
+		template <typename R, typename... Ts>
+		struct TypeDecomposerImpl<R(*)(Ts...)>
+		{
+			using Type = R(*)(Ts...);
+			using FunctionPointerType = R(*)(Ts...);
+			using ReturnType = R;
+			using ArgsTuple = std::tuple<Ts...>;
+
+			template <std::size_t N>
+			using Arg = typename std::tuple_element<N, ArgsTuple>::type;
+
+			static const std::size_t nargs{ sizeof...(Ts) };
+
+			template <Type func>
+			static FunctionPointerType GetCFunctionPointer()
+			{
+				return [](Ts... ts)
+				{
+					return func(std::forward<Ts>(ts)...);
+				};
+			}
+		};
+
+		template <typename C, typename R, typename... Ts>
+		struct TypeDecomposerImpl<R(C::*)(Ts...)>
+		{
+			using Type = R(C::*)(Ts...);
+			using FunctionPointerType = R(*)(C*, Ts...);
+			using ReturnType = R;
+			using ClassType = C;
+			using ArgsTuple = std::tuple<Ts...>;
+
+			template <std::size_t N>
+			using Arg = typename std::tuple_element<N, ArgsTuple>::type;
+
+			static constexpr std::size_t nargs{ sizeof...(Ts) };
+
+			template <Type func>
+			static FunctionPointerType GetCFunctionPointer()
+			{
+				return [](ClassType* c, Ts... ts) -> ReturnType
+				{
+					return (c->*func)(std::forward<Ts>(ts)...);
+				};
+			}
+
+			template<Type fn, const char* ...argNames> static PyCFunction method()
+			{
+				return (PyCFunction)(PyCFunctionWithKeywords)[](PyObject* self, PyObject* args, PyObject* kwargs) -> PyObject*
+				{
+					return (((C*)self)->*fn)();
+				};
+			}
+		};
+
+		template <typename C, typename R, typename... Ts>
+		struct TypeDecomposerImpl<R(C::*)(Ts...) const>
+		{
+			using Type = R(C::*)(Ts...) const;
+			using FunctionPointerType = R(*)(C*, Ts...);
+			using ReturnType = R;
+			using ClassType = C;
+			using ArgsTuple = std::tuple<Ts...>;
+
+			template <std::size_t N>
+			using Arg = typename std::tuple_element<N, ArgsTuple>::type;
+
+			static constexpr std::size_t nargs{ sizeof...(Ts) };
+
+			template <Type func>
+			static FunctionPointerType GetCFunctionPointer()
+			{
+				return [](ClassType* c, Ts... ts)
+				{
+					return (c->*func)(std::forward<Ts>(ts)...);
+				};
+			}
+		};
+	}
+
+	template <typename T, typename = void>
+	struct TypeDecomposer : detail::TypeDecomposerImpl<T>
+	{
+	};
+
+	template <typename T>
+	struct TypeDecomposer<T, typename std::enable_if<IsFunctionObject<T>::value>::type> : 
+		detail::TypeDecomposerImpl<decltype(&T::operator())>
+	{
+	};
+
 
 	namespace detail
 	{

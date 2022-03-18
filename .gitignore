@@ -255,9 +255,12 @@ __pycache__
 */kiwipiepy_model/sj.knlm
 */kiwipiepy_model/extract.mdl
 */kiwipiepy_model/default.dict
+*/kiwipiepy_model/combiningRule.txt
 /src/core
 /mimalloc
 /model/dist
 /ttest/
 .vscode/
 .idea/
+.java/
+*.err

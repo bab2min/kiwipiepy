@@ -19,6 +19,10 @@ static PyObject* gModule;
 
 struct KiwiObject : py::CObject<KiwiObject>
 {
+	static constexpr const char* _name = "kiwipiepy._Kiwi";
+	static constexpr const char* _name_in_module = "_Kiwi";
+	static constexpr int _flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+
 	KiwiBuilder builder;
 	Kiwi kiwi;
 
@@ -76,6 +80,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 	}
 
 	PyObject* addUserWord(PyObject* args, PyObject* kwargs);
+	PyObject* addPreAnalyzedWord(PyObject* args, PyObject* kwargs);
+	PyObject* addRule(PyObject* args, PyObject* kwargs);
 	PyObject* analyze(PyObject* args, PyObject* kwargs);
 	PyObject* extractAddWords(PyObject* args, PyObject* kwargs);
 	PyObject* extractWords(PyObject* args, PyObject* kwargs);
@@ -109,75 +115,44 @@ struct KiwiObject : py::CObject<KiwiObject>
 	}
 };
 
-
-static PyMethodDef Kiwi_methods[] =
+py::TypeWrapper<KiwiObject> _KiwiSetter{ [](PyTypeObject& obj)
 {
-	{ "add_user_word", PY_METHOD_MEMFN(&KiwiObject::addUserWord), METH_VARARGS | METH_KEYWORDS, "" },
-	{ "load_user_dictionary", PY_METHOD_MEMFN(&KiwiObject::loadUserDictionary), METH_VARARGS | METH_KEYWORDS, "" },
-	{ "extract_words", PY_METHOD_MEMFN(&KiwiObject::extractWords), METH_VARARGS | METH_KEYWORDS, "" },
-	{ "extract_add_words", PY_METHOD_MEMFN(&KiwiObject::extractAddWords), METH_VARARGS | METH_KEYWORDS, "" },
-	{ "perform", PY_METHOD_MEMFN(&KiwiObject::perform), METH_VARARGS | METH_KEYWORDS, "" },
-	{ "analyze", PY_METHOD_MEMFN(&KiwiObject::analyze), METH_VARARGS | METH_KEYWORDS, "" },
-	{ "morpheme", PY_METHOD_MEMFN(&KiwiObject::getMorpheme), METH_VARARGS | METH_KEYWORDS, "" },
-	{ nullptr }
-};
-
-static PyGetSetDef Kiwi_getsets[] = 
-{
-	{ (char*)"_cutoff_threshold", PY_GETTER_MEMFN(&KiwiObject::getCutOffThreshold), PY_SETTER_MEMFN(&KiwiObject::setCutOffThreshold), "", nullptr },
-	{ (char*)"_integrate_allomorph", PY_GETTER_MEMFN(&KiwiObject::getIntegrateAllomorph), PY_SETTER_MEMFN(&KiwiObject::setIntegrateAllomorph), "", nullptr },
-	{ (char*)"_num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
-	{ nullptr },
-};
-
-static PyTypeObject Kiwi_type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"kiwipiepy._Kiwi",             /* tp_name */
-	sizeof(KiwiObject), /* tp_basicsize */
-	0,                         /* tp_itemsize */
-	(destructor)KiwiObject::dealloc, /* tp_dealloc */
-	0,                         /* tp_print */
-	0,                         /* tp_getattr */
-	0,                         /* tp_setattr */
-	0,                         /* tp_reserved */
-	0,                         /* tp_repr */
-	0,                         /* tp_as_number */
-	0,                         /* tp_as_sequence */
-	0,                         /* tp_as_mapping */
-	0,                         /* tp_hash  */
-	0,                         /* tp_call */
-	0,                         /* tp_str */
-	0,                         /* tp_getattro */
-	0,                         /* tp_setattro */
-	0,                         /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-	"",           /* tp_doc */
-	0,                         /* tp_traverse */
-	0,                         /* tp_clear */
-	0,                         /* tp_richcompare */
-	0,                         /* tp_weaklistoffset */
-	0,                         /* tp_iter */
-	0,                         /* tp_iternext */
-	Kiwi_methods,             /* tp_methods */
-	0,						 /* tp_members */
-	Kiwi_getsets,        /* tp_getset */
-	0,                         /* tp_base */
-	0,                         /* tp_dict */
-	0,                         /* tp_descr_get */
-	0,                         /* tp_descr_set */
-	0,                         /* tp_dictoffset */
-	(initproc)KiwiObject::init,      /* tp_init */
-	PyType_GenericAlloc,
-	(newfunc)KiwiObject::_new,
-};
+	static PyMethodDef methods[] =
+	{
+		{ "add_user_word", PY_METHOD_MEMFN(&KiwiObject::addUserWord), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "add_pre_analyzed_word", PY_METHOD_MEMFN(&KiwiObject::addPreAnalyzedWord), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "add_rule", PY_METHOD_MEMFN(&KiwiObject::addRule), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "load_user_dictionary", PY_METHOD_MEMFN(&KiwiObject::loadUserDictionary), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "extract_words", PY_METHOD_MEMFN(&KiwiObject::extractWords), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "extract_add_words", PY_METHOD_MEMFN(&KiwiObject::extractAddWords), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "perform", PY_METHOD_MEMFN(&KiwiObject::perform), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "analyze", PY_METHOD_MEMFN(&KiwiObject::analyze), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "morpheme", PY_METHOD_MEMFN(&KiwiObject::getMorpheme), METH_VARARGS | METH_KEYWORDS, "" },
+		{ nullptr }
+	};
+	static PyGetSetDef getsets[] =
+	{
+		{ (char*)"_cutoff_threshold", PY_GETTER_MEMFN(&KiwiObject::getCutOffThreshold), PY_SETTER_MEMFN(&KiwiObject::setCutOffThreshold), "", nullptr },
+		{ (char*)"_integrate_allomorph", PY_GETTER_MEMFN(&KiwiObject::getIntegrateAllomorph), PY_SETTER_MEMFN(&KiwiObject::setIntegrateAllomorph), "", nullptr },
+		{ (char*)"_num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
+		{ nullptr },
+	};
+	obj.tp_methods = methods;
+	obj.tp_getset = getsets;
+}};
 
 struct TokenObject : py::CObject<TokenObject>
 {
+	static constexpr const char* _name = "kiwipiepy.Token";
+	static constexpr const char* _name_in_module = "Token";
+	static constexpr const char* _doc = Token__doc__;
+
 	u16string _form;
 	const char* _tag = nullptr;
 	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _lineNumber = 0;
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
+	const Morpheme* _baseMorph = nullptr;
 
 	static int init(TokenObject* self, PyObject* args, PyObject* kwargs)
 	{
@@ -187,6 +162,16 @@ struct TokenObject : py::CObject<TokenObject>
 	uint32_t end()
 	{
 		return _pos + _len;
+	}
+
+	u16string baseForm()
+	{
+	 	return kiwi::joinHangul(_baseMorph->getForm());
+	}
+
+	size_t baseId()
+	{
+		return (_baseMorph - _morph) + _morphId;
 	}
 
 	static Py_ssize_t len(TokenObject* self)
@@ -224,68 +209,34 @@ struct TokenObject : py::CObject<TokenObject>
 	}
 };
 
-
-static PyGetSetDef Token_getsets[] =
+py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 {
-	{ (char*)"form", PY_GETTER_MEMPTR(&TokenObject::_form), nullptr, Token_form__doc__, nullptr },
-	{ (char*)"tag", PY_GETTER_MEMPTR(&TokenObject::_tag), nullptr, Token_tag__doc__, nullptr },
-	{ (char*)"start", PY_GETTER_MEMPTR(&TokenObject::_pos), nullptr, Token_start__doc__, nullptr },
-	{ (char*)"len", PY_GETTER_MEMPTR(&TokenObject::_len), nullptr, Token_len__doc__, nullptr },
-	{ (char*)"end", PY_GETTER_MEMFN(&TokenObject::end), nullptr, Token_end__doc__, nullptr },
-	{ (char*)"id", PY_GETTER_MEMPTR(&TokenObject::_morphId), nullptr, Token_id__doc__, nullptr },
-	{ (char*)"word_position", PY_GETTER_MEMPTR(&TokenObject::_wordPosition), nullptr, Token_word_position__doc__, nullptr },
-	{ (char*)"sent_position", PY_GETTER_MEMPTR(&TokenObject::_sentPosition), nullptr, Token_sent_position__doc__, nullptr },
-	{ (char*)"line_number", PY_GETTER_MEMPTR(&TokenObject::_lineNumber), nullptr, Token_line_number__doc__, nullptr },
-	{ nullptr },
-};
+	static PyGetSetDef getsets[] =
+	{
+		{ (char*)"form", PY_GETTER_MEMPTR(&TokenObject::_form), nullptr, Token_form__doc__, nullptr },
+		{ (char*)"tag", PY_GETTER_MEMPTR(&TokenObject::_tag), nullptr, Token_tag__doc__, nullptr },
+		{ (char*)"start", PY_GETTER_MEMPTR(&TokenObject::_pos), nullptr, Token_start__doc__, nullptr },
+		{ (char*)"len", PY_GETTER_MEMPTR(&TokenObject::_len), nullptr, Token_len__doc__, nullptr },
+		{ (char*)"end", PY_GETTER_MEMFN(&TokenObject::end), nullptr, Token_end__doc__, nullptr },
+		{ (char*)"id", PY_GETTER_MEMPTR(&TokenObject::_morphId), nullptr, Token_id__doc__, nullptr },
+		{ (char*)"word_position", PY_GETTER_MEMPTR(&TokenObject::_wordPosition), nullptr, Token_word_position__doc__, nullptr },
+		{ (char*)"sent_position", PY_GETTER_MEMPTR(&TokenObject::_sentPosition), nullptr, Token_sent_position__doc__, nullptr },
+		{ (char*)"line_number", PY_GETTER_MEMPTR(&TokenObject::_lineNumber), nullptr, Token_line_number__doc__, nullptr },
+		{ (char*)"base_form", PY_GETTER_MEMFN(&TokenObject::baseForm), nullptr, Token_base_form__doc__, nullptr },
+		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, Token_base_id__doc__, nullptr },
+		{ nullptr },
+	};
 
-static PySequenceMethods Token_seqs = {
-	(lenfunc)TokenObject::len,
-	nullptr,
-	nullptr,
-	(ssizeargfunc)TokenObject::getitem,
-};
+	static PySequenceMethods seq = {
+		(lenfunc)TokenObject::len,
+		nullptr,
+		nullptr,
+		(ssizeargfunc)TokenObject::getitem,
+	};
 
-static PyTypeObject Token_type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"kiwipiepy.Token",             /* tp_name */
-	sizeof(TokenObject), /* tp_basicsize */
-	0,                         /* tp_itemsize */
-	(destructor)TokenObject::dealloc, /* tp_dealloc */
-	0,                         /* tp_print */
-	0,                         /* tp_getattr */
-	0,                         /* tp_setattr */
-	0,                         /* tp_reserved */
-	(reprfunc)TokenObject::repr,                         /* tp_repr */
-	0,                         /* tp_as_number */
-	&Token_seqs,                         /* tp_as_sequence */
-	0,                         /* tp_as_mapping */
-	0,                         /* tp_hash  */
-	0,                         /* tp_call */
-	0,                         /* tp_str */
-	0,                         /* tp_getattro */
-	0,                         /* tp_setattro */
-	0,                         /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,   /* tp_flags */
-	Token__doc__,           /* tp_doc */
-	0,                         /* tp_traverse */
-	0,                         /* tp_clear */
-	0,                         /* tp_richcompare */
-	0,                         /* tp_weaklistoffset */
-	0,                         /* tp_iter */
-	0,                         /* tp_iternext */
-	0,             /* tp_methods */
-	0,						 /* tp_members */
-	Token_getsets,        /* tp_getset */
-	0,                         /* tp_base */
-	0,                         /* tp_dict */
-	0,                         /* tp_descr_get */
-	0,                         /* tp_descr_set */
-	0,                         /* tp_dictoffset */
-	(initproc)TokenObject::init,      /* tp_init */
-	PyType_GenericAlloc,
-	(newfunc)TokenObject::_new,
-};
+	obj.tp_getset = getsets;
+	obj.tp_as_sequence = &seq;
+} };
 
 PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 {
@@ -304,7 +255,7 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 				if ((u & 0xFC00) == 0xD800) u32chrs++;
 			}
 
-			py::UniqueObj item{ PyObject_CallFunctionObjArgs((PyObject*)&Token_type, nullptr) };
+			py::UniqueObj item{ PyObject_CallFunctionObjArgs((PyObject*)py::Type<TokenObject>, nullptr) };
 			auto* tItem = (TokenObject*)item.get();
 			tItem->_form = move(q.str);
 			tItem->_tag = tagToString(q.tag);
@@ -315,6 +266,7 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_lineNumber = q.lineNumber;
 			tItem->_morph = q.morph;
 			tItem->_morphId = kiwi.morphToId(q.morph);
+			tItem->_baseMorph = kiwi.idToMorph(q.morph->lmMorphemeId);
 
 			PyList_SetItem(rList, jdx++, item.release());
 			u32offset += u32chrs;
@@ -326,6 +278,9 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 
 struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
 {
+	static constexpr const char* _name = "kiwipiepy._ResIter";
+	static constexpr const char* _name_in_module = "_ResIter";
+
 	py::UniqueCObj<KiwiObject> kiwi;
 	size_t topN = 1;
 	Match matchOptions = Match::all;
@@ -346,47 +301,27 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
 	}
 };
 
-static PyTypeObject KiwiResIter_type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"kiwipiepy._res_iter",             /* tp_name */
-	sizeof(KiwiResIter), /* tp_basicsize */
-	0,                         /* tp_itemsize */
-	(destructor)KiwiResIter::dealloc, /* tp_dealloc */
-	0,                         /* tp_print */
-	0,                         /* tp_getattr */
-	0,                         /* tp_setattr */
-	0,                         /* tp_as_async */
-	0,                         /* tp_repr */
-	0,                         /* tp_as_number */
-	0,                         /* tp_as_sequence */
-	0,                         /* tp_as_mapping */
-	0,                         /* tp_hash  */
-	0,                         /* tp_call */
-	0,                         /* tp_str */
-	0,                         /* tp_getattro */
-	0,                         /* tp_setattro */
-	0,                         /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,   /* tp_flags */
-	"",           /* tp_doc */
-	0,                         /* tp_traverse */
-	0,                         /* tp_clear */
-	0,                         /* tp_richcompare */
-	0,                         /* tp_weaklistoffset */
-	(getiterfunc)KiwiResIter::iter,                         /* tp_iter */
-	(iternextfunc)KiwiResIter::iternext,                         /* tp_iternext */
-	0,             /* tp_methods */
-	0,						 /* tp_members */
-	0,        /* tp_getset */
-	0,                         /* tp_base */
-	0,                         /* tp_dict */
-	0,                         /* tp_descr_get */
-	0,                         /* tp_descr_set */
-	0,                         /* tp_dictoffset */
-	(initproc)KiwiResIter::init,      /* tp_init */
-	PyType_GenericAlloc,
-	(newfunc)KiwiResIter::_new,
-};
+py::TypeWrapper<KiwiResIter> _ResIterSetter{ [](PyTypeObject&)
+{
+} };
 
+inline POSTag parseTag(const char* tag)
+{
+	auto u16 = utf8To16(tag);
+	transform(u16.begin(), u16.end(), u16.begin(), static_cast<int(*)(int)>(toupper));
+	auto pos = toPOSTag(u16);
+	if (pos >= POSTag::max) throw py::ValueError{ "Unknown tag value " + py::reprFromCpp(tag) };
+	return pos;
+}
+
+inline POSTag parseTag(const u16string& tag)
+{
+	auto u16 = tag;
+	transform(u16.begin(), u16.end(), u16.begin(), static_cast<int(*)(int)>(toupper));
+	auto pos = toPOSTag(u16);
+	if (pos >= POSTag::max) throw py::ValueError{ "Unknown tag value " + py::reprFromCpp(tag) };
+	return pos;
+}
 
 PyObject* KiwiObject::addUserWord(PyObject* args, PyObject *kwargs)
 {	
@@ -395,14 +330,106 @@ PyObject* KiwiObject::addUserWord(PyObject* args, PyObject *kwargs)
 		const char* word;
 		const char* tag = "NNP";
 		float score = 0;
-		static const char* kwlist[] = { "word", "tag", "score", nullptr };
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|sf", (char**)kwlist, &word, &tag, &score)) return nullptr;
+		const char* origWord = nullptr;
+		static const char* kwlist[] = { "word", "tag", "score", "orig_word", nullptr};
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|sfz", (char**)kwlist, &word, &tag, &score, &origWord)) return nullptr;
 
-		auto pos = toPOSTag(utf8To16(tag));
-		if (pos >= POSTag::max) throw py::ValueError{ "Unknown tag value " + py::reprFromCpp(tag) };
-		auto ret = builder.addWord(utf8To16(word), pos, score);
-		if (ret) kiwi = Kiwi{};
-		return py::buildPyValue(ret);
+		auto pos = parseTag(tag);
+		bool added = false;
+		if (origWord)
+		{
+			added = builder.addWord(utf8To16(word), pos, score, utf8To16(origWord));
+		}
+		else
+		{
+			added = builder.addWord(utf8To16(word), pos, score);
+		}
+		if (added) kiwi = Kiwi{};
+		return py::buildPyValue(added);
+	});
+}
+
+PyObject* KiwiObject::addPreAnalyzedWord(PyObject* args, PyObject* kwargs)
+{
+	return py::handleExc([&]() -> PyObject*
+	{
+		const char* form;
+		PyObject* oAnalyzed = nullptr;
+		float score = 0;
+		static const char* kwlist[] = { "form", "analyzed", "score", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "sO|f", (char**)kwlist, &form, &oAnalyzed, &score)) return nullptr;
+
+		vector<pair<u16string, POSTag>> analyzed;
+		vector<pair<size_t, size_t>> positions;
+		py::foreach<PyObject*>(oAnalyzed, [&](PyObject* item)
+		{
+			if (PyUnicode_Check(item))
+			{
+				auto str = py::toCpp<u16string>(item);
+				auto p = str.rfind('/');
+				if (p == str.npos)
+				{
+					throw py::ValueError{ "`analyzed` must be in format `{form}/{tag}`, but given : " + py::repr(item)};
+				}
+				analyzed.emplace_back(str.substr(0, p), parseTag(str.substr(p + 1)));
+			}
+			else if (PySequence_Check(item))
+			{
+				if (Py_SIZE(item) == 2)
+				{
+					auto p = py::toCpp<pair<u16string, const char*>>(item);
+					analyzed.emplace_back(p.first, parseTag(p.second));
+				}
+				else
+				{
+					auto t = py::toCpp<tuple<u16string, const char*, size_t, size_t>>(item);
+					analyzed.emplace_back(get<0>(t), parseTag(get<1>(t)));
+					positions.emplace_back(get<2>(t), get<3>(t));
+				}
+			}
+			else
+			{
+				throw py::ConversionFail{ "`analyzed` must be an iterable of `Tuple[str, str]` or `Tuple[str, str, int, int]`." }; 
+			}
+		}, "`analyzed` must be an iterable of `Tuple[str, str]` or `Tuple[str, str, int, int]`.");
+		if (!positions.empty() && positions.size() != analyzed.size())
+		{
+			throw py::ValueError{ "All items of `analyzed` must be in the type `Tuple[str, str]` or `Tuple[str, str, int, int]`."};
+		}
+		try 
+		{
+			auto added = builder.addPreAnalyzedWord(utf8To16(form), analyzed, positions, score);
+			if (added) kiwi = Kiwi{};
+			return py::buildPyValue(added);
+		}
+		catch (const UnknownMorphemeException& e)
+		{
+			throw py::ValueError{ e.what() };
+		}
+	});
+}
+
+PyObject* KiwiObject::addRule(PyObject* args, PyObject* kwargs)
+{
+	return py::handleExc([&]() -> PyObject*
+	{
+		const char* tag = nullptr;
+		PyObject* replacer = nullptr;
+		float score = 0;
+		static const char* kwlist[] = { "tag", "replacer", "score", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "sO|f", (char**)kwlist, &tag, &replacer, &score)) return nullptr;
+
+		if (!PyCallable_Check(replacer)) throw py::ValueError{ "`replacer` must be an callable." };
+
+		auto pos = parseTag(tag);
+		auto added = builder.addRule(pos, [&](const u16string& input)
+		{
+			py::UniqueObj ret{ PyObject_CallFunctionObjArgs(replacer, py::UniqueObj{ py::buildPyValue(input) }.get(), nullptr) };
+			if (!ret) throw py::ExcPropagation{};
+			return py::toCpp<u16string>(ret);
+		}, score);
+		if (!added.empty()) kiwi = Kiwi{};
+		return py::buildPyValue(added);
 	});
 }
 
@@ -513,7 +540,7 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 		{
 			py::UniqueObj iter{ PyObject_GetIter(text) };
 			if (!iter) throw py::ValueError{ "`analyze` requires a `str` or an iterable of `str` parameters." };
-			py::UniqueCObj<KiwiResIter> ret{ (KiwiResIter*)PyObject_CallObject((PyObject*)&KiwiResIter_type, nullptr) };
+			py::UniqueCObj<KiwiResIter> ret{ (KiwiResIter*)PyObject_CallObject((PyObject*)py::Type<KiwiResIter>, nullptr) };
 			if (!ret) throw py::ExcPropagation{};
 			ret->kiwi = py::UniqueCObj<KiwiObject>{ this };
 			Py_INCREF(this);
@@ -563,7 +590,7 @@ PyObject* KiwiObject::getMorpheme(PyObject* args, PyObject* kwargs)
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n", (char**)kwlist, &id)) return nullptr;
 	return py::handleExc([&]()
 	{
-		py::UniqueObj ret{ PyObject_CallFunctionObjArgs((PyObject*)&Token_type, nullptr) };
+		py::UniqueObj ret{ PyObject_CallFunctionObjArgs((PyObject*)py::Type<TokenObject>, nullptr) };
 		auto* obj = (TokenObject*)ret.get();
 		auto* morph = kiwi.idToMorph(id);
 		if (!morph) throw py::ValueError{ "out of range" };
@@ -588,19 +615,7 @@ PyObject* moduleInit()
 	};
 
 	gModule = PyModule_Create(&mod);
-
-	if (PyType_Ready(&Kiwi_type) < 0) return nullptr;
-	Py_INCREF(&Kiwi_type);
-	PyModule_AddObject(gModule, "_Kiwi", (PyObject*)&Kiwi_type);
-
-	if (PyType_Ready(&KiwiResIter_type) < 0) return nullptr;
-	Py_INCREF(&KiwiResIter_type);
-	PyModule_AddObject(gModule, "_res_iter", (PyObject*)&KiwiResIter_type);
-
-	if (PyType_Ready(&Token_type) < 0) return nullptr;
-	Py_INCREF(&Token_type);
-	PyModule_AddObject(gModule, "Token", (PyObject*)&Token_type);
-
+	py::TypeManager::addToModule(gModule);
 	return gModule;
 }
 

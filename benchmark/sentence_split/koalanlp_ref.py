@@ -8,6 +8,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('datasets', nargs='+')
+    parser.add_argument('--write_result')
     parser.add_argument('--write_err')
     parser.add_argument('--backend', default='OKT', choices=['OKT', 'HNN', 'KMR', 'RHINO', 'EUNJEON', 'ARIRANG', 'KKMA'])
     args = parser.parse_args()
@@ -22,6 +23,6 @@ if __name__ == '__main__':
     splitter("foo-bar") # warm-up
 
     for dataset in args.datasets:
-        run_evaluate(dataset, splitter, args.write_err)
+        run_evaluate(dataset, splitter, args.write_result, args.write_err)
     
     finalize()
