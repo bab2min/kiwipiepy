@@ -115,7 +115,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 	}
 };
 
-py::TypeWrapper<KiwiObject> _KiwiSetter{ [&](PyTypeObject& obj)
+py::TypeWrapper<KiwiObject> _KiwiSetter{ [](PyTypeObject& obj)
 {
 	static PyMethodDef methods[] =
 	{
@@ -209,7 +209,7 @@ struct TokenObject : py::CObject<TokenObject>
 	}
 };
 
-py::TypeWrapper<TokenObject> _TokenSetter{ [&](PyTypeObject& obj)
+py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 {
 	static PyGetSetDef getsets[] =
 	{
@@ -301,7 +301,7 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
 	}
 };
 
-py::TypeWrapper<KiwiResIter> _ResIterSetter{ [&](PyTypeObject&)
+py::TypeWrapper<KiwiResIter> _ResIterSetter{ [](PyTypeObject&)
 {
 } };
 
