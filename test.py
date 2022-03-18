@@ -9,7 +9,7 @@ def test_analyze_single():
     for line in open(curpath + '/test_corpus/constitution.txt', encoding='utf-8'):
         toks, score = kiwi.analyze(line)[0]
     for t in toks:
-        print(t.form, t.tag, t.start, t.end, t.len)
+        print(t.form, t.tag, t.start, t.end, t.len, t.id, t.base_form, t.base_id)
         break
 
 
