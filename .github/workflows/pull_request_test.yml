@@ -33,6 +33,7 @@ jobs:
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
 
         cd model
         /opt/python/${{ matrix.cp }}/bin/python setup.py build install
@@ -72,6 +73,7 @@ jobs:
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
         
         cd model
         python setup.py build install
@@ -110,6 +112,7 @@ jobs:
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
         
         cd model
         python setup.py build install
@@ -128,7 +131,7 @@ jobs:
 
   build_windows:
     name: Build for Windows
-    runs-on: windows-latest
+    runs-on: windows-2019
     strategy:
       max-parallel: 4
       matrix:
@@ -152,6 +155,7 @@ jobs:
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
         
         cd model
         python setup.py build install
@@ -195,6 +199,7 @@ jobs:
           mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
           mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
           mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
+          mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
 
           /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel
 
