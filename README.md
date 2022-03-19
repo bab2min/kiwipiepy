@@ -211,22 +211,19 @@ True
 
 kiwipiepy 패키지 설치가 성공적으로 완료되었다면, 다음과 같이 패키지를 import후 Kiwi 객체를 생성했을때 오류가 발생하지 않습니다.
 ```python
-from kiwipiepy import Kiwi, Option
+from kiwipiepy import Kiwi, Match
 kiwi = Kiwi()
 ```
 Kiwi 생성자는 다음과 같습니다.
 ```python
-Kiwi(num_workers=0, model_path=None, options=Option.LOAD_DEFAULT_DICTIONARY | Option.INTEGRATE_ALLOMORPH, load_default_dict=True, integrate_allomorph=True)
+Kiwi(num_workers=0, model_path=None, load_default_dict=True, integrate_allomorph=True)
 ```
 * `num_workers`:  2 이상이면 단어 추출 및 형태소 분석에 멀티 코어를 활용하여 조금 더 빠른 속도로 분석을 진행할 수 있습니다. <br>
 1인 경우 단일 코어만 활용합니다. num_workers가 0이면 현재 환경에서 사용가능한 모든 코어를 활용합니다. <br>
 생략 시 기본값은 0입니다.
 * `model_path`: 형태소 분석 모델이 있는 경로를 지정합니다. 생략시 `kiwipiepy_model` 패키지로부터 모델 경로를 불러옵니다.
-* `options`: Kiwi 실행시에 설정한 다양한 옵션들을 세팅하는 비트 마스크 값입니다. 사용 가능한 값은 다음과 같습니다. 이 인자는 추후 버전에서 제거될 예정입니다. 대신 `load_default_dict`와 `integrate_allomorph`를 사용하기를 권장합니다.
-  * `Option.LOAD_DEFAULT_DICTIONARY` : 추가 사전을 로드합니다. 추가 사전은 위키백과의 표제어 타이틀로 구성되어 있습니다. 이 경우 로딩 및 분석 시간이 약간 증가하지만 다양한 고유명사를 좀 더 잘 잡아낼 수 있습니다.
-  * `Option.INTEGRATE_ALLOMORPH` : 어미 중, '아/어', '았/었'과 같이 동일하지만 음운 환경에 따라 형태가 달라지는 이형태들을 자동으로 통합합니다.
-* `load_default_dict`: `Option.LOAD_DEFAULT_DICTIONARY`와 동일
-* `integrate_allomorph`: `Option.INTEGRATE_ALLOMORPH`와 동일
+* `load_default_dict`: 추가 사전을 로드합니다. 추가 사전은 위키백과의 표제어 타이틀로 구성되어 있습니다. 이 경우 로딩 및 분석 시간이 약간 증가하지만 다양한 고유명사를 좀 더 잘 잡아낼 수 있습니다. 분석 결과에 원치 않는 고유명사가 잡히는 것을 방지하려면 이를 False로 설정하십시오.
+* `integrate_allomorph`: 어미 중, '아/어', '았/었'과 같이 동일하지만 음운 환경에 따라 형태가 달라지는 이형태들을 자동으로 통합합니다.
 
 kiwi 객체는 크게 다음 세 종류의 작업을 수행할 수 있습니다.
 * 코퍼스로부터 미등록 단어 추출
@@ -241,8 +238,8 @@ Kiwi 0.5부터 새로 추가된 기능입니다. 자주 등장하는 문자열�
 
 Kiwi가 제공하는 미등록 단어 추출 관련 메소드는 다음 세 가지입니다.
 ```python
-kiwi.extract_words(texts, min_cnt, max_word_len, min_score)
-kiwi.extract_add_words(texts, min_cnt, max_word_len, min_score, pos_score)
+Kiwi.extract_words(texts, min_cnt, max_word_len, min_score)
+Kiwi.extract_add_words(texts, min_cnt, max_word_len, min_score, pos_score)
 ```
 **`extract_words(texts, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3.0, lm_filter=True)`**
 
@@ -281,47 +278,125 @@ kiwi.extract_words(IterableTextFile('test.txt'), min_cnt=10, max_word_len=10, mi
 `extract_words` 와 동일하게 명사인 단어만 추출해줍니다. 
 다만 이 메소드는 추출된 명사 후보를 자동으로 사용자 사전에 `NNP`로 등록하여 형태소 분석에 사용할 수 있게 해줍니다. 만약 이 메소드를 사용하지 않는다면 add_user_word 메소드를 사용하여 추출된 미등록 단어를 직접 사용자 사전에 등록해야 합니다.
 
-## 사용자 사전 추가
+## 사용자 사전 관리
 
 기존의 사전에 등록되지 않은 단어를 제대로 분석하기 위해서는 사용자 사전에 해당 단어를 등록해주어야 합니다. 
 이는 extract_add_words를 통해서 자동으로 이뤄질 수도 있고, 수작업으로 직접 추가될 수도 있습니다. 
 다음 메소드들은 사용자 사전을 관리하는데 사용되는 메소드들입니다.
 ```python
-kiwi.add_user_word(word, pos, score)
-kiwi.load_user_dictionary(userDictPath)
+Kiwi.add_user_word(word, pos, score, orig_word=None)
+Kiwi.add_pre_analyzed_word(form, analyzed, score)
+Kiwi.add_rule(tag, replacer, score)
+Kiwi.add_re_rule(tag, pattern, repl, score)
+Kiwi.load_user_dictionary(user_dict_path)
 ```
-**`add_user_word(word, pos='NNP', score=0.0)`**
+**`add_user_word(word, pos='NNP', score=0.0, orig_word=None)`**
 
-사용자 사전에 word를 등록합니다. 현재는 띄어쓰기(공백문자)가 포함되지 않는 문자열만 단어로 등록할 수 있습니다.
-pos는 등록할 단어의 품사입니다. 세종 품사태그를 따르며, 기본값은 NNP(고유명사)입니다.
-score는 등록할 단어의 점수입니다. 
-동일한 형태라도 여러 경우로 분석될 가능성이 있는 경우에, 이 값이 클수록 해당 단어가 더 우선권을 가지게 됩니다.
+사용자 사전에 새 형태소를 등록합니다. 
 
+* `word`: 등록할 형태소의 형태입니다. 현재는 띄어쓰기(공백문자)가 포함되지 않는 문자열만 단어로 등록할 수 있습니다.
+* `pos`: 등록할 형태소의 품사입니다. 기본값은 NNP(고유명사)입니다.
+* `score`: 등록할 형태소의 점수입니다. 
+    동일한 형태라도 여러 경우로 분석될 가능성이 있는 경우에, 이 값이 클수록 해당 형태소가 더 우선권을 가지게 됩니다.
+* `orig_word`: 추가할 형태소가 특정 형태소의 변이형인 경우 이 인자로 원본 형태소를 넘겨줄 수 있습니다. 없는 경우 생략할 수 있습니다. 
+     이 값을 준 경우, 현재 사전 내에 `orig_word`/`tag` 조합의 형태소가 반드시 존재해야 하며, 그렇지 않으면 `ValueError` 예외를 발생시킵니다. 
+     원본 형태소가 존재하는 경우 `orig_word`를 명시하면 더 정확한 분석 결과를 낼 수 있습니다.
+
+형태소 삽입이 성공하면 `True`를, 동일한 형태소가 이미 존재하여 실패하면 `False`를 반환합니다.
+
+**`add_pre_analyzed_word(form, analyzed, score=0.0)`**
+
+사용자 사전에 기분석 형태를 등록합니다. 이를 통해 특정 형태가 사용자가 원하는 형태로 형태소 분석이 되도록 유도할 수 있습니다.
+
+* `form`: 기분석의 형태입니다.
+* `analyzed`: `form`의 형태소 분석 결과.
+    이 값은 (형태, 품사) 모양의 tuple, 혹은 (형태, 품사, 시작지점, 끝지점) 모양의 tuple로 구성된 Iterable이어야합니다.
+    이 값으로 지정되는 형태소는 현재 사전 내에 반드시 존재해야 하며, 그렇지 않으면 `ValueError` 예외를 발생시킵니다.
+* `score`: 추가할 형태소열의 가중치 점수. 
+    해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
+
+삽입이 성공하면 `True`를, 동일한 형태가 이미 존재하여 실패하면 `False`를 반환합니다.
+
+이 메소드는 불규칙적인 분석 결과를 분석기에 추가하는 데에 용이합니다. 
+예를 들어 `사귀다` 동사의 과거형은 `사귀었다`가 맞지만, 흔히 `사겼다`로 잘못 쓰이기도 합니다.
+`사겼다`가 `사귀/VV + 었/EP + 다/EF`로 바르게 분석되도록 하는데에 이 메소드를 사용할 수 있습니다.
+
+`kiwi.add_pre_analyzed_word('사겼다', ['사귀/VV', '었/EP', '다/EF'], -3)`
+
+`kiwi.add_pre_analyzed_word('사겼다', [('사귀', 'VV', 0, 2), ('었', 'EP', 1, 2), ('다', 'EF', 2, 3)], -3)`
+
+후자의 경우 분석 결과의 각 형태소가 원본 문자열에서 차지하는 위치를 정확하게 지정해줌으로써, 
+Kiwi 분석 결과에서 해당 형태소의 `start`, `end`, `length`가 정확하게 나오도록 합니다.
+
+**`add_rule(tag, replacer, score)`**
+
+규칙에 의해 변형된 형태소를 일괄적으로 추가합니다.
+* `tag`: 추가할 형태소들의 품사
+* `replacer`: 형태소를 변형시킬 규칙. 
+    이 값은 호출가능한 Callable 형태로 제공되어야 하며, 원본 형태소 str를 입력으로 받아 변형된 형태소의 str을 반환해야합니다.
+    만약 입력과 동일한 값을 반환하면 해당 변형 결과는 무시됩니다.
+* `score`: 추가할 변형된 형태소의 가중치 점수. 
+    해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
+
+`replacer`에 의해 새로 생성된 형태소의 `list`를 반환합니다.
+
+**add_re_rule(tag, pattern, repl, score)**
+
+`add_rule`메소드와 동일한 역할을 수행하되, 변형 규칙에 정규표현식을 사용합니다.
+
+* `tag` 추가할 형태소들의 품사
+* `pattern`: 변형시킬 형태소의 규칙. 이 값은 `re.compile`로 컴파일가능한 정규표현식이어야 합니다.
+* `repl`: `pattern`에 의해 발견된 패턴은 이 값으로 교체됩니다. Python3 정규표현식 모듈 내의 `re.sub` 함수의 `repl` 인자와 동일합니다.
+* `score`: 추가할 변형된 형태소의 가중치 점수. 
+    해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
+
+`pattern`과 `repl`에 의해 새로 생성된 형태소의 `list`를 반환합니다.
+
+이 메소드는 규칙에 의해 변형되는 이형태들을 일괄적으로 추가할 때 굉장히 용이합니다.
+예를 들어 `-요`가 `-염`으로 교체된 종결어미들(`먹어염`, `뛰었구염`, `배불러염` 등)을 일괄 등록하기 위해서는
+다음을 수행하면 됩니다.
+
+`kiwi.add_re_rule('EF', r'요$', r'염', -3.0)`
+
+이런 이형태들을 대량으로 등록할 경우 이형태가 원본 형태보다 분석결과에서 높은 우선권을 가지지 않도록
+score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
 
 **`load_user_dictionary(user_dict_path)`**
 
 파일로부터 사용자 사전을 읽어들입니다. 사용자 사전 파일은 UTF-8로 인코딩되어 있어야하며, 다음과 같은 형태로 구성되어야 합니다.
 탭 문자(\t)로 각각의 필드는 분리되어야 하며, 단어 점수는 생략 가능합니다. 
 
-    #주석은 #으로 시작합니다.
-    단어1 [탭문자] 품사태그 [탭문자] 단어점수
-    단어2 [탭문자] 품사태그 [탭문자] 단어점수
-    단어3 [탭문자] 품사태그 [탭문자] 단어점수
+    #으로 시작하는 줄은 주석 처리됩니다.
+    # 각 필드는 Tab(\t)문자로 구분됩니다.
+    #
+    # <단일 형태소를 추가하는 경우>
+    # (형태) \t (품사태그) \t (점수)
+    # * (점수)는 생략시 0으로 처리됩니다.
+    키위	NNP	-5.0
+    #
+    # <이미 존재하는 형태소의 이형태를 추가하는 경우>
+    # (이형태) \t (원형태소/품사태그) \t (점수)
+    # * (점수)는 생략시 0으로 처리됩니다.
+    기위	키위/NNG	-3.0
+    #
+    # <기분석 형태를 추가하는 경우>
+    # (형태) \t (원형태소/품사태그 + 원형태소/품사태그 + ...) \t (점수)
+    # * (점수)는 생략시 0으로 처리됩니다.
+    사겼다	사귀/VV + 었/EP + 다/EF	-1.0
+    #
+    # 현재는 공백을 포함하는 다어절 형태를 등록할 수 없습니다.
 
-실제 예시
+사전 파일을 성공적으로 읽어들이면, 사전을 통해 새로 추가된 형태소의 개수를 반환합니다. 
 
-    # 스타크래프트 관련 명사 목록
-    스타크래프트  NNP 3.0
-    저글링 NNP
-    울트라리스크 NNP  3.0
-    
+실제 예시에 대해서는 [Kiwi에 내장된 기본 사전 파일](https://raw.githubusercontent.com/bab2min/Kiwi/main/ModelGenerator/default.dict)을 참조해주세요.
+
 # 형태소 분석
 
 kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완료되었으면 다음 메소드를 사용하여 형태소 분석을 수행할 수 있습니다.
 
 ```python
-kiwi.tokenize(text, match_option, normalize_coda)
-kiwi.analyze(text, top_n, match_option, normalize_coda)
+Kiwi.tokenize(text, match_option, normalize_coda)
+Kiwi.analyze(text, top_n, match_option, normalize_coda)
 ``` 
 
 **`tokenize(text, match_option=Match.ALL, normalize_coda=False)`**
