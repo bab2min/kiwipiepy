@@ -176,7 +176,7 @@ Returns
 inserted: bool
     사용자 정의 형태소가 정상적으로 삽입된 경우 True, 이미 동일한 형태소가 존재하여 삽입되지 않은 경우 False를 반환합니다.
         '''
-
+        if re.search(r'\s', word): raise ValueError("Whitespace characters are not allowed at `word`")
         return super().add_user_word(word, tag, score, orig_word)
     
     def add_pre_analyzed_word(self,
