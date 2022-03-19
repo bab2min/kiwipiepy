@@ -153,8 +153,23 @@ True
  Token(form='야', tag='JKV', start=7, len=1)]
 
 # v0.11.0 신기능
-# 변형된 형태소를 일괄적으로 추가하여 대상 텍스트에 맞춰 분석 성능을 높일 수 있습니다.
->>> kiwi = Kiwi()
+# 0.11.0 버전부터는 사용자 사전에 동사/형용사를 추가할 때, 그 활용형도 함께 등재됩니다.
+# 사전에 등재되어 있지 않은 동사 `팅기다`를 분석하면, 엉뚱한 결과가 나옵니다.
+>>> kiwi.tokenize('팅겼다')
+[Token(form='팅기', tag='NNG', start=0, len=2),
+ Token(form='하', tag='XSA', start=2, len=0), 
+ Token(form='다', tag='EF', start=2, len=1)]
+
+# 형태소 `팅기/VV`를 사전에 등록하면, 이 형태소의 모든 활용형이 자동으로 추가되기에
+# `팅겼다`, `팅길` 등의 형태를 모두 분석해낼 수 있습니다.
+>>> kiwi.add_user_word('팅기', 'VV')
+True
+>>> kiwi.tokenize('팅겼다')
+[Token(form='팅기', tag='VV', start=0, len=2), 
+ Token(form='었', tag='EP', start=1, len=1), 
+ Token(form='다', tag='EF', start=2, len=1)]
+
+# 또한 변형된 형태소를 일괄적으로 추가하여 대상 텍스트에 맞춰 분석 성능을 높일 수 있습니다.
 >>> kiwi.tokenize("안녕하세영, 제 이름은 이세영이에영. 학생이세영?")
 [Token(form='안녕', tag='NNG', start=0, len=2),
  Token(form='하', tag='XSA', start=2, len=1),
@@ -205,6 +220,43 @@ True
  Token(form='시', tag='EP', start=27, len=1),
  Token(form='어영', tag='EF', start=27, len=2), # 분석 결과 개선
  Token(form='?', tag='SF', start=29, len=1)]
+ 
+# 기분석 형태를 등록하여 원하는 대로 분석되지 않는 문자열을 교정할 수도 있습니다.
+# 다음 문장의 `사겼대`는 오타가 들어간 형태라 제대로 분석되지 않습니다.
+>>> kiwi.tokenize('걔네 둘이 사겼대')
+[Token(form='걔', tag='NP', start=0, len=1), 
+ Token(form='네', tag='XSN', start=1, len=1), 
+ Token(form='둘', tag='NR', start=3, len=1), 
+ Token(form='이', tag='JKS', start=4, len=1), 
+ Token(form='사', tag='NR', start=6, len=1), 
+ Token(form='기', tag='VV', start=7, len=1), 
+ Token(form='었', tag='EP', start=7, len=1), 
+ Token(form='대', tag='EF', start=8, len=1)]
+# 다음과 같이 add_pre_analyzed_word 메소드를 이용하여 이를 교정할 수 있습니다.
+>>> kiwi.add_pre_analyzed_word('사겼대', ['사귀/VV', '었/EP', '대/EF'], -3)
+True
+# 그 뒤 동일한 문장을 다시 분석해보면 결과가 바뀐 것을 확인할 수 있습니다.
+>>> kiwi.tokenize('걔네 둘이 사겼대')
+[Token(form='걔', tag='NP', start=0, len=1), 
+ Token(form='네', tag='XSN', start=1, len=1), 
+ Token(form='둘', tag='NR', start=3, len=1), 
+ Token(form='이', tag='JKS', start=4, len=1), 
+ Token(form='사귀', tag='VV', start=6, len=3), 
+ Token(form='었', tag='EP', start=6, len=3), 
+ Token(form='대', tag='EF', start=6, len=3)]
+# 단, 사귀/VV, 었/EP, 대/EF의 시작위치가 모두 6, 길이가 모두 3으로 잘못 잡히는 문제가 보입니다.
+# 이를 고치기 위해서는 add_pre_analyzed_word 시 각 형태소의 위치정보도 함께 입력해주어야합니다.
+>>> kiwi = Kiwi()
+>>> kiwi.add_pre_analyzed_word('사겼대', [('사귀', 'VV', 0, 2), ('었', 'EP', 1, 2), ('대', 'EF', 2, 3)], -3)
+True
+>>> kiwi.tokenize('걔네 둘이 사겼대')
+[Token(form='걔', tag='NP', start=0, len=1), 
+ Token(form='네', tag='XSN', start=1, len=1), 
+ Token(form='둘', tag='NR', start=3, len=1), 
+ Token(form='이', tag='JKS', start=4, len=1), 
+ Token(form='사귀', tag='VV', start=6, len=2, 
+ Token(form='었', tag='EP', start=7 len=1, 
+ Token(form='대', tag='EF', start=8 len=1]
 ```
 
 ## 시작하기
