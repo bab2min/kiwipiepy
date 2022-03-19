@@ -1,12 +1,11 @@
 """
-.. include:: ./documentation.rst
+.. include:: ./documentation.md
 """
 from _kiwipiepy import Token
 from kiwipiepy._version import __version__
-from kiwipiepy._wrap import Option, Match, Kiwi, Sentence
+from kiwipiepy._wrap import Kiwi, Sentence
 import kiwipiepy.utils as utils
+from kiwipiepy.const import Match, Option
 
-Option.__module__ = 'kiwipiepy'
-Match.__module__ = 'kiwipiepy'
 Kiwi.__module__ = 'kiwipiepy'
 Sentence.__module__ = 'kiwipiepy'

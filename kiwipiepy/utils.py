@@ -3,27 +3,27 @@ utils 모듈은 kiwipiepy를 사용하는 데에 있어서 다양한 편의 기�
 현재는 Stopwords 클래스만 포함되어 있으며, 이 클래스는 불용어를 관리하고 Kiwi의 형태소 분석 결과 중 불용어를 쉽게 필터링하는 기능을 제공합니다.
 이 기능은 [HyeJuSeon](https://github.com/HyeJuSeon/)님의 기여로 추가되었습니다.
 
-::
-    
-    from kiwipiepy import Kiwi
-    from kiwipiepy.utils import Stopwords
-    
-    kiwi = Kiwi()
-    stopwords = Stopwords()
+```python
+from kiwipiepy import Kiwi
+from kiwipiepy.utils import Stopwords
 
-    print(kiwi.tokenize("나는 학교에 방문한다"))
-    #[Token(form='나', tag='NP', start=0, len=1), 
-    # Token(form='는', tag='JX', start=1, len=1), 
-    # Token(form='학교', tag='NNG', start=3, len=2), 
-    # Token(form='에', tag='JKB', start=5, len=1), 
-    # Token(form='방문', tag='NNG', start=7, len=2), 
-    # Token(form='하', tag='XSV', start=9, len=1), 
-    # Token(form='ᆫ다', tag='EC', start=10, len=1)]
+kiwi = Kiwi()
+stopwords = Stopwords()
 
-    print(stopwords.filter(kiwi.tokenize("나는 학교에 방문한다")))
-    #[Token(form='학교', tag='NNG', start=3, len=2), 
-    # Token(form='방문', tag='NNG', start=7, len=2), 
-    # Token(form='ᆫ다', tag='EC', start=10, len=1)]
+print(kiwi.tokenize("나는 학교에 방문한다"))
+#[Token(form='나', tag='NP', start=0, len=1), 
+# Token(form='는', tag='JX', start=1, len=1), 
+# Token(form='학교', tag='NNG', start=3, len=2), 
+# Token(form='에', tag='JKB', start=5, len=1), 
+# Token(form='방문', tag='NNG', start=7, len=2), 
+# Token(form='하', tag='XSV', start=9, len=1), 
+# Token(form='ᆫ다', tag='EC', start=10, len=1)]
+
+print(stopwords.filter(kiwi.tokenize("나는 학교에 방문한다")))
+#[Token(form='학교', tag='NNG', start=3, len=2), 
+# Token(form='방문', tag='NNG', start=7, len=2), 
+# Token(form='ᆫ다', tag='EC', start=10, len=1)]
+```
 '''
 
 import os

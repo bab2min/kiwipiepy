@@ -7,86 +7,7 @@ import warnings
 from _kiwipiepy import _Kiwi
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
-
-class Option(IntEnum):
-    """
-    Kiwi 인스턴스 생성 시 사용 가능한 옵션 열거형. 
-    bitwise or 연산으로 여러 개 선택하여 사용가능합니다.
-
-    .. deprecated:: 0.10.0
-        추후 버전에서 제거될 예정입니다.
-    """
-
-    LOAD_DEFAULT_DICTIONARY = 1
-    """
-    인스턴스 생성시 자동으로 기본 사전을 불러옵니다. 기본 사전은 위키백과와 나무위키에서 추출된 고유 명사 표제어들로 구성되어 있습니다.
-    """
-    INTEGRATE_ALLOMORPH = 2
-    """
-    음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다.
-    """
-    DEFAULT = 3
-    """
-    Kiwi 생성시의 기본 옵션으로 LOAD_DEFAULT_DICTIONARY | INTEGRATE_ALLOMORPH 와 같습니다.
-    """
-
-class Match(IntEnum):
-    """
-    .. versionadded:: 0.8.0
-
-    분석 시 특수한 문자열 패턴 중 어떤 것들을 추출할 지 선택할 수 있습니다.
-    bitwise OR 연산으로 여러 개 선택하여 사용가능합니다.
-    """
-    URL = 1
-    """
-    인터넷 주소 형태의 텍스트를 W_URL이라는 태그로 추출합니다.
-    """
-    EMAIL = 2
-    """
-    이메일 주소 형태의 텍스트를 W_EMAIL이라는 태그로 추출합니다.
-    """
-    HASHTAG = 4
-    """
-    해시태그(#해시태그) 형태의 텍스트를 W_HASHTAG라는 태그로 추출합니다.
-    """
-    MENTION = 8
-    """
-    멘션(@멘션) 형태의 텍스트를 W_MENTION이라는 태그로 추출합니다.
-    
-    .. versionadded:: 0.8.2
-    """
-    ALL = URL | EMAIL | HASHTAG | MENTION
-    """
-    URL, EMAIL, HASHTAG, MENTION를 모두 사용합니다.
-    """
-    NORMALIZING_CODA = 1 << 16
-    """
-    '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다.
-    """
-    JOIN_NOUN_PREFIX = 1 << 17
-    """
-    명사의 접두사를 분리하지 않고 결합합니다. 풋/XPN 사과/NNG -> 풋사과/NNG
-    """
-    JOIN_NOUN_SUFFIX = 1 << 18
-    """
-    명사의 접미사를 분리하지 않고 결합합니다. 사과/NNG 들/XSN -> 사과들/NNG
-    """
-    JOIN_VERB_SUFFIX = 1 << 19
-    """
-    동사형 전성어미를 분리하지 않고 결합합니다. 사랑/NNG 하/XSV 다/EF -> 사랑하/VV 다/EF
-    """
-    JOIN_ADJ_SUFFIX = 1 << 20
-    """
-    형용사형 전성어미를 분리하지 않고 결합합니다. 매콤/XR 하/XSA 다/EF -> 매콤하/VA 다/EF
-    """
-    JOIN_V_SUFFIX = JOIN_VERB_SUFFIX | JOIN_ADJ_SUFFIX
-    """
-    동사/형용사형 전성어미를 분리하지 않고 결합합니다.
-    """
-    JOIN_AFFIX = JOIN_NOUN_PREFIX | JOIN_NOUN_SUFFIX | JOIN_V_SUFFIX
-    """
-    모든 접두사/접미사를 분리하지 않고 결합합니다.
-    """
+from kiwipiepy.const import Match, Option
 
 Sentence = namedtuple('Sentence', ['text', 'start', 'end', 'tokens'])
 Sentence.__doc__ = '문장 분할 결과를 담기 위한 `namedtuple`입니다.'
@@ -102,12 +23,11 @@ Parameters
 ----------
 num_workers: int
     내부적으로 멀티스레딩에 사용할 스레드 개수. 0으로 설정시 시스템 내 가용한 모든 코어 개수만큼 스레드가 생성됩니다.
-    멀티스레딩은 extract 계열 함수에서 단어 후보를 탐색할 때와 perform, async_analyze 함수 및 reader/receiver를 사용한 analyze 함수에서만 사용되며,
-    단순 analyze는 단일스레드에서 돌아갑니다.
+    멀티스레딩은 extract 계열 함수에서 단어 후보를 탐색할 때와 perform, analyze 함수에서만 사용됩니다.
 model_path: str
     읽어들일 모델 파일의 경로. 모델 파일의 위치를 옮긴 경우 이 값을 지정해주어야 합니다.
 options: int
-    Kiwi 생성시의 옵션을 설정합니다. 옵션에 대해서는 `kiwipiepy.Option`을 확인하십시오.
+    Kiwi 생성시의 옵션을 설정합니다. 옵션에 대해서는 `kiwipiepy.const.Option`을 확인하십시오.
     .. deprecated:: 0.10.0
         차기 버전에서 제거될 예정입니다. `options` 대신 `integrate_allormoph` 및 `load_default_dict`를 사용해주세요.
 
@@ -192,7 +112,7 @@ Parameters
 ----------
 form: str
     추가할 형태
-analyzed: str
+analyzed: Iterable[Tuple[str, str]]
     `form`의 형태소 분석 결과.
     이 값은 (형태, 품사) 모양의 tuple, 혹은 (형태, 품사, 시작지점, 끝지점) 모양의 tuple로 구성된 Iterable이어야합니다.
     이 값으로 지정되는 형태소는 현재 사전 내에 반드시 존재해야 하며, 그렇지 않으면 `ValueError` 예외를 발생시킵니다.
@@ -210,10 +130,10 @@ Notes
 이 메소드는 불규칙적인 분석 결과를 분석기에 추가하는 데에 용이합니다. 
 예를 들어 `사귀다` 동사의 과거형은 `사귀었다`가 맞지만, 흔히 `사겼다`로 잘못 쓰이기도 합니다.
 `사겼다`가 `사귀/VV + 었/EP + 다/EF`로 바르게 분석되도록 하는데에 이 메소드를 사용할 수 있습니다.
-
-`kiwi.add_pre_analyzed_word('사겼다', ['사귀/VV', '었/EP', '다/EF'], -3)`
-
-`kiwi.add_pre_analyzed_word('사겼다', [('사귀', 'VV', 0, 2), ('었', 'EP', 1, 2), ('다', 'EF', 2, 3)], -3)`
+```python
+kiwi.add_pre_analyzed_word('사겼다', ['사귀/VV', '었/EP', '다/EF'], -3)
+kiwi.add_pre_analyzed_word('사겼다', [('사귀', 'VV', 0, 2), ('었', 'EP', 1, 2), ('다', 'EF', 2, 3)], -3)
+```
 
 후자의 경우 분석 결과의 각 형태소가 원본 문자열에서 차지하는 위치를 정확하게 지정해줌으로써, 
 Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나오도록 합니다.
@@ -256,7 +176,7 @@ inserted_forms: List[str]
     ):
         '''.. versionadded:: 0.11.0
 
-`kiwipiepy.add_rule`과 동일한 역할을 수행하되, 변형 규칙에 정규표현식을 사용합니다.
+`kiwipiepy.Kiwi.add_rule`과 동일한 역할을 수행하되, 변형 규칙에 정규표현식을 사용합니다.
 
 Parameters
 ----------
@@ -281,7 +201,9 @@ Notes
 예를 들어 `-요`가 `-염`으로 교체된 종결어미들(`먹어염`, `뛰었구염`, `배불러염` 등)을 일괄 등록하기 위해서는
 다음을 수행하면 됩니다.
 
-`kiwi.add_re_rule('EF', r'요$', r'염', -3.0)`
+```python
+kiwi.add_re_rule('EF', r'요$', r'염', -3.0)
+```
 
 이런 이형태들을 대량으로 등록할 경우 이형태가 원본 형태보다 분석결과에서 높은 우선권을 가지지 않도록
 score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
@@ -305,6 +227,10 @@ Returns
 -------
 added_cnt: int
     사용자 정의 사전 파일을 이용해 추가된 단어의 개수를 반환합니다.
+
+Notes
+-----
+사용자 정의 사전 파일의 형식에 대해서는 <a href='#_3'>여기</a>를 참조하세요.
         '''
 
         return super().load_user_dictionary(dict_path)
@@ -322,7 +248,7 @@ added_cnt: int
 문자열 기반의 확률 모델을 추가하여 명사일 것으로 예측되는 단어만 추출합니다.
 
 .. versionchanged:: 0.10.0
-    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#0100 를 확인해주세요.
+    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 <a href="#0100">여기</a>를 확인해주세요.
 
 Parameters
 ----------
@@ -382,7 +308,7 @@ result: List[Tuple[str, float, int, float]]
         '''말뭉치로부터 새로운 단어를 추출하고 새로운 명사에 적합한 결과들만 추려냅니다. 그리고 그 결과를 현재 모델에 자동으로 추가합니다.
 
 .. versionchanged:: 0.10.0
-    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#0100 를 확인해주세요.
+    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 <a href="#0100">여기</a>를 확인해주세요.
 
 Parameters
 ----------
@@ -433,7 +359,7 @@ result: List[Tuple[str, float, int, float]]
 
 .. versionchanged:: 0.10.0
     입력을 단순히 문자열의 리스트로 주고, 분석 결과 역시 별도의 `receiver`로 받지 않고 바로 메소드의 리턴값으로 받게 변경되었습니다.
-    자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#0100 를 확인해주세요.
+    자세한 내용은 <a href="#0100">여기</a>를 확인해주세요.
 
 .. deprecated:: 0.10.1
     추후 버전에서 변경, 혹은 제거될 가능성이 있는 메소드입니다.
@@ -444,10 +370,10 @@ texts: Iterable[str]
     분석할 문자열의 리스트, 혹은 Iterable입니다.
 top_n: int
     분석 결과 후보를 상위 몇 개까지 생성할 지 설정합니다.
-match_options: int
+match_options: kiwipiepy.const.Match
     .. versionadded:: 0.8.0
 
-    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.Match`의 조합으로 설정할 수 있습니다.
+    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.const.Match`의 조합으로 설정할 수 있습니다.
 min_cnt: int
     추출할 단어의 최소 출현 빈도입니다. 이 빈도보다 적게 등장한 문자열은 단어 후보에서 제외됩니다.
 max_word_len: int
@@ -523,7 +449,7 @@ threshold: float
         '''형태소 분석을 실시합니다.
 
 .. versionchanged:: 0.10.0
-    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 https://bab2min.github.io/kiwipiepy/v0.10.0/kr/#0100 를 확인해주세요.
+    이 메소드는 0.10.0 버전에서 사용법이 일부 변경되었습니다. 자세한 내용은 <a href="#0100">여기</a>를 확인해주세요.
 
 Parameters
 ----------
@@ -533,11 +459,11 @@ text: Union[str, Iterable[str]]
     str의 Iterable로 줄 경우, 멀티스레드로 분배하여 처리합니다.
 top_n: int
     분석 결과 후보를 상위 몇 개까지 생성할 지 설정합니다.
-match_options: int
+match_options: kiwipiepy.const.Match
     
     .. versionadded:: 0.8.0
     
-    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.Match`의 조합으로 설정할 수 있습니다.
+    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.const.Match`의 조합으로 설정할 수 있습니다.
 normalize_coda: bool
 
     .. versionadded:: 0.10.2
@@ -554,6 +480,31 @@ result: List[Tuple[List[kiwipiepy.Token], float]]
 results: Iterable[List[Tuple[List[kiwipiepy.Token], float]]]
     text를 Iterable[str]으로 준 경우.
     반환값은 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
+
+Notes
+-----
+`text`를 `Iterable`로 준 경우 멀티스레딩으로 처리됩니다. 
+이 때 사용되는 스레드의 개수는 처음에 `Kiwi`를 생성할 때 `num_workers`로 준 값입니다.
+
+```python
+kiwi.analyze('형태소 분석 결과입니다')
+# 반환 값은 다음과 같이 `(형태소 분석 결과, 분석 점수)`의 형태입니다.
+(
+    [Token(form='형태소', tag='NNG', start=0, len=3), 
+    Token(form='분석', tag='NNG', start=4, len=2), 
+    Token(form='결과', tag='NNG', start=7, len=2), 
+    Token(form='이', tag='VCP', start=9, len=1), 
+    Token(form='ᆸ니다', tag='EF', start=10, len=2)
+    ],
+    -34.3332
+)
+
+# 4개의 스레드에서 동시에 처리합니다.
+kiwi = Kiwi(num_workers=4)
+with open('result.txt', 'w', encoding='utf-8') as output:
+    for res in kiwi.analyze(open('test.txt', encoding='utf-8')):
+        print(' '.join(map(lambda x:x[0]+'/'+x[1], res[0][0])), file=output)
+```
         '''
         if normalize_coda:
             match_options |= Match.NORMALIZING_CODA
@@ -570,8 +521,8 @@ results: Iterable[List[Tuple[List[kiwipiepy.Token], float]]]
 
 Parameters
 ----------
-option: kiwipiepy.Option
-    검사할 옵션의 열거값. 현재는 `kiwipiepy.Option.INTEGRATE_ALLOMORPH`만 지원합니다.
+option: kiwipiepy.const.Option
+    검사할 옵션의 열거값. 현재는 `kiwipiepy.const.Option.INTEGRATE_ALLOMORPH`만 지원합니다.
 
 Returns
 -------
@@ -598,8 +549,8 @@ value: int
 
 Parameters
 ----------
-option: kiwipiepy.Option
-    변경할 옵션의 열거값. 현재는 `kiwipiepy.Option.INTEGRATE_ALLOMORPH`만 지원합니다.
+option: kiwipiepy.const.Option
+    변경할 옵션의 열거값. 현재는 `kiwipiepy.const.Option.INTEGRATE_ALLOMORPH`만 지원합니다.
 value: int
     0으로 설정할 경우 해당 옵션을 해제, 0이 아닌 값으로 설정할 경우 해당 옵션을 설정합니다.
         '''
@@ -709,8 +660,8 @@ text: Union[str, Iterable[str]]
     분석할 문자열입니다. 
     이 인자를 단일 str로 줄 경우, 싱글스레드에서 처리하며
     str의 Iterable로 줄 경우, 멀티스레드로 분배하여 처리합니다.
-match_options: int
-    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.Match`의 조합으로 설정할 수 있습니다.
+match_options: kiwipiepy.const.Match
+    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.const.Match`의 조합으로 설정할 수 있습니다.
 normalize_coda: bool
     True인 경우 '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다.
 split_sents: bool
@@ -740,6 +691,49 @@ result_by_sent: List[List[kiwipiepy.Token]]
 results_by_sent: Iterable[List[List[kiwipiepy.Token]]]
     split_sents == True일때 text를 Iterable[str]으로 준 경우.
     반환값은 `result_by_sent`의 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
+
+Notes
+-----
+
+```python
+>> kiwi.tokenize("안녕하세요 형태소 분석기 키위입니다.")
+[Token(form='안녕', tag='NNG', start=0, len=2),
+ Token(form='하', tag='XSA', start=2, len=1),
+ Token(form='시', tag='EP', start=4, len=1),
+ Token(form='어요', tag='EC', start=3, len=2),
+ Token(form='형태소', tag='NNG', start=6, len=3),
+ Token(form='분석', tag='NNG', start=10, len=2),
+ Token(form='기', tag='NNG', start=12, len=1),
+ Token(form='키위', tag='NNG', start=14, len=2),
+ Token(form='이', tag='VCP', start=16, len=1),
+ Token(form='ᆸ니다', tag='EF', start=17, len=2),
+ Token(form='.', tag='SF', start=19, len=1)]
+
+# normalize_coda 옵션을 사용하면 
+# 덧붙은 받침 때문에 분석이 깨지는 경우를 방지할 수 있습니다.
+>> kiwi.tokenize("ㅋㅋㅋ 이런 것도 분석이 될까욬ㅋㅋ?", normalize_coda=True)
+[Token(form='ㅋㅋㅋ', tag='SW', start=0, len=3),
+ Token(form='이런', tag='MM', start=4, len=2),
+ Token(form='것', tag='NNB', start=7, len=1),
+ Token(form='도', tag='JX', start=8, len=1),
+ Token(form='분석', tag='NNG', start=10, len=2),
+ Token(form='이', tag='JKS', start=12, len=1),
+ Token(form='되', tag='VV', start=14, len=1),
+ Token(form='ᆯ까요', tag='EC', start=15, len=2),
+ Token(form='ㅋㅋㅋ', tag='SW', start=17, len=2),
+ Token(form='?', tag='SF', start=19, len=1)]
+
+# Stopwords 클래스를 바로 적용하여 불용어를 걸러낼 수 있습니다.
+>> from kiwipiepy.utils import Stopwords
+>> stopwords = Stopwords()
+>> kiwi.tokenize("분석 결과에서 불용어만 제외하고 출력할 수도 있다.", stopwords=stopwords)
+[Token(form='분석', tag='NNG', start=0, len=2),
+ Token(form='결과', tag='NNG', start=3, len=2),
+ Token(form='불', tag='XPN', start=8, len=1),
+ Token(form='용어', tag='NNG', start=9, len=2),
+ Token(form='제외', tag='NNG', start=13, len=2),
+ Token(form='출력', tag='NNG', start=18, len=2)]
+```
         '''
         return self._tokenize(text, match_options, normalize_coda, split_sents, stopwords)
 
@@ -760,8 +754,8 @@ text: Union[str, Iterable[str]]
     분석할 문자열입니다. 
     이 인자를 단일 str로 줄 경우, 싱글스레드에서 처리하며
     str의 Iterable로 줄 경우, 멀티스레드로 분배하여 처리합니다.
-match_options: int
-    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.Match`의 조합으로 설정할 수 있습니다.
+match_options: kiwipiepy.const.Match
+    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.const.Match`의 조합으로 설정할 수 있습니다.
 normalize_coda: bool
     True인 경우 '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다.
 return_tokens: bool
@@ -776,6 +770,40 @@ sentences: List[kiwipiepy.Sentence]
 iterable_of_sentences: Iterable[List[kiwipiepy.Sentence]]
     text를 Iterable[str]으로 준 경우.
     반환값은 `sentences`의 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
+
+Notes
+-----
+문장 분리 기능은 형태소 분석에 기반합니다. 따라서 return_tokens의 True/False여부에 상관없이 내부적으로 형태소 분석을 수행하며,
+출력 시에만 형태소 목록을 넣거나 뺄 뿐이므로 이에 따른 실행 속도 차이는 없습니다.
+그러므로 문장 분리 기능과 형태소 분석을 동시에 수행해야하는 경우 `return_tokens=True`로 설정하는 게, 
+문장 분리 후 따로 형태소 분석을 수행하는 것보다 효율적입니다.
+
+```python
+>> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘")
+[Sentence(text='여러 문장으로 구성된 텍스트네', start=0, end=16, tokens=None),
+ Sentence(text='이걸 분리해줘', start=17, end=24, tokens=None)]
+>> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘", return_tokens=True)
+[Sentence(text='여러 문장으로 구성된 텍스트네', start=0, end=16, tokens=[
+  Token(form='여러', tag='MM', start=0, len=2), 
+  Token(form='문장', tag='NNG', start=3, len=2), 
+  Token(form='으로', tag='JKB', start=5, len=2), 
+  Token(form='구성', tag='NNG', start=8, len=2), 
+  Token(form='되', tag='XSV', start=10, len=1), 
+  Token(form='ᆫ', tag='ETM', start=11, len=0), 
+  Token(form='텍스트', tag='NNG', start=12, len=3), 
+  Token(form='이', tag='VCP', start=15, len=1), 
+  Token(form='네', tag='EF', start=15, len=1)
+ ]),
+ Sentence(text='이걸 분리해줘', start=17, end=24, tokens=[
+  Token(form='이거', tag='NP', start=17, len=2), 
+  Token(form='ᆯ', tag='JKO', start=19, len=0), 
+  Token(form='분리', tag='NNG', start=20, len=2), 
+  Token(form='하', tag='XSV', start=22, len=1), 
+  Token(form='어', tag='EC', start=22, len=1), 
+  Token(form='주', tag='VX', start=23, len=1), 
+  Token(form='어', tag='EF', start=23, len=1)
+ ])]
+```
         '''
         def _make_result(arg):
             sents, raw_input = arg

@@ -3,17 +3,15 @@ Kiwipiepy란?
 Kiwipiepy는 한국어 형태소 분석기인 Kiwi(Korean Intelligent Word Identifier)의 Python 모듈입니다. 
 C++로 작성되었고 다른 패키지에 의존성이 없으므로 C++ 컴파일이 가능한 환경이라면 어디에서나 Kiwipiepy를 사용 가능합니다.
 
-
-.. image:: https://badge.fury.io/py/kiwipiepy.svg
+![kiwipiepy](https://badge.fury.io/py/kiwipiepy.svg)
 
 시작하기
 --------
 pip를 이용해 쉽게 설치할 수 있습니다. (https://pypi.org/project/kiwipiepy/)
 
-::
-
-    $ pip install kiwipiepy
-
+```bash
+$ pip install kiwipiepy
+```
 지원하는 OS와 Python 버전은 다음과 같습니다:
 
 * Python 3.6 이상이 설치된 Linux (x86-64) 
@@ -23,17 +21,15 @@ pip를 이용해 쉽게 설치할 수 있습니다. (https://pypi.org/project/ki
 
 Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명령어를 실행해보십시오.
 
-::
-
-    $ python -m kiwipiepy
-
+```bash
+$ python -m kiwipiepy
+```
 위 명령어는 대화형 인터페이스를 시작합니다. 인터페이스에 원하는 문장을 입력하면 형태소 분석 결과를 확인할 수 있습니다.
 
-::
-
-    >> 안녕?
-    [Token(form='안녕', tag='IC', start=0, len=2), Token(form='?', tag='SF', start=2, len=3)]
-
+```text
+>> 안녕?
+[Token(form='안녕', tag='IC', start=0, len=2), Token(form='?', tag='SF', start=2, len=3)]
+```
 인터페이스를 종료하려면 Ctrl + C 를 누르십시오.
 
 예제
@@ -42,26 +38,25 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
 
 다음 예제 코드는 kiwipiepy 인스턴스를 생성해 형태소 분석을 수행하는 간단한 예제 코드입니다.
 
-::
+```python
+from kiwipiepy import Kiwi
+kiwi = Kiwi()
+for result, score in kiwi.analyze("형태소 분석 결과입니다", top_n=5):
+    print(score, result, sep='\t')
 
-    from kiwipiepy import Kiwi
-    kiwi = Kiwi()
-    for result, score in kiwi.analyze("형태소 분석 결과입니다", top_n=5):
-        print(score, result, sep='\t')
-    
-    # 위 코드를 실행하면 다음과 같은 결과가 나옵니다.
-    # -34.33329391479492      [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='VCP', start=9, len=1), Token(form='ᆸ니다', tag='EF', start=10, len=2)]
-    # -38.10548400878906      [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ니다', tag='EC', start=10, len=2)]
-    # -51.977012634277344     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ니다', tag='NNP', start=10, len=2)]
-    # -51.978363037109375     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ', tag='NNG', start=10, len=0), Token(form='니', tag='EC', start=10, len=1), Token(form='다', tag='EC', start=11, len=1)]
-    # -52.152374267578125     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ', tag='NNG', start=10, len=0), Token(form='니다', tag='EF', start=10, len=2)]
+# 위 코드를 실행하면 다음과 같은 결과가 나옵니다.
+# -34.33329391479492      [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='VCP', start=9, len=1), Token(form='ᆸ니다', tag='EF', start=10, len=2)]
+# -38.10548400878906      [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ니다', tag='EC', start=10, len=2)]
+# -51.977012634277344     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ니다', tag='NNP', start=10, len=2)]
+# -51.978363037109375     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ', tag='NNG', start=10, len=0), Token(form='니', tag='EC', start=10, len=1), Token(form='다', tag='EC', start=11, len=1)]
+# -52.152374267578125     [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='MM', start=9, len=1), Token(form='ᆸ', tag='NNG', start=10, len=0), Token(form='니다', tag='EF', start=10, len=2)]
 
-    # 간단하게 형태소 분석 결과만 얻고 싶다면 `tokenize` 메소드를 사용하면 됩니다.
+# 간단하게 형태소 분석 결과만 얻고 싶다면 `tokenize` 메소드를 사용하면 됩니다.
 
-    result = kiwi.tokenize("형태소 분석 결과입니다")
-    print(result)
-    # [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='VCP', start=9, len=1), Token(form='ᆸ니다', tag='EF', start=10, len=2)]
-
+result = kiwi.tokenize("형태소 분석 결과입니다")
+print(result)
+# [Token(form='형태소', tag='NNG', start=0, len=3), Token(form='분석', tag='NNG', start=4, len=2), Token(form='결과', tag='NNG', start=7, len=2), Token(form='이', tag='VCP', start=9, len=1), Token(form='ᆸ니다', tag='EF', start=10, len=2)]
+```
 
 **사용자 단어 추가**
 
@@ -70,251 +65,205 @@ Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명�
 종종 동일한 형태의 단어가 여러 가지로 분석되는 경우가 있습니다. 이 경우 사용자 정의 단어를 우선할지, 분석기가 가지고 있는 형태소 정보를 우선할지 사용자 단어 점수를 조절함으로써 통제 가능합니다.
 아래 예제는 '골리'라는 고유 명사 단어가 포함된 문장을 분석하는 경우에 부여하는 단어 점수에 따라 결과가 어떻게 달라지는지를 보여줍니다.
 
-::
+```python
+from kiwipiepy import Kiwi
 
-    from kiwipiepy import Kiwi
+# 사용자 단어 추가 없이 분석해보겠습니다.
 
-    # 사용자 단어 추가 없이 분석해보겠습니다.
+kiwi = Kiwi()
 
-    kiwi = Kiwi()
+print(*kiwi.analyze('사람을 골리다', top_n=5), sep='\n')
+# 결과
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'EC', 6, 1)], -36.505615234375)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'MAG', 6, 1)], -40.310791015625)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('하', 'XSA', 6, 1), ('다', 'EC', 6, 1)], -40.388427734375)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('하', 'XSV', 6, 1), ('다', 'EC', 6, 1)], -42.22119140625)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'EF', 6, 1)], -42.44189453125)
 
-    print(*kiwi.analyze('사람을 골리다', top_n=5), sep='\n')
-    # 결과
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'EC', 6, 1)], -36.505615234375)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'MAG', 6, 1)], -40.310791015625)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('하', 'XSA', 6, 1), ('다', 'EC', 6, 1)], -40.388427734375)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('하', 'XSV', 6, 1), ('다', 'EC', 6, 1)], -42.22119140625)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'EF', 6, 1)], -42.44189453125)
+print(*kiwi.analyze('골리는 사람이다', top_n=5), sep='\n')
+# 결과
+# ([('골리', 'VV', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -39.06201171875)
+# ([('골리', 'VV', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EF', 7, 1)], -41.10693359375)
+# ([('골리', 'VV', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'JKS', 6, 1), ('다', 'MAG', 7, 1)], -41.588623046875)
+# ([('골리', 'VV', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -41.6220703125)
+# ([('골리', 'VV', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'JKS', 6, 1), ('다', 'MAG', 7, 1)], -43.114990234375)
 
-    print(*kiwi.analyze('골리는 사람이다', top_n=5), sep='\n')
-    # 결과
-    # ([('골리', 'VV', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -39.06201171875)
-    # ([('골리', 'VV', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EF', 7, 1)], -41.10693359375)
-    # ([('골리', 'VV', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'JKS', 6, 1), ('다', 'MAG', 7, 1)], -41.588623046875)
-    # ([('골리', 'VV', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -41.6220703125)
-    # ([('골리', 'VV', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'JKS', 6, 1), ('다', 'MAG', 7, 1)], -43.114990234375)
+# 사용자 단어 '골리'를 추가해보도록 하겠습니다.
+kiwi = Kiwi()
+kiwi.add_user_word('골리', 'NNP', 0)
 
-    # 사용자 단어 '골리'를 추가해보도록 하겠습니다.
-    kiwi = Kiwi()
-    kiwi.add_user_word('골리', 'NNP', 0)
+print(*kiwi.analyze('사람을 골리다', top_n=5), sep='\n')
+# 결과
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'NNP', 4, 2), ('다', 'EC', 6, 1)], -31.064453125)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'NNP', 4, 2), ('다', 'MAG', 6, 1)], -34.109619140625)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'NNP', 4, 2), ('다', 'EF', 6, 1)], -37.097900390625)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골', 'NNG', 4, 1), ('리다', 'EF', 5, 2)], -45.919189453125)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골', 'VV', 4, 1), ('리다', 'EF', 5, 2)], -49.18359375)
 
-    print(*kiwi.analyze('사람을 골리다', top_n=5), sep='\n')
-    # 결과
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'NNP', 4, 2), ('다', 'EC', 6, 1)], -31.064453125)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'NNP', 4, 2), ('다', 'MAG', 6, 1)], -34.109619140625)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'NNP', 4, 2), ('다', 'EF', 6, 1)], -37.097900390625)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골', 'NNG', 4, 1), ('리다', 'EF', 5, 2)], -45.919189453125)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골', 'VV', 4, 1), ('리다', 'EF', 5, 2)], -49.18359375)
+print(*kiwi.analyze('골리는 사람이다', top_n=5), sep='\n')
+# 결과
+# ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -25.12841796875)
+# ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'JKS', 6, 1), ('다', 'MAG', 7, 1)], -26.621337890625)
+# ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EF', 7, 1)], -27.17333984375)
+# ([('골리', 'NNP', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -29.90185546875)
+# ([('골리', 'NNP', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EF', 7, 1)], -31.94677734375)
 
-    print(*kiwi.analyze('골리는 사람이다', top_n=5), sep='\n')
-    # 결과
-    # ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -25.12841796875)
-    # ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'JKS', 6, 1), ('다', 'MAG', 7, 1)], -26.621337890625)
-    # ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EF', 7, 1)], -27.17333984375)
-    # ([('골리', 'NNP', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -29.90185546875)
-    # ([('골리', 'NNP', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EF', 7, 1)], -31.94677734375)
+# 사용자 단어 '골리'의 점수를 낮춰서 추가해보도록 하겠습니다.
+kiwi = Kiwi()
+kiwi.add_user_word('골리', 'NNP', -6)
 
-    # 사용자 단어 '골리'의 점수를 낮춰서 추가해보도록 하겠습니다.
-    kiwi = Kiwi()
-    kiwi.add_user_word('골리', 'NNP', -6)
+print(*kiwi.analyze('사람을 골리다', top_n=5), sep='\n')
+# 결과
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'EC', 6, 1)], -36.505615234375)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'NNP', 4, 2), ('다', 'EC', 6, 1)], -37.064453125)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'NNP', 4, 2), ('다', 'MAG', 6, 1)], -40.109619140625)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'MAG', 6, 1)], -40.310791015625)
+# ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'EF', 6, 1)], -42.44189453125)
 
-    print(*kiwi.analyze('사람을 골리다', top_n=5), sep='\n')
-    # 결과
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'EC', 6, 1)], -36.505615234375)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'NNP', 4, 2), ('다', 'EC', 6, 1)], -37.064453125)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'NNP', 4, 2), ('다', 'MAG', 6, 1)], -40.109619140625)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'MAG', 6, 1)], -40.310791015625)
-    # ([('사람', 'NNG', 0, 2), ('을', 'JKO', 2, 1), ('골리', 'VV', 4, 2), ('다', 'EF', 6, 1)], -42.44189453125)
-
-    print(*kiwi.analyze('골리는 사람이다', top_n=5), sep='\n')    
-    # 결과
-    # ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -31.12841796875)
-    # ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'JKS', 6, 1), ('다', 'MAG', 7, 1)], -32.621337890625)
-    # ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EF', 7, 1)], -33.17333984375)
-    # ([('골리', 'NNP', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -35.90185546875)
-    # ([('골리', 'NNP', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EF', 7, 1)], -37.94677734375)
-
+print(*kiwi.analyze('골리는 사람이다', top_n=5), sep='\n')    
+# 결과
+# ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -31.12841796875)
+# ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'JKS', 6, 1), ('다', 'MAG', 7, 1)], -32.621337890625)
+# ([('골리', 'NNP', 0, 2), ('는', 'JX', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EF', 7, 1)], -33.17333984375)
+# ([('골리', 'NNP', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EC', 7, 1)], -35.90185546875)
+# ([('골리', 'NNP', 0, 2), ('는', 'ETM', 2, 1), ('사람', 'NNG', 4, 2), ('이', 'VCP', 6, 1), ('다', 'EF', 7, 1)], -37.94677734375)
+```
 **멀티스레딩 analyze**
 
-다음 예제 코드는 멀티스레드를 활용하여 ``test.txt`` 파일을 줄별로 읽어들여 형태소 분석한 뒤 그 결과를 ``result.txt`` 에 저장합니다.
+다음 예제 코드는 멀티스레드를 활용하여 `test.txt` 파일을 줄별로 읽어들여 형태소 분석한 뒤 그 결과를 `result.txt` 에 저장합니다.
 
-::
+```python
+from kiwipiepy import Kiwi
+# 4개의 스레드에서 동시에 처리합니다.
+# num_workers 생략시 현재 환경에서 사용가능한 모든 코어를 다 사용합니다.
+kiwi = Kiwi(num_workers=4)
+with open('result.txt', 'w', encoding='utf-8') as output:
+    for res in kiwi.analyze(open('test.txt', encoding='utf-8')):
+        output.write(' '.join(map(lambda x:x[0]+'/'+x[1], res[0][0])) + '\n')
+```
+`Kiwi()` 생성시 인자로 준 num_workers에 따라 여러 개의 스레드에서 작업이 동시에 처리됩니다. 반환되는 값은 입력되는 값의 순서와 동일합니다.
 
-    from kiwipiepy import Kiwi
-    # 4개의 스레드에서 동시에 처리합니다.
-    # num_workers 생략시 현재 환경에서 사용가능한 모든 코어를 다 사용합니다.
-    kiwi = Kiwi(num_workers=4)
-    kiwi.load_user_dictionary('userDict.txt')
-    kiwi.prepare()
-    with open('result.txt', 'w', encoding='utf-8') as output:
-        for res in kiwi.analyze(open('test.txt', encoding='utf-8')):
-            output.write(' '.join(map(lambda x:x[0]+'/'+x[1], res[0][0])) + '\n')
-
-``Kiwi()`` 생성시 인자로 준 num_workers에 따라 여러 개의 스레드에서 작업이 동시에 처리됩니다. 반환되는 값은 입력되는 값의 순서와 동일합니다.
-
-``analyze`` 를 인자를 str의 iterable로 준 경우 이 iterable을 읽어들이는 시점은 analyze 호출 이후일 수도 있습니다. 
+`analyze` 를 인자를 str의 iterable로 준 경우 이 iterable을 읽어들이는 시점은 analyze 호출 이후일 수도 있습니다. 
 따라서 이 인자가 다른 IO 자원(파일 입출력 등)과 연동되어 있다면 모든 분석이 끝나기 전까지 해당 자원을 종료하면 안됩니다.
 예를 들어 다음과 같이 open을 통해 생성한 파일 입출력 객체를 미리 종료하는 경우 오류가 발생할 수 있습니다.
 
-::
+```python
+from kiwipiepy import Kiwi
+kiwi = Kiwi(num_workers=4)
+file = open('long_text.txt', encoding='utf-8')
+result_iter = kiwi.analyze(file)
+file.close() # 파일이 종료됨
+next(result_iter) # 종료된 파일에서 분석해야할 다음 텍스트를 읽어들이려고 시도하여 오류 발생
 
-    from kiwipiepy import Kiwi
-    kiwi = Kiwi(num_workers=4)
-    file = open('long_text.txt', encoding='utf-8')
-    result_iter = kiwi.analyze(file)
-    file.close() # 파일이 종료됨
-    next(result_iter) # 종료된 파일에서 분석해야할 다음 텍스트를 읽어들이려고 시도하여 오류 발생
-
-    # ValueError: I/O operation on closed file.
-    # The above exception was the direct cause of the following exception:
-    # Traceback (most recent call last):
-    #   File "<stdin>", line 1, in <module>
-    # SystemError: <built-in function next> returned a result with an error set
-
+# ValueError: I/O operation on closed file.
+# The above exception was the direct cause of the following exception:
+# Traceback (most recent call last):
+#   File "<stdin>", line 1, in <module>
+# SystemError: <built-in function next> returned a result with an error set
+```
 
 **normalize_coda**
 0.10.2버전부터 normalize_coda 기능이 추가되었습니다. 이 기능은 웹이나 채팅 텍스트 데이터에서 자주 쓰이는 
 ㅋㅋㅋ, ㅎㅎㅎ와 같은 초성체가 어절 뒤에 붙는 경우 분석에 실패하는 경우를 막아줍니다.
 
-::
-
-    from kiwipiepy import Kiwi
-    kiwi = Kiwi()
-    kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=False)
-    # [Token(form='안', tag='NNP', start=0, len=1), Token(form='먹었엌', tag='NNP', start=2, len=3), Token(form='ㅋㅋ', tag='SW', start=5, len=2)]
-    kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=True)
-    # [Token(form='안', tag='MAG', start=0, len=1), Token(form='먹', tag='VV', start=2, len=1), Token(form='었', tag='EP', start=3, len=1), Token(form='어', tag='EF', start=4, len=1), Token(form='ㅋㅋㅋ', tag='SW', start=5, len=2)]
-
+```python
+from kiwipiepy import Kiwi
+kiwi = Kiwi()
+kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=False)
+# [Token(form='안', tag='NNP', start=0, len=1), Token(form='먹었엌', tag='NNP', start=2, len=3), Token(form='ㅋㅋ', tag='SW', start=5, len=2)]
+kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=True)
+# [Token(form='안', tag='MAG', start=0, len=1), Token(form='먹', tag='VV', start=2, len=1), Token(form='었', tag='EP', start=3, len=1), Token(form='어', tag='EF', start=4, len=1), Token(form='ㅋㅋㅋ', tag='SW', start=5, len=2)]
+```
 0.10.0 버전 변경사항
 --------------------
 0.10.0 버전에서는 일부 불편한 메소드들이 좀 더 편한 형태로 개량되었습니다. 
-변경된 메소드들은 ``analyze`` , ``perform`` , ``extract_words`` , ``extract_filter_words`` , ``extract_add_words`` 입니다.
-그리고 ``async_analyze`` 함수는 ``analyze`` 함수의 멀티스레딩 버전으로 통합되어 제거되었습니다.
-또한 ``prepare`` 함수를 별도로 호출할 필요가 없도록 변경되었습니다.
-
-**0.9.3 버전까지의 analyze, perform 사용법**
-::
-
-    from kiwipiepy import Kiwi
-
-    class IOHandler:
-        def __init__(self, input, output):
-            self.input = open(input, encoding='utf-8')
-            self.output = open(output, 'w', encoding='utf-8')
-
-        def read(self, sent_id):
-            if sent_id == 0:
-                self.input.seek(0)
-                self.iter = iter(self.input)
-            try:
-                return next(self.iter)
-            except StopIteration:
-                return None
-
-        def write(self, sent_id, res):
-            print('Analyzed %dth row' % sent_id)
-            self.output.write(' '.join(map(lambda x:x[0]+'/'+x[1], res[0][0])) + '\n')
-
-        def __del__(self):
-            self.input.close()
-            self.output.close()
-
-    kiwi = Kiwi()
-    kiwi.load_user_dictionary('userDict.txt')
-    kiwi.prepare()
-    handle = IOHandler('test.txt', 'result.txt')
-    kiwi.analyze(handle.read, handle.write)
-
-    # perform 함수의 경우
-    kiwi.perform(handle.read, handle.write)
+변경된 메소드들은 `analyze` , `perform` , `extract_words` , `extract_filter_words` , `extract_add_words` 입니다.
+그리고 `async_analyze` 함수는 `analyze` 함수의 멀티스레딩 버전으로 통합되어 제거되었습니다.
+또한 `prepare` 함수를 별도로 호출할 필요가 없도록 변경되었습니다. 이전 버전의 사용법에 대해서는 이전 버전의 문서를 참조하십시오.
 
 **0.10.0 이후 버전의 analyze, perform 사용법**
-::
+```python
+from kiwipiepy import Kiwi
 
-    from kiwipiepy import Kiwi
+kiwi = Kiwi()
+kiwi.load_user_dictionary('userDict.txt')
+with open('result.txt', 'w', encoding='utf-8') as out:
+    for res in kiwi.analyze(open('test.txt', encoding='utf-8')):
+        score, tokens = res[0] # top-1 결과를 가져옴
+        print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
 
-    kiwi = Kiwi()
-    kiwi.load_user_dictionary('userDict.txt')
-    with open('result.txt', 'w', encoding='utf-8') as out:
-        for res in kiwi.analyze(open('test.txt', encoding='utf-8')):
-            score, tokens = res[0] # top-1 결과를 가져옴
-            print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
+# perform 함수의 경우
+'''
+perform 함수의 입력은 여러 번 순회 가능해야합니다.
+따라서 str의 list 형태이거나 iterable을 반환하도록 입력을 넣어주어야 합니다.
+'''
+inputs = list(open('test.txt', encoding='utf-8'))
+with open('result.txt', 'w', encoding='utf-8') as out:
+    for res in kiwi.perform(inputs):
+        score, tokens = res[0] # top-1 결과를 가져옴
+        print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
 
-    # perform 함수의 경우
-    '''
-    perform 함수의 입력은 여러 번 순회 가능해야합니다.
-    따라서 str의 list 형태이거나 iterable을 반환하도록 입력을 넣어주어야 합니다.
-    '''
-    inputs = list(open('test.txt', encoding='utf-8'))
-    with open('result.txt', 'w', encoding='utf-8') as out:
-        for res in kiwi.perform(inputs):
-            score, tokens = res[0] # top-1 결과를 가져옴
-            print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
+'''
+list(open('test.txt', encoding='utf-8'))의 경우 
+모든 입력을 미리 list로 저장해두므로
+test.txt 파일이 클 경우 많은 메모리를 소모할 수 있습니다.
+그 대신 파일에서 필요한 부분만 가져와 사용하도록(streaming) 할 수도 있습니다.
+'''
 
-    '''
-    list(open('test.txt', encoding='utf-8'))의 경우 
-    모든 입력을 미리 list로 저장해두므로
-    test.txt 파일이 클 경우 많은 메모리를 소모할 수 있습니다.
-    그 대신 파일에서 필요한 부분만 가져와 사용하도록(streaming) 할 수도 있습니다.
-    '''
+class IterableTextFile:
+    def __init__(self, path):
+        self.path = path
 
-    class IterableTextFile:
-        def __init__(self, path):
-            self.path = path
+    def __iter__(self):
+        yield from open(path, encoding='utf-8')
 
-        def __iter__(self):
-            yield from open(path, encoding='utf-8')
-    
-    with open('result.txt', 'w', encoding='utf-8') as out:
-        for res in kiwi.perform(IterableTextFile('test.txt')):
-            score, tokens = res[0] # top-1 결과를 가져옴
-            print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
-
-``extract_words`` , ``extract_add_words`` 역시 ``perform``과 마찬가지로 str의 list를 입력하거나
-위의 예시의 ``IterableTextFile`` 처럼 str의 iterable을 반환하는 객체를 만들어 사용하면 됩니다.
-
-**0.9.3 버전까지의 extract_words의 사용법**
-::
-
-    class ReaderExam:
-        def __init__(self, filePath):
-            self.file = open(filePath)
-
-        def read(self, id):
-            if id == 0: self.file.seek(0)
-            return self.file.readline()
-
-    reader = ReaderExam('test.txt')
-    kiwi.extract_words(reader.read, 10, 10, 0.25)
+with open('result.txt', 'w', encoding='utf-8') as out:
+    for res in kiwi.perform(IterableTextFile('test.txt')):
+        score, tokens = res[0] # top-1 결과를 가져옴
+        print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
+```
+`extract_words` , `extract_add_words` 역시 `perform`과 마찬가지로 str의 list를 입력하거나
+위의 예시의 `IterableTextFile` 처럼 str의 iterable을 반환하는 객체를 만들어 사용하면 됩니다.
 
 **0.10.0 이후 버전의 extract_words의 사용법**
+```python
+class IterableTextFile:
+    def __init__(self, path):
+        self.path = path
 
-    class IterableTextFile:
-        def __init__(self, path):
-            self.path = path
+    def __iter__(self):
+        yield from open(path, encoding='utf-8')
 
-        def __iter__(self):
-            yield from open(path, encoding='utf-8')
-
-    kiwi.extract_words(IterableTextFile('test.txt'), 10, 10, 0.25)
-    # 아니면 그냥 str의 list를 입력해도 됩니다.
-
-
+kiwi.extract_words(IterableTextFile('test.txt'), 10, 10, 0.25)
+# 아니면 그냥 str의 list를 입력해도 됩니다.
+```
 
 사용자 정의 사전 포맷
 ---------------------
 사용자 정의 사전은 UTF-8로 인코딩된 텍스트 파일이어야 하며, 다음과 같은 구조를 띄어야 합니다.
+```text
+#으로 시작하는 줄은 주석 처리됩니다.
+# 각 필드는 Tab(\t)문자로 구분됩니다.
+#
+# <단일 형태소를 추가하는 경우>
+# (형태) \t (품사태그) \t (점수)
+# * (점수)는 생략시 0으로 처리됩니다.
+키위	NNP	-5.0
 
+# <이미 존재하는 형태소의 이형태를 추가하는 경우>
+# (이형태) \t (원형태소/품사태그) \t (점수)
+# * (점수)는 생략시 0으로 처리됩니다.
+기위	키위/NNG	-3.0
 
-    #주석은 #으로 시작합니다.
-
-    단어1 [탭문자] 품사태그 [탭문자] 단어점수
-
-    단어2 [탭문자] 품사태그 [탭문자] 단어점수
-
-    단어3 [탭문자] 품사태그 [탭문자] 단어점수
-
+# <기분석 형태를 추가하는 경우>
+# (형태) \t (원형태소/품사태그 + 원형태소/품사태그 + ...) \t (점수)
+# * (점수)는 생략시 0으로 처리됩니다.
+사겼다	사귀/VV + 었/EP + 다/EF	-1.0
+#
+# 현재는 공백을 포함하는 다어절 형태를 등록할 수 없습니다.
+```
 단어점수는 생략 가능하며, 생략 시 기본값인 0으로 처리됩니다.
+실제 예시에 대해서는 Kiwi에 내장된 기본 사전 파일인 https://raw.githubusercontent.com/bab2min/Kiwi/main/ModelGenerator/default.dict 을 참조해주세요.
 
 데모
 ----
