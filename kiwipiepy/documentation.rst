@@ -395,6 +395,16 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.11.0 (2022-03-19)
+    * Kiwi 0.11.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.11.0 )이 반영되었습니다.
+        * 이용자 사전을 관리하는 메소드 `Kiwi.add_pre_analyzed_word`, `Kiwi.add_rule`, `Kiwi.add_re_rule`가 추가되었습니다.
+        * 분석 시 접두사/접미사 및 동/형용사 전성어미의 분리여부를 선택할 수 있는 옵션 `Match.JOIN_NOUN_PREFIX`, `Match.JOIN_NOUN_SUFFIX`, `Match.JOIN_VERB_SUFFIX`, `Match.JOIN_ADJ_SUFFIX`가 추가되었습니다.
+        * 결합된 형태소 `Token`의 `start`, `end`, `length`가 부정확한 버그를 수정했습니다.
+        * 이제 형태소 결합 규칙이 Kiwi 모델 내로 통합되어 `Kiwi.add_user_word`로 추가된 동/형용사의 활용형도 정상적으로 분석이 됩니다.
+        * 언어 모델의 압축 알고리즘을 개선하여 초기 로딩 속도를 높였습니다.
+        * SIMD 최적화가 개선되었습니다.
+        * 언어 모델 및 기본 사전을 업데이트하여 전반적인 정확도를 높였습니다.
+
 * 0.10.3 (2021-12-22)
     * Kiwi 0.10.3의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.10.3 )이 반영되었습니다.
         * `Token`에 `sent_position`, `line_number` 프로퍼티가 추가되었습니다.

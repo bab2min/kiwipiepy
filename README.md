@@ -152,6 +152,59 @@ True
  Token(form='누구', tag='NP', start=5, len=2),
  Token(form='야', tag='JKV', start=7, len=1)]
 
+# v0.11.0 신기능
+# 변형된 형태소를 일괄적으로 추가하여 대상 텍스트에 맞춰 분석 성능을 높일 수 있습니다.
+>>> kiwi = Kiwi()
+>>> kiwi.tokenize("안녕하세영, 제 이름은 이세영이에영. 학생이세영?")
+[Token(form='안녕', tag='NNG', start=0, len=2),
+ Token(form='하', tag='XSA', start=2, len=1),
+ Token(form='시', tag='EP', start=3, len=1),
+ Token(form='어', tag='EC', start=3, len=1),
+ Token(form='영', tag='MAG', start=4, len=1), # 오분석
+ Token(form=',', tag='SP', start=5, len=1),
+ Token(form='저', tag='NP', start=7, len=1),
+ Token(form='의', tag='JKG', start=7, len=1),
+ Token(form='이름', tag='NNG', start=9, len=2),
+ Token(form='은', tag='JX', start=11, len=1),
+ Token(form='이세영', tag='NNP', start=13, len=3),
+ Token(form='이', tag='JKS', start=16, len=1),
+ Token(form='에', tag='IC', start=17, len=1),
+ Token(form='영', tag='NR', start=18, len=1),
+ Token(form='.', tag='SF', start=19, len=1),
+ Token(form='님', tag='NNG', start=21, len=1),
+ Token(form='도', tag='JX', start=22, len=1),
+ Token(form='학생', tag='NNG', start=24, len=2),
+ Token(form='이세영', tag='NNP', start=26, len=3), # 오분석
+ Token(form='?', tag='SF', start=29, len=1)]
+
+# 종결어미(EF) 중 '요'로 끝나는 것들을 '영'으로 대체하여 일괄 삽입합니다. 
+# 이 때 변형된 종결어미에는 -3의 페널티를 부여하여 원 형태소보다 우선하지 않도록 합니다.
+# 새로 삽입된 형태소들이 반환됩니다.
+>>> kiwi.add_re_rule('EF', '요$', '영', -3)
+['어영', '에영', '지영', '잖아영', '거든영', 'ᆯ까영', '네영', '구영', '나영', '군영', ..., '으니깐영']
+
+# 동일한 문장을 재분석하면 분석 결과가 개선된 것을 확인할 수 있습니다.
+>>> kiwi.tokenize("안녕하세영, 제 이름은 이세영이에영. 님도 학생이세영?")
+[Token(form='안녕', tag='NNG', start=0, len=2),
+ Token(form='하', tag='XSA', start=2, len=1),
+ Token(form='시', tag='EP', start=3, len=1),
+ Token(form='어영', tag='EF', start=3, len=2), # 분석 결과 개선
+ Token(form=',', tag='SP', start=5, len=1),
+ Token(form='저', tag='NP', start=7, len=1),
+ Token(form='의', tag='JKG', start=7, len=1),
+ Token(form='이름', tag='NNG', start=9, len=2),
+ Token(form='은', tag='JX', start=11, len=1),
+ Token(form='이세영', tag='NNP', start=13, len=3),
+ Token(form='이', tag='VCP', start=16, len=1),
+ Token(form='에영', tag='EF', start=17, len=2),
+ Token(form='.', tag='SF', start=19, len=1),
+ Token(form='님', tag='NNG', start=21, len=1),
+ Token(form='도', tag='JX', start=22, len=1),
+ Token(form='학생', tag='NNG', start=24, len=2),
+ Token(form='이', tag='VCP', start=26, len=1),
+ Token(form='시', tag='EP', start=27, len=1),
+ Token(form='어영', tag='EF', start=27, len=2), # 분석 결과 개선
+ Token(form='?', tag='SF', start=29, len=1)]
 ```
 
 ## 시작하기

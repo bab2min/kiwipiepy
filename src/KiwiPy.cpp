@@ -99,6 +99,36 @@ struct KiwiObject : py::CObject<KiwiObject>
 		kiwi.setCutOffThreshold(v);
 	}
 
+	size_t getMaxUnkFormSize() const
+	{
+		return kiwi.getMaxUnkFormSize();
+	}
+
+	void setMaxUnkFormSize(size_t v)
+	{
+		kiwi.setMaxUnkFormSize(v);
+	}
+
+	float getUnkScoreBias() const
+	{
+		return kiwi.getUnkScoreBias();
+	}
+
+	void setUnkScoreBias(float v)
+	{
+		kiwi.setUnkScoreBias(v);
+	}
+
+	float getUnkScoreScale() const
+	{
+		return kiwi.getUnkScoreScale();
+	}
+
+	void setUnkScoreScale(float v)
+	{
+		kiwi.setUnkScoreScale(v);
+	}
+
 	bool getIntegrateAllomorph() const
 	{
 		return kiwi.getIntegrateAllomorph();
@@ -134,6 +164,9 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ [](PyTypeObject& obj)
 	{
 		{ (char*)"_cutoff_threshold", PY_GETTER_MEMFN(&KiwiObject::getCutOffThreshold), PY_SETTER_MEMFN(&KiwiObject::setCutOffThreshold), "", nullptr },
 		{ (char*)"_integrate_allomorph", PY_GETTER_MEMFN(&KiwiObject::getIntegrateAllomorph), PY_SETTER_MEMFN(&KiwiObject::setIntegrateAllomorph), "", nullptr },
+		{ (char*)"_unk_score_bias", PY_GETTER_MEMFN(&KiwiObject::getUnkScoreBias), PY_SETTER_MEMFN(&KiwiObject::setUnkScoreBias), "", nullptr },
+		{ (char*)"_unk_score_scale", PY_GETTER_MEMFN(&KiwiObject::getUnkScoreScale), PY_SETTER_MEMFN(&KiwiObject::setUnkScoreScale), "", nullptr },
+		{ (char*)"_max_unk_form_size", PY_GETTER_MEMFN(&KiwiObject::getMaxUnkFormSize), PY_SETTER_MEMFN(&KiwiObject::setMaxUnkFormSize), "", nullptr },
 		{ (char*)"_num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
 		{ nullptr },
 	};
