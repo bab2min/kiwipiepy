@@ -279,21 +279,22 @@ Kiwi(num_workers=0, model_path=None, load_default_dict=True, integrate_allomorph
 
 kiwi 객체는 크게 다음 세 종류의 작업을 수행할 수 있습니다.
 * 코퍼스로부터 미등록 단어 추출
-* 사용자 사전 추가
+* 사용자 사전 관리
 * 형태소 분석
 
-## 코퍼스로부터 미등록 단어 추출
+### 코퍼스로부터 미등록 단어 추출
 
 Kiwi 0.5부터 새로 추가된 기능입니다. 자주 등장하는 문자열의 패턴을 파악하여 단어로 추정되는 문자열을 추출해줍니다. 
 이 기능의 기초적인 아이디어는 https://github.com/lovit/soynlp 의 Word Extraction 기법을 바탕으로 하고 있으며, 
 이에 문자열 기반의 명사 확률을 조합하여 명사일 것으로 예측되는 단어만 추출합니다.
 
-Kiwi가 제공하는 미등록 단어 추출 관련 메소드는 다음 세 가지입니다.
+Kiwi가 제공하는 미등록 단어 추출 관련 메소드는 다음 두 가지입니다.
 ```python
 Kiwi.extract_words(texts, min_cnt, max_word_len, min_score)
 Kiwi.extract_add_words(texts, min_cnt, max_word_len, min_score, pos_score)
 ```
-**`extract_words(texts, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3.0, lm_filter=True)`**
+<details>
+<summary><code>extract_words(texts, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3.0, lm_filter=True)</code></summary>
 
 * `texts`: 분석할 텍스트를 `Iterable[str]` 형태로 넣어줍니다. 자세한 건 아래의 예제를 참조해주세요.
 * `min_cnt`: 추출할 단어가 입력 텍스트 내에서 최소 몇 번 이상 등장하는 지를 결정합니다. 입력 텍스트가 클 수록 그 값을 높여주시는게 좋습니다.
@@ -324,13 +325,17 @@ class IterableTextFile:
 
 kiwi.extract_words(IterableTextFile('test.txt'), min_cnt=10, max_word_len=10, min_score=0.25)
 ```
-
-**`extract_add_words(texts, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3, lm_filter=True)`**
+</details>
+<hr>
+<details>
+<summary><code>extract_add_words(texts, min_cnt=10, max_word_len=10, min_score=0.25, pos_score=-3, lm_filter=True)</code></summary>
 
 `extract_words` 와 동일하게 명사인 단어만 추출해줍니다. 
 다만 이 메소드는 추출된 명사 후보를 자동으로 사용자 사전에 `NNP`로 등록하여 형태소 분석에 사용할 수 있게 해줍니다. 만약 이 메소드를 사용하지 않는다면 add_user_word 메소드를 사용하여 추출된 미등록 단어를 직접 사용자 사전에 등록해야 합니다.
+</details>
+<hr>
 
-## 사용자 사전 관리
+### 사용자 사전 관리
 
 기존의 사전에 등록되지 않은 단어를 제대로 분석하기 위해서는 사용자 사전에 해당 단어를 등록해주어야 합니다. 
 이는 extract_add_words를 통해서 자동으로 이뤄질 수도 있고, 수작업으로 직접 추가될 수도 있습니다. 
@@ -342,7 +347,8 @@ Kiwi.add_rule(tag, replacer, score)
 Kiwi.add_re_rule(tag, pattern, repl, score)
 Kiwi.load_user_dictionary(user_dict_path)
 ```
-**`add_user_word(word, pos='NNP', score=0.0, orig_word=None)`**
+<details>
+<summary><code>add_user_word(word, pos='NNP', score=0.0, orig_word=None)</code></summary>
 
 사용자 사전에 새 형태소를 등록합니다. 
 
@@ -355,8 +361,11 @@ Kiwi.load_user_dictionary(user_dict_path)
      원본 형태소가 존재하는 경우 `orig_word`를 명시하면 더 정확한 분석 결과를 낼 수 있습니다.
 
 형태소 삽입이 성공하면 `True`를, 동일한 형태소가 이미 존재하여 실패하면 `False`를 반환합니다.
+</details>
+<hr>
 
-**`add_pre_analyzed_word(form, analyzed, score=0.0)`**
+<details>
+<summary><code>add_pre_analyzed_word(form, analyzed, score=0.0)</code></summary>
 
 사용자 사전에 기분석 형태를 등록합니다. 이를 통해 특정 형태가 사용자가 원하는 형태로 형태소 분석이 되도록 유도할 수 있습니다.
 
@@ -374,13 +383,15 @@ Kiwi.load_user_dictionary(user_dict_path)
 `사겼다`가 `사귀/VV + 었/EP + 다/EF`로 바르게 분석되도록 하는데에 이 메소드를 사용할 수 있습니다.
 
 `kiwi.add_pre_analyzed_word('사겼다', ['사귀/VV', '었/EP', '다/EF'], -3)`
-
 `kiwi.add_pre_analyzed_word('사겼다', [('사귀', 'VV', 0, 2), ('었', 'EP', 1, 2), ('다', 'EF', 2, 3)], -3)`
 
 후자의 경우 분석 결과의 각 형태소가 원본 문자열에서 차지하는 위치를 정확하게 지정해줌으로써, 
 Kiwi 분석 결과에서 해당 형태소의 `start`, `end`, `length`가 정확하게 나오도록 합니다.
+</details>
+<hr>
 
-**`add_rule(tag, replacer, score)`**
+<details>
+<summary><code>add_rule(tag, replacer, score)</code></summary>
 
 규칙에 의해 변형된 형태소를 일괄적으로 추가합니다.
 * `tag`: 추가할 형태소들의 품사
@@ -391,8 +402,11 @@ Kiwi 분석 결과에서 해당 형태소의 `start`, `end`, `length`가 정확�
     해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
 
 `replacer`에 의해 새로 생성된 형태소의 `list`를 반환합니다.
+</details>
+<hr>
 
-**add_re_rule(tag, pattern, repl, score)**
+<details>
+<summary><code>add_re_rule(tag, pattern, repl, score)</code></summary>
 
 `add_rule`메소드와 동일한 역할을 수행하되, 변형 규칙에 정규표현식을 사용합니다.
 
@@ -412,37 +426,42 @@ Kiwi 분석 결과에서 해당 형태소의 `start`, `end`, `length`가 정확�
 
 이런 이형태들을 대량으로 등록할 경우 이형태가 원본 형태보다 분석결과에서 높은 우선권을 가지지 않도록
 score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
+</details>
+<hr>
 
-**`load_user_dictionary(user_dict_path)`**
+<details>
+<summary><code>load_user_dictionary(user_dict_path)</code></summary>
 
 파일로부터 사용자 사전을 읽어들입니다. 사용자 사전 파일은 UTF-8로 인코딩되어 있어야하며, 다음과 같은 형태로 구성되어야 합니다.
 탭 문자(\t)로 각각의 필드는 분리되어야 하며, 단어 점수는 생략 가능합니다. 
-
-    #으로 시작하는 줄은 주석 처리됩니다.
-    # 각 필드는 Tab(\t)문자로 구분됩니다.
-    #
-    # <단일 형태소를 추가하는 경우>
-    # (형태) \t (품사태그) \t (점수)
-    # * (점수)는 생략시 0으로 처리됩니다.
-    키위	NNP	-5.0
-    #
-    # <이미 존재하는 형태소의 이형태를 추가하는 경우>
-    # (이형태) \t (원형태소/품사태그) \t (점수)
-    # * (점수)는 생략시 0으로 처리됩니다.
-    기위	키위/NNG	-3.0
-    #
-    # <기분석 형태를 추가하는 경우>
-    # (형태) \t (원형태소/품사태그 + 원형태소/품사태그 + ...) \t (점수)
-    # * (점수)는 생략시 0으로 처리됩니다.
-    사겼다	사귀/VV + 었/EP + 다/EF	-1.0
-    #
-    # 현재는 공백을 포함하는 다어절 형태를 등록할 수 없습니다.
-
+```text
+#으로 시작하는 줄은 주석 처리됩니다.
+# 각 필드는 Tab(\t)문자로 구분됩니다.
+#
+# <단일 형태소를 추가하는 경우>
+# (형태) \t (품사태그) \t (점수)
+# * (점수)는 생략시 0으로 처리됩니다.
+키위	NNP	-5.0
+#
+# <이미 존재하는 형태소의 이형태를 추가하는 경우>
+# (이형태) \t (원형태소/품사태그) \t (점수)
+# * (점수)는 생략시 0으로 처리됩니다.
+기위	키위/NNG	-3.0
+#
+# <기분석 형태를 추가하는 경우>
+# (형태) \t (원형태소/품사태그 + 원형태소/품사태그 + ...) \t (점수)
+# * (점수)는 생략시 0으로 처리됩니다.
+사겼다	사귀/VV + 었/EP + 다/EF	-1.0
+#
+# 현재는 공백을 포함하는 다어절 형태를 등록할 수 없습니다.
+```
 사전 파일을 성공적으로 읽어들이면, 사전을 통해 새로 추가된 형태소의 개수를 반환합니다. 
 
 실제 예시에 대해서는 [Kiwi에 내장된 기본 사전 파일](https://raw.githubusercontent.com/bab2min/Kiwi/main/ModelGenerator/default.dict)을 참조해주세요.
+</details>
+<hr>
 
-# 형태소 분석
+### 형태소 분석
 
 kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완료되었으면 다음 메소드를 사용하여 형태소 분석을 수행할 수 있습니다.
 
@@ -451,8 +470,9 @@ Kiwi.tokenize(text, match_option, normalize_coda)
 Kiwi.analyze(text, top_n, match_option, normalize_coda)
 ``` 
 
-**`tokenize(text, match_option=Match.ALL, normalize_coda=False)`**
-입력된 text를 형태소 분석하여 그 결과를 간단하게 반환합니다. 분석결과는 다음과 같이 `Token`의 리스트 형태로 반환됩니다.
+<details>
+<summary><code>tokenize(text, match_option=Match.ALL, normalize_coda=False)</code></summary>
+입력된 `text`를 형태소 분석하여 그 결과를 간단하게 반환합니다. 분석결과는 다음과 같이 `Token`의 리스트 형태로 반환됩니다.
 
 ```python
 >> kiwi.tokenize('테스트입니다.')
@@ -472,9 +492,12 @@ Kiwi.analyze(text, top_n, match_option, normalize_coda)
  Token(form='어', tag='EF', start=4, len=1), 
  Token(form='ㅋㅋㅋ', tag='SW', start=5, len=2)]
 ```
+</details>
+<hr>
 
-**`analyze(text, top_n=1, match_option=Match.ALL, normalize_coda=False)`**
-입력된 text를 형태소 분석하여 그 결과를 반환합니다. 총 top_n개의 결과를 자세하게 출력합니다. 반환값은 다음과 같이 구성됩니다.
+<details>
+<summary><code>analyze(text, top_n=1, match_option=Match.ALL, normalize_coda=False)</code></summary>
+입력된 `text`를 형태소 분석하여 그 결과를 반환합니다. 총 top_n개의 결과를 자세하게 출력합니다. 반환값은 다음과 같이 구성됩니다.
 ```python
 [(분석결과1, 점수), (분석결과2, 점수), ... ]
 ```
@@ -524,6 +547,47 @@ Traceback (most recent call last):
   File "<stdin>", line 1, in <module>
 SystemError: <built-in function next> returned a result with an error set
 ```
+</details>
+<hr>
+
+<details>
+<summary><code>split_into_sents(self, 
+    text, 
+    match_options=Match.ALL, 
+    normalize_coda=False,
+    return_tokens=False
+)</code></summary>
+입력 텍스트를 문장 단위로 분할하여 반환합니다. 
+이 메소드는 문장 분할 과정에서 내부적으로 형태소 분석을 사용하므로 문장 분할과 동시에 형태소 분석 결과를 얻는 데 사용할 수도 있습니다. `return_tokens`를 `True`로 설정하면 문장 분리와 함께 형태소 분석 결과도 출력합니다.
+
+```python
+>> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘")
+[Sentence(text='여러 문장으로 구성된 텍스트네', start=0, end=16, tokens=None),
+ Sentence(text='이걸 분리해줘', start=17, end=24, tokens=None)]
+>> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘", return_tokens=True)
+[Sentence(text='여러 문장으로 구성된 텍스트네', start=0, end=16, tokens=[
+  Token(form='여러', tag='MM', start=0, len=2), 
+  Token(form='문장', tag='NNG', start=3, len=2), 
+  Token(form='으로', tag='JKB', start=5, len=2), 
+  Token(form='구성', tag='NNG', start=8, len=2), 
+  Token(form='되', tag='XSV', start=10, len=1), 
+  Token(form='ᆫ', tag='ETM', start=11, len=0), 
+  Token(form='텍스트', tag='NNG', start=12, len=3), 
+  Token(form='이', tag='VCP', start=15, len=1), 
+  Token(form='네', tag='EF', start=15, len=1)
+ ]),
+ Sentence(text='이걸 분리해줘', start=17, end=24, tokens=[
+  Token(form='이거', tag='NP', start=17, len=2), 
+  Token(form='ᆯ', tag='JKO', start=19, len=0), 
+  Token(form='분리', tag='NNG', start=20, len=2), 
+  Token(form='하', tag='XSV', start=22, len=1), 
+  Token(form='어', tag='EC', start=22, len=1), 
+  Token(form='주', tag='VX', start=23, len=1), 
+  Token(form='어', tag='EF', start=23, len=1)
+ ])]
+```
+</details>
+<hr>
 
 ## 품사 태그
 
@@ -583,4 +647,5 @@ SystemError: <built-in function next> returned a result with an error set
 <sup>*</sup> 세종 품사 태그와 다른 독자적인 태그입니다.
 
 ## 문장 분리 기능
-0.10.3 버전부터 문장 분리 기능을 지원합니다. 문장 분리 기능의 성능에 대해서는 [이 페이지](benchmark/sentence_split)를 참조해주세요.
+0.10.3 버전부터 문장 분리 기능을 실험적으로 지원합니다. 0.11.0 버전부터는 정확도가 제법 향상되었습니다. 문장 분리 기능의 성능에 대해서는 [이 페이지](benchmark/sentence_split)를 참조해주세요. 
+

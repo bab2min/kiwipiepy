@@ -30,7 +30,7 @@ Kiwi가 비교적 빠르면서도 높은 정확도를 달성하고 있는 것을
 
 |  Kiwi  |   KSS   | Koala(Okt) | Koala(Hnn) | Koala(Kmr) | Koala(Rhino) | Koala(Eunjeon) | Koala(Arirang) | Koala(Kkma) |
 |:------:|:-------:|:----------:|:----------:|:----------:|:----------:|:----------:|:----------:|:----------:|
-| 0.10.3 | 3.3.1.1 | 2.1.4      | 2.1.4      | 2.1.4      | 2.1.5      | 2.1.6      | 2.1.4      | 2.1.4      |
+| 0.11.0 | 3.4.2   | 2.1.4      | 2.1.4      | 2.1.4      | 2.1.5      | 2.1.6      | 2.1.4      | 2.1.4      |
 
 ## 직접 평가 실행해보기
 ```console
@@ -51,16 +51,16 @@ Gold: 30 sents,  System: 6 sents,  EM: 0.00000,  F1: 0.11359,  Latency: 0.02 mse
 
 ======== Kiwi.split_into_sents ========
 [Sentence Split Benchmark] Dataset: testset/blogs.txt
-Gold: 175 sents,  System: 170 sents,  EM: 0.62286,  F1: 0.77512,  Latency: 195.32 msec
+Gold: 175 sents,  System: 191 sents,  EM: 0.77143,  F1: 0.89778,  Latency: 163.30 msec
 
 [Sentence Split Benchmark] Dataset: testset/sample.txt
-Gold: 43 sents,  System: 36 sents,  EM: 0.60465,  F1: 0.76835,  Latency: 28.41 msec
+Gold: 43 sents,  System: 43 sents,  EM: 0.88372,  F1: 0.93931,  Latency: 29.11 msec
 
 [Sentence Split Benchmark] Dataset: testset/tweets.txt
-Gold: 184 sents,  System: 171 sents,  EM: 0.59783,  F1: 0.79683,  Latency: 84.34 msec
+Gold: 184 sents,  System: 184 sents,  EM: 0.62500,  F1: 0.84072,  Latency: 88.80 msec
 
 [Sentence Split Benchmark] Dataset: testset/v_ending.txt
-Gold: 30 sents,  System: 12 sents,  EM: 0.13333,  F1: 0.31919,  Latency: 17.95 msec
+Gold: 30 sents,  System: 21 sents,  EM: 0.20000,  F1: 0.50358,  Latency: 19.42 msec
 
 ```
 
@@ -69,16 +69,16 @@ kss_ref.py의 경우 backend 옵션을 제공합니다. [pynori, mecab, none] �
 $ python kss_ref.py testset/*.txt --backend=none
 
 [Sentence Split Benchmark] Dataset: testset/blogs.txt
-Gold: 175 sents,  System: 152 sents,  EM: 0.64000,  F1: 0.78595,  Latency: 3235.40 msec
+Gold: 175 sents,  System: 152 sents,  EM: 0.64000,  F1: 0.78595,  Latency: 3065.09 msec
 
 [Sentence Split Benchmark] Dataset: testset/sample.txt
-Gold: 43 sents,  System: 34 sents,  EM: 0.58140,  F1: 0.71413,  Latency: 292.33 msec
+Gold: 43 sents,  System: 34 sents,  EM: 0.58140,  F1: 0.71413,  Latency: 267.51 msec
 
 [Sentence Split Benchmark] Dataset: testset/tweets.txt
-Gold: 184 sents,  System: 113 sents,  EM: 0.36413,  F1: 0.51866,  Latency: 4380.70 msec
+Gold: 184 sents,  System: 113 sents,  EM: 0.36413,  F1: 0.51866,  Latency: 4092.26 msec
 
 [Sentence Split Benchmark] Dataset: testset/v_ending.txt
-Gold: 30 sents,  System: 8 sents,  EM: 0.00000,  F1: 0.16575,  Latency: 510.25 msec
+Gold: 30 sents,  System: 8 sents,  EM: 0.00000,  F1: 0.16575,  Latency: 501.14 msec
 
 ```
 
