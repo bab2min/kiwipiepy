@@ -353,6 +353,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
         * 언어 모델의 압축 알고리즘을 개선하여 초기 로딩 속도를 높였습니다.
         * SIMD 최적화가 개선되었습니다.
         * 언어 모델 및 기본 사전을 업데이트하여 전반적인 정확도를 높였습니다.
+        * 문장 분리 기능의 정확도가 향상되었습니다.
 
 * 0.10.3 (2021-12-22)
     * Kiwi 0.10.3의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.10.3 )이 반영되었습니다.
