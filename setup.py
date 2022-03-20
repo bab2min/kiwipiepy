@@ -43,7 +43,7 @@ def get_extra_cmake_options():
             continue
 
         if arg == '--yes':
-            print("The --yes options to dlib's setup.py don't do anything since all these options ")
+            print("The --yes options to kiwipiepy's setup.py don't do anything since all these options ")
             print("are on by default.  So --yes has been removed.  Do not give it to setup.py.")
             sys.exit(1)
         if arg in ['--no', '--set', '--compiler-flags']:
@@ -98,7 +98,7 @@ class CMakeBuild(build_ext):
         try:
             out = subprocess.check_output(['cmake', '--version'])
         except:
-            sys.stderr.write("\nERROR: CMake must be installed to build dlib\n\n") 
+            sys.stderr.write("\nERROR: CMake must be installed to build kiwipiepy\n\n") 
             sys.exit(1)
         return re.search(r'version\s*([\d.]+)', out.decode()).group(1)
 
