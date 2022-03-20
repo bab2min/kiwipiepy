@@ -63,19 +63,19 @@ class Match(IntEnum):
     """
     JOIN_VERB_SUFFIX = 1 << 19
     """
-    동사형 전성어미를 분리하지 않고 결합합니다. 사랑/NNG 하/XSV 다/EF -> 사랑하/VV 다/EF
+    동사 파생접미사를 분리하지 않고 결합합니다. 사랑/NNG 하/XSV 다/EF -> 사랑하/VV 다/EF
 
     .. versionadded:: 0.11.0
     """
     JOIN_ADJ_SUFFIX = 1 << 20
     """
-    형용사형 전성어미를 분리하지 않고 결합합니다. 매콤/XR 하/XSA 다/EF -> 매콤하/VA 다/EF
+    형용사 파생접미사를 분리하지 않고 결합합니다. 매콤/XR 하/XSA 다/EF -> 매콤하/VA 다/EF
 
     .. versionadded:: 0.11.0
     """
     JOIN_V_SUFFIX = JOIN_VERB_SUFFIX | JOIN_ADJ_SUFFIX
     """
-    동사/형용사형 전성어미를 분리하지 않고 결합합니다.
+    동사/형용사형 파생접미사를 분리하지 않고 결합합니다.
 
     .. versionadded:: 0.11.0
     """
