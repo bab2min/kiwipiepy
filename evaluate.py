@@ -10,10 +10,9 @@ import kiwipiepy
 class Kiwi():
     def __init__(self):
         self.k = kiwipiepy.Kiwi()
-        self.k.prepare()
 
     def pos(self, text):
-        return [w[:2] for w in self.k.analyze(text)[0][0]]
+        return [(t.form, t.tag) for t in self.k.tokenize(text)]
 
 def measure_time(taggers, mult=6):
     doc = kolaw.open('constitution.txt').read()*6
@@ -56,7 +55,7 @@ if __name__=='__main__':
             u'나는 밥을 먹는다', u'하늘을 나는 자동차', # 중의성 해소
             u'아이폰 기다리다 지쳐 애플공홈에서 언락폰질러버렸다 6+ 128기가실버ㅋ'] # 속어
 
-    taggers = [Kiwi, tag.Hannanum, tag.Kkma, tag.Komoran, tag.Okt]
+    taggers = [Kiwi, tag.Hannanum, tag.Kkma, tag.Komoran, tag.Okt, tag.Mecab]
 
     # Time
     data = measure_time(taggers, mult=MULT)
