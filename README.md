@@ -653,3 +653,6 @@ SystemError: <built-in function next> returned a result with an error set
 ## 문장 분리 기능
 0.10.3 버전부터 문장 분리 기능을 실험적으로 지원합니다. 0.11.0 버전부터는 정확도가 제법 향상되었습니다. 문장 분리 기능의 성능에 대해서는 [이 페이지](benchmark/sentence_split)를 참조해주세요. 
 
+## 모호성 해소 성능
+여러 가지로 형태소 분석이 가능하여 맥락을 보는 게 필수적인 상황에서 Kiwi가 높은 정확도를 보이는 것이 확인되었습니다. 
+모호성 해소 성능에 대해서는 [이 페이지](benchmark/disambiguate)를 참조해주세요. 
