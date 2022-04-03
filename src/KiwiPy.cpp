@@ -77,6 +77,16 @@ struct KiwiObject : py::CObject<KiwiObject>
 	{
 		if (kiwi.ready()) return;
 		kiwi = builder.build();
+		py::UniqueObj handler{ PyObject_GetAttrString((PyObject*)this, "_on_build") };
+		if (handler)
+		{
+			py::UniqueObj res{ PyObject_CallFunctionObjArgs(handler, nullptr) };
+			if (!res) throw py::ExcPropagation{};
+		}
+		else
+		{
+			PyErr_Clear();
+		}
 	}
 
 	PyObject* addUserWord(PyObject* args, PyObject* kwargs);
@@ -139,6 +149,26 @@ struct KiwiObject : py::CObject<KiwiObject>
 		kiwi.setIntegrateAllomorph(v);
 	}
 
+	size_t getSpaceTolerance() const
+	{
+		return kiwi.getSpaceTolerance();
+	}
+
+	void setSpaceTolerance(size_t v)
+	{
+		kiwi.setSpaceTolerance(v);
+	}
+
+	float getSpacePenalty() const
+	{
+		return kiwi.getSpacePenalty();
+	}
+
+	void setSpacePenalty(float v)
+	{
+		kiwi.setSpacePenalty(v);
+	}
+
 	size_t getNumWorkers() const
 	{
 		return kiwi.getNumThreads();
@@ -167,6 +197,8 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ [](PyTypeObject& obj)
 		{ (char*)"_unk_score_bias", PY_GETTER_MEMFN(&KiwiObject::getUnkScoreBias), PY_SETTER_MEMFN(&KiwiObject::setUnkScoreBias), "", nullptr },
 		{ (char*)"_unk_score_scale", PY_GETTER_MEMFN(&KiwiObject::getUnkScoreScale), PY_SETTER_MEMFN(&KiwiObject::setUnkScoreScale), "", nullptr },
 		{ (char*)"_max_unk_form_size", PY_GETTER_MEMFN(&KiwiObject::getMaxUnkFormSize), PY_SETTER_MEMFN(&KiwiObject::setMaxUnkFormSize), "", nullptr },
+		{ (char*)"_space_tolerance", PY_GETTER_MEMFN(&KiwiObject::getSpaceTolerance), PY_SETTER_MEMFN(&KiwiObject::setSpaceTolerance), "", nullptr },
+		{ (char*)"_space_penalty", PY_GETTER_MEMFN(&KiwiObject::getSpacePenalty), PY_SETTER_MEMFN(&KiwiObject::setSpacePenalty), "", nullptr },
 		{ (char*)"_num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
 		{ nullptr },
 	};
@@ -195,6 +227,14 @@ struct TokenObject : py::CObject<TokenObject>
 	uint32_t end()
 	{
 		return _pos + _len;
+	}
+
+	u16string taggedForm()
+	{
+		u16string ret = _form;
+		ret.push_back(u'/');
+		ret.insert(ret.end(), _tag, _tag + strlen(_tag));
+	 	return ret;
 	}
 
 	u16string baseForm()
@@ -257,6 +297,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 		{ (char*)"line_number", PY_GETTER_MEMPTR(&TokenObject::_lineNumber), nullptr, Token_line_number__doc__, nullptr },
 		{ (char*)"base_form", PY_GETTER_MEMFN(&TokenObject::baseForm), nullptr, Token_base_form__doc__, nullptr },
 		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, Token_base_id__doc__, nullptr },
+		{ (char*)"tagged_form", PY_GETTER_MEMFN(&TokenObject::taggedForm), nullptr, Token_tagged_form__doc__, nullptr },
 		{ nullptr },
 	};
 

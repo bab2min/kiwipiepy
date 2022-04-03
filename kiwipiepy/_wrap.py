@@ -67,6 +67,14 @@ load_default_dict: bool
             load_default_dict=load_default_dict,
         )
 
+        self._ns_integrate_allomorph = integrate_allomorph
+        self._ns_cutoff_threshold = 5.
+        self._ns_unk_form_score_scale = 3.
+        self._ns_unk_form_score_bias = 5.
+        self._ns_space_penalty = 7.
+        self._ns_max_unk_form_size = 6
+        self._ns_space_tolerance = 0
+
     def add_user_word(self,
         word:str,
         tag:Optional[str] = 'NNP',
@@ -576,6 +584,15 @@ value: int
 
         return __version__
     
+    def _on_build(self):
+        self._integrate_allomorph = self._ns_integrate_allomorph
+        self._cutoff_threshold = self._ns_cutoff_threshold
+        self._unk_form_score_scale = self._ns_unk_form_score_scale
+        self._unk_form_score_bias = self._ns_unk_form_score_bias
+        self._space_penalty = self._ns_space_penalty
+        self._max_unk_form_size = self._ns_max_unk_form_size
+        self._space_tolerance = self._ns_space_tolerance
+
     @property
     def cutoff_threshold(self):
         '''.. versionadded:: 0.10.0
@@ -584,11 +601,11 @@ Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 �
 반대로 이 값을 낮추면 더 적은 후보를 탐색하여 속도가 빨라지지만 정확도는 낮아집니다. 초기값은 5입니다.
         '''
 
-        return self._cutoff_threshold
+        return self._ns_cutoff_threshold
     
     @cutoff_threshold.setter
     def cutoff_threshold(self, v:float):
-        self._cutoff_threshold = v
+        self._cutoff_threshold = self._ns_cutoff_threshold = float(v)
     
     @property
     def integrate_allomorph(self):
@@ -597,12 +614,53 @@ Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 �
 True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다.
         '''
 
-        return self._integrate_allomorph
+        return self._ns_integrate_allomorph
     
     @integrate_allomorph.setter
     def integrate_allomorph(self, v:bool):
-        self._integrate_allomorph = v
+        self._integrate_allomorph = self._ns_integrate_allomorph = bool(v)
     
+    @property
+    def space_penalty(self):
+        '''.. versionadded:: 0.11.1
+
+형태소 중간에 삽입된 공백 문자가 있을 경우 언어모델 점수에 추가하는 페널티 점수입니다. 기본값은 7.0입니다.
+        '''
+
+        return self._ns_space_penalty
+    
+    @space_penalty.setter
+    def space_penalty(self, v:float):
+        self._space_penalty = self._ns_space_penalty = float(v)
+
+    @property
+    def space_tolerance(self):
+        '''.. versionadded:: 0.11.1
+
+형태소 중간에 삽입된 공백문자를 몇 개까지 허용할지 설정합니다. 기본값은 0이며, 이 경우 형태소 중간에 공백문자가 삽입되는 걸 허용하지 않습니다.
+        '''
+
+        return self._ns_space_tolerance
+    
+    @space_tolerance.setter
+    def space_tolerance(self, v:int):
+        if v < 0: raise ValueError("`space_tolerance` must be a zero or positive integer.")
+        self._space_tolerance = self._ns_space_tolerance = int(v)
+
+    @property
+    def max_unk_form_size(self):
+        '''.. versionadded:: 0.11.1
+
+분석 과정에서 허용할 미등재 형태의 최대 길이입니다. 기본값은 6입니다.
+        '''
+
+        return self._ns_max_unk_form_size
+    
+    @max_unk_form_size.setter
+    def max_unk_form_size(self, v:int):
+        if v < 0: raise ValueError("`max_unk_form_size` must be a zero or positive integer.")
+        self._max_unk_form_size = self._ns_max_unk_form_size = int(v)
+
     @property
     def num_workers(self):
         '''.. versionadded:: 0.10.0
@@ -789,7 +847,7 @@ Notes
   Token(form='으로', tag='JKB', start=5, len=2), 
   Token(form='구성', tag='NNG', start=8, len=2), 
   Token(form='되', tag='XSV', start=10, len=1), 
-  Token(form='ᆫ', tag='ETM', start=11, len=0), 
+  Token(form='ᆫ', tag='ETM', start=10, len=1), 
   Token(form='텍스트', tag='NNG', start=12, len=3), 
   Token(form='이', tag='VCP', start=15, len=1), 
   Token(form='네', tag='EF', start=15, len=1)
@@ -818,3 +876,159 @@ Notes
             return _make_result((self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, split_sents=True), text))
 
         return map(_make_result, self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, split_sents=True, echo=True))
+
+    def glue(self,
+        text_chunks:Iterable[str],
+        return_space_insertions = False,
+    ):
+        '''..versionadded:: 0.11.1
+
+여러 텍스트 조각을 하나로 합치되, 문맥을 고려해 적절한 공백을 사이에 삽입합니다.
+
+Parameters
+----------
+text_chunks: Iterable[str]
+    합칠 텍스트 조각들의 목록입니다.
+return_space_insertions: bool
+    True인 경우, 각 조각별 공백 삽입 유무를 `List[bool]`로 반환합니다.
+    기본값은 False입니다.
+
+Returns
+-------
+result: str
+    입력 텍스트 조각의 결합결과를 반환합니다.
+
+space_insertions: Iterable[str]
+    이 값은 `return_space_insertions=True`인 경우에만 반환됩니다.
+    공백 삽입 유무를 알려줍니다.
+
+Notes
+-----
+이 메소드의 공백 자동 삽입 기능은 형태소 분석에 기반합니다. 
+
+```python
+>> kiwi.glue([
+    "그러나  알고보니 그 봉",
+    "지 안에 있던 것은 바로",
+    "레몬이었던 것이다."])
+"그러나  알고보니 그 봉지 안에 있던 것은 바로 레몬이었던 것이다."
+
+>> kiwi.glue([
+    "그러나  알고보니 그 봉",
+    "지 안에 있던 것은 바로",
+    "레몬이었던 것이다."], return_space_insertions=True)
+("그러나  알고보니 그 봉지 안에 있던 것은 바로 레몬이었던 것이다.", [False, True])
+```
+        '''
+
+        all_chunks = []
+        def _zip_consequences(it):
+            prev = next(it).strip()
+            all_chunks.append(prev)
+            for s in it:
+                s = s.strip()
+                yield prev + ' ' + s
+                yield prev + s
+                prev = s
+                all_chunks.append(prev)
+        
+        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL)
+        i = 0
+        ret = []
+        space_insertions = []
+        try:
+            while 1:
+                _, score_with_space = next(riter)[0]
+                _, score_without_space = next(riter)[0]
+                ret.append(all_chunks[i])
+                if score_with_space >= score_without_space or re.search(r'[0-9A-Za-z]$', all_chunks[i]):
+                    ret.append(' ')
+                    space_insertions.append(True)
+                else:
+                    space_insertions.append(False)
+                i += 1
+        except StopIteration:
+            ret.append(all_chunks[i])
+        
+        if return_space_insertions:
+            return ''.join(ret), space_insertions
+        else:
+            return ''.join(ret)
+
+    def space(self,
+        text:Union[str, Iterable[str]],
+        reset_whitespace:bool = False,
+    ):
+        '''..versionadded:: 0.11.1
+
+입력 텍스트에서 띄어쓰기를 교정하여 반환합니다.
+
+Parameters
+----------
+text: Union[str, Iterable[str]]
+    분석할 문자열입니다. 
+    이 인자를 단일 str로 줄 경우, 싱글스레드에서 처리하며
+    str의 Iterable로 줄 경우, 멀티스레드로 분배하여 처리합니다.
+reset_whitespace: bool
+    True인 경우 이미 띄어쓰기된 부분을 붙이는 교정도 수행합니다. 
+    기본값은 False로, 이 경우에는 붙어 있는 단어를 띄어쓰는 교정만 수행합니다.
+
+Returns
+-------
+result: str
+    text를 str으로 준 경우.
+    입력 텍스트의 띄어쓰기 교정 결과를 반환합니다.
+
+iterable_of_results: Iterable[str]
+    text를 Iterable[str]으로 준 경우.
+    입력 텍스트의 띄어쓰기 교정 결과를 반환합니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
+
+Notes
+-----
+이 메소드의 띄어쓰기 교정 기능은 형태소 분석에 기반합니다. 
+
+```python
+>> kiwi.space("띄어쓰기없이작성된텍스트네이걸교정해줘")
+"띄어쓰기 없이 작성된 텍스트네 이걸 교정해 줘."
+```
+        '''
+        ws = re.compile(r'(?<=[가-힣])\s+(?=[가-힣.,?!:;])')
+        space_insertable = re.compile('|'.join([
+            r'(([^SUWX]|X[RS]|S[EH]).* ([NMI]|V[VAX]|VCN|XR|XPN|S[WLHN]))',
+            r'(SN ([MI]|N[PR]|NN[GP]|V[VAX]|VCN|XR|XPN|S[WH]))',
+            r'((S[FPL]).* ([NMI]|V[VAX]|VCN|XR|XPN|S[WH]))',
+        ]))
+
+        def _reset(t):
+            return ws.sub('', t)
+
+        def _space(arg):
+            tokens, raw = arg
+            tokens = tokens[0][0]
+            chunks = []
+            last = 0
+            prev_tag = None
+            for t in tokens:
+                if last < t.start:
+                    chunks.append(raw[last:t.start])
+                    last = t.start
+                if prev_tag and space_insertable.match(prev_tag + ' ' + t.tag):
+                    if t.tag == 'VX' and t.form in '하지':
+                        pass # 보조 용언 중 `하다/지다`는 붙여쓴다.
+                    elif not chunks[-1][-1].isspace():
+                        # 이전에 공백이 없는 경우만 삽입
+                        chunks.append(' ') 
+                if last < t.end:
+                    chunks.append(raw[last:t.end])
+                last = t.end
+                prev_tag = t.tag
+            if last < len(raw):
+                chunks.append(raw[last:])
+            return ''.join(chunks)
+
+        if isinstance(text, str):
+            if reset_whitespace: text = _reset(text)
+            return _space((super().analyze(text, 1, Match.ALL), text))
+        else:
+            if reset_whitespace: text = map(_reset, text)
+            return map(_space, super().analyze(text, 1, Match.ALL, echo=True))

@@ -124,7 +124,7 @@ def load_dataset(path):
         ret.append(((form, tag), exam))
     return ret
 
-def evaluate(dataset, model, error_output=None):
+def evaluate(dataset, model, error_output=None, print_all_results=False):
     acc, tot = 0, 0
     for answer, exam in dataset:
         if answer[1] == 'VA' and not model.disambiguate_verb_adj:
@@ -133,7 +133,7 @@ def evaluate(dataset, model, error_output=None):
         correct = answer in set(result)
         acc += int(correct)
         tot += 1
-        if not correct and error_output is not None:
+        if (print_all_results or not correct) and error_output is not None:
             print('/'.join(answer), ':', *map('/'.join, result), file=error_output)
     return acc / tot
 
@@ -152,7 +152,7 @@ def main(args):
         ds = load_dataset(dataset)
         scores = []
         for i, model in enumerate(models):
-            acc = evaluate(ds, model, error_output=(error_outputs[i] if error_outputs else None))
+            acc = evaluate(ds, model, error_output=(error_outputs[i] if error_outputs else None), print_all_results=args.print_all_results)
             scores.append(acc)
         
         print(os.path.basename(dataset), *((f'{s:.3f}' if s is not None else '-') for s in scores), sep='\t')
@@ -167,4 +167,5 @@ if __name__ == '__main__':
     parser.add_argument('datasets', nargs='+')
     parser.add_argument('--target', default='kiwi', help='kiwi,komoran,mecab,kkma,hannanum,okt')
     parser.add_argument('--error_output_dir')
+    parser.add_argument('--print_all_results', default=False, action='store_true')
     main(parser.parse_args())
