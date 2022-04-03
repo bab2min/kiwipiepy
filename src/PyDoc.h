@@ -82,3 +82,11 @@ DOC_VARIABLE_EN_KO(Token_base_id__doc__,
 
 이형태의 경우 원본 형태소의 고유 ID. 일반 형태소의 경우 `id`와 동일.)""
 );
+
+
+DOC_VARIABLE_EN_KO(Token_tagged_form__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.11.1
+
+form과 tag를 `형태/품사태그`꼴로 합쳐서 반환합니다.)""
+);
