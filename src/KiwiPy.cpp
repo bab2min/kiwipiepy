@@ -232,6 +232,7 @@ struct TokenObject : py::CObject<TokenObject>
 	u16string taggedForm()
 	{
 		u16string ret = _form;
+		ret.push_back(u'/');
 		ret.insert(ret.end(), _tag, _tag + strlen(_tag));
 	 	return ret;
 	}
