@@ -77,6 +77,16 @@ struct KiwiObject : py::CObject<KiwiObject>
 	{
 		if (kiwi.ready()) return;
 		kiwi = builder.build();
+		py::UniqueObj handler{ PyObject_GetAttrString((PyObject*)this, "_on_build") };
+		if (handler)
+		{
+			py::UniqueObj res{ PyObject_CallFunctionObjArgs(handler, nullptr) };
+			if (!res) throw py::ExcPropagation{};
+		}
+		else
+		{
+			PyErr_Clear();
+		}
 	}
 
 	PyObject* addUserWord(PyObject* args, PyObject* kwargs);

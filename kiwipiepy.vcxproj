@@ -109,8 +109,8 @@
     <LinkIncremental>true</LinkIncremental>
     <TargetExt>.pyd</TargetExt>
     <TargetName>_kiwipiepy</TargetName>
-    <IncludePath>$(ProjectDir)Kiwi/include;$(ProjectDir)Kiwi/third_party/mimalloc/include;C:\Users\Administrator\AppData\Local\Programs\Python\Python38\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Administrator\AppData\Local\Programs\Python\Python38\libs;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)Kiwi/include;$(ProjectDir)Kiwi/third_party/mimalloc/include;C:\Users\Administrator\AppData\Local\Programs\Python\Python310\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Administrator\AppData\Local\Programs\Python\Python310\libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -122,8 +122,8 @@
     <LinkIncremental>false</LinkIncremental>
     <TargetExt>.pyd</TargetExt>
     <TargetName>_kiwipiepy</TargetName>
-    <IncludePath>$(ProjectDir)Kiwi/include;$(ProjectDir)Kiwi/third_party/mimalloc/include;C:\Users\Administrator\AppData\Local\Programs\Python\Python38\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Administrator\AppData\Local\Programs\Python\Python38\libs;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)Kiwi/include;$(ProjectDir)Kiwi/third_party/mimalloc/include;C:\Users\Administrator\AppData\Local\Programs\Python\Python310\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Administrator\AppData\Local\Programs\Python\Python310\libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

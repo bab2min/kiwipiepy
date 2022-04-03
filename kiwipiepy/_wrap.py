@@ -67,6 +67,14 @@ load_default_dict: bool
             load_default_dict=load_default_dict,
         )
 
+        self._ns_integrate_allomorph = integrate_allomorph
+        self._ns_cutoff_threshold = 5.
+        self._ns_unk_form_score_scale = 3.
+        self._ns_unk_form_score_bias = 5.
+        self._ns_space_penalty = 7.
+        self._ns_max_unk_form_size = 6
+        self._ns_space_tolerance = 0
+
     def add_user_word(self,
         word:str,
         tag:Optional[str] = 'NNP',
@@ -576,6 +584,15 @@ value: int
 
         return __version__
     
+    def _on_build(self):
+        self._integrate_allomorph = self._ns_integrate_allomorph
+        self._cutoff_threshold = self._ns_cutoff_threshold
+        self._unk_form_score_scale = self._ns_unk_form_score_scale
+        self._unk_form_score_bias = self._ns_unk_form_score_bias
+        self._space_penalty = self._ns_space_penalty
+        self._max_unk_form_size = self._ns_max_unk_form_size
+        self._space_tolerance = self._ns_space_tolerance
+
     @property
     def cutoff_threshold(self):
         '''.. versionadded:: 0.10.0
@@ -584,11 +601,11 @@ Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 �
 반대로 이 값을 낮추면 더 적은 후보를 탐색하여 속도가 빨라지지만 정확도는 낮아집니다. 초기값은 5입니다.
         '''
 
-        return self._cutoff_threshold
+        return self._ns_cutoff_threshold
     
     @cutoff_threshold.setter
     def cutoff_threshold(self, v:float):
-        self._cutoff_threshold = v
+        self._cutoff_threshold = self._ns_cutoff_threshold = float(v)
     
     @property
     def integrate_allomorph(self):
@@ -597,12 +614,53 @@ Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 �
 True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다.
         '''
 
-        return self._integrate_allomorph
+        return self._ns_integrate_allomorph
     
     @integrate_allomorph.setter
     def integrate_allomorph(self, v:bool):
-        self._integrate_allomorph = v
+        self._integrate_allomorph = self._ns_integrate_allomorph = bool(v)
     
+    @property
+    def space_penalty(self):
+        '''.. versionadded:: 0.11.1
+
+형태소 중간에 삽입된 공백 문자가 있을 경우 언어모델 점수에 추가하는 페널티 점수입니다. 기본값은 7.0입니다.
+        '''
+
+        return self._ns_space_penalty
+    
+    @space_penalty.setter
+    def space_penalty(self, v:float):
+        self._space_penalty = self._ns_space_penalty = float(v)
+
+    @property
+    def space_tolerance(self):
+        '''.. versionadded:: 0.11.1
+
+형태소 중간에 삽입된 공백문자를 몇 개까지 허용할지 설정합니다. 기본값은 0이며, 이 경우 형태소 중간에 공백문자가 삽입되는 걸 허용하지 않습니다.
+        '''
+
+        return self._ns_space_tolerance
+    
+    @space_tolerance.setter
+    def space_tolerance(self, v:int):
+        if v < 0: raise ValueError("`space_tolerance` must be a zero or positive integer.")
+        self._space_tolerance = self._ns_space_tolerance = int(v)
+
+    @property
+    def max_unk_form_size(self):
+        '''.. versionadded:: 0.11.1
+
+분석 과정에서 허용할 미등재 형태의 최대 길이입니다. 기본값은 6입니다.
+        '''
+
+        return self._ns_max_unk_form_size
+    
+    @max_unk_form_size.setter
+    def max_unk_form_size(self, v:int):
+        if v < 0: raise ValueError("`max_unk_form_size` must be a zero or positive integer.")
+        self._max_unk_form_size = self._ns_max_unk_form_size = int(v)
+
     @property
     def num_workers(self):
         '''.. versionadded:: 0.10.0
@@ -899,7 +957,7 @@ Notes
 
     def space(self,
         text:Union[str, Iterable[str]],
-        reset_whitespace=False,
+        reset_whitespace:bool = False,
     ):
         '''..versionadded:: 0.11.1
 
@@ -972,6 +1030,5 @@ Notes
             if reset_whitespace: text = _reset(text)
             return _space((super().analyze(text, 1, Match.ALL), text))
         else:
-            if reset_whitespace:
-                text = map(_reset, text)
+            if reset_whitespace: text = map(_reset, text)
             return map(_space, super().analyze(text, 1, Match.ALL, echo=True))

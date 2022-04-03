@@ -147,6 +147,18 @@ def test_add_pre_analyzed_word():
     assert res[2].form == "어" and res[2].tag == "EF" and res[2].start == 2 and res[2].end == 3
     assert res[3].form == "..." and res[3].tag == "SF" and res[3].start == 3 and res[3].end == 6
 
+def test_space_tolerance():
+    kiwi = Kiwi()
+    s = "띄 어 쓰 기 문 제 가 있 습 니 다"
+    kiwi.space_tolerance = 0
+    print(kiwi.tokenize(s))
+    kiwi.space_tolerance = 1
+    print(kiwi.tokenize(s))
+    kiwi.space_tolerance = 2
+    print(kiwi.tokenize(s))
+    kiwi.space_tolerance = 3
+    print(kiwi.tokenize(s))
+
 def test_space():
     kiwi = Kiwi()
     res0 = kiwi.space("띄어쓰기없이작성된텍스트네이걸교정해줘.")
