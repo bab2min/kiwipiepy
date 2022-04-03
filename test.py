@@ -1,8 +1,16 @@
 import os
-curpath = os.path.dirname(os.path.abspath(__file__))
 
 from kiwipiepy import Kiwi
 from kiwipiepy.utils import Stopwords
+
+curpath = os.path.dirname(os.path.abspath(__file__))
+
+class FileReader:
+    def __init__(self, path):
+        self.path = path
+
+    def __iter__(self):
+        yield from open(self.path, encoding='utf-8')
 
 def test_analyze_single():
     kiwi = Kiwi()
@@ -11,14 +19,6 @@ def test_analyze_single():
     for t in toks:
         print(t.form, t.tag, t.start, t.end, t.len, t.id, t.base_form, t.base_id)
         break
-
-
-class FileReader:
-    def __init__(self, path):
-        self.path = path
-
-    def __iter__(self):
-        yield from open(self.path, encoding='utf-8')
 
 def test_extract_words():
     kiwi = Kiwi()
@@ -146,3 +146,39 @@ def test_add_pre_analyzed_word():
     assert res[1].form == "었" and res[1].tag == "EP" and res[1].start == 1 and res[1].end == 2
     assert res[2].form == "어" and res[2].tag == "EF" and res[2].start == 2 and res[2].end == 3
     assert res[3].form == "..." and res[3].tag == "SF" and res[3].start == 3 and res[3].end == 6
+
+def test_space():
+    kiwi = Kiwi()
+    res0 = kiwi.space("띄어쓰기없이작성된텍스트네이걸교정해줘.")
+    assert res0 == "띄어쓰기 없이 작성된 텍스트네 이걸 교정해 줘."
+
+    res1 = kiwi.space(" 띄어쓰기없이 작성된텍스트(http://github.com/bab2min/kiwipiepy )네,이걸교정해줘. ")
+    assert res1 == " 띄어쓰기 없이 작성된 텍스트(http://github.com/bab2min/kiwipiepy )네, 이걸 교정해 줘. "
+
+    res2 = kiwi.space("<Kiwipiepy>는 형태소 분석기이에요~ 0.11.0 버전이 나왔어요.")
+    assert res2 == "<Kiwipiepy>는 형태소 분석기이에요~ 0.11.0 버전이 나왔어요."
+
+    res3 = kiwi.space("<Kiwipiepy>는 형 태 소 분 석 기 이 에 요~ 0.11.0 버 전 이 나 왔 어 요 .", reset_whitespace=True)
+    assert res3 == "<Kiwipiepy>는 형태소 분석기이에요~ 0.11.0 버전이 나왔어요."
+
+    res_a = list(kiwi.space([
+        "띄어쓰기없이작성된텍스트네이걸교정해줘.",
+        " 띄어쓰기없이 작성된텍스트(http://github.com/bab2min/kiwipiepy )네,이걸교정해줘. ",
+        "<Kiwipiepy>는 형태소 분석기이에요~ 0.11.0 버전이 나왔어요.",
+    ]))
+    assert res_a == [res0, res1, res2]
+
+
+def test_glue():
+    chunks = """KorQuAD 2.0은 총 100,000+ 쌍으로 구성된 한국어 질의응답 데이터셋이다. 기존 질의응답 표준 데이
+터인 KorQuAD 1.0과의 차이점은 크게 세가지가 있는데 첫 번째는 주어지는 지문이 한두 문단이 아닌 위
+키백과 한 페이지 전체라는 점이다. 두 번째로 지문에 표와 리스트도 포함되어 있기 때문에 HTML tag로
+구조화된 문서에 대한 이해가 필요하다. 마지막으로 답변이 단어 혹은 구의 단위뿐 아니라 문단, 표, 리
+스트 전체를 포괄하는 긴 영역이 될 수 있다. Baseline 모델로 구글이 오픈소스로 공개한 BERT
+Multilingual을 활용하여 실험한 결과 F1 스코어 46.0%의 성능을 확인하였다. 이는 사람의 F1 점수
+85.7%에 비해 매우 낮은 점수로, 본 데이터가 도전적인 과제임을 알 수 있다. 본 데이터의 공개를 통해
+평문에 국한되어 있던 질의응답의 대상을 다양한 길이와 형식을 가진 real world task로 확장하고자 한다""".split('\n')
+    
+    kiwi = Kiwi()
+    ret, space_insertions = kiwi.glue(chunks, return_space_insertions=True)
+    assert space_insertions == [False, False, True, False, True, True, True]
