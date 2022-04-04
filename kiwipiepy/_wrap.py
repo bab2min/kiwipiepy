@@ -638,6 +638,8 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         '''.. versionadded:: 0.11.1
 
 형태소 중간에 삽입된 공백문자를 몇 개까지 허용할지 설정합니다. 기본값은 0이며, 이 경우 형태소 중간에 공백문자가 삽입되는 걸 허용하지 않습니다.
+
+`Kiwi.space` 메소드 참고.
         '''
 
         return self._ns_space_tolerance
@@ -970,8 +972,8 @@ text: Union[str, Iterable[str]]
     이 인자를 단일 str로 줄 경우, 싱글스레드에서 처리하며
     str의 Iterable로 줄 경우, 멀티스레드로 분배하여 처리합니다.
 reset_whitespace: bool
-    True인 경우 이미 띄어쓰기된 부분을 붙이는 교정도 수행합니다. 
-    기본값은 False로, 이 경우에는 붙어 있는 단어를 띄어쓰는 교정만 수행합니다.
+    True인 경우 이미 띄어쓰기된 부분을 붙이는 교정도 적극적으로 수행합니다. 
+    기본값은 False로, 이 경우에는 붙어 있는 단어를 띄어쓰는 교정 위주로 수행합니다.
 
 Returns
 -------
@@ -986,13 +988,24 @@ iterable_of_results: Iterable[str]
 Notes
 -----
 이 메소드의 띄어쓰기 교정 기능은 형태소 분석에 기반합니다. 
+따라서 형태소 중간에 공백이 삽입된 경우 교정 결과가 부정확할 수 있습니다.
+이 경우 `Kiwi.space_tolerance`를 조절하여 형태소 내 공백을 무시하거나, 
+`reset_whitespace=True`로 설정하여 아예 기존 공백을 무시하고 띄어쓰기를 하도록 하면 결과를 개선할 수 있습니다.
 
 ```python
 >> kiwi.space("띄어쓰기없이작성된텍스트네이걸교정해줘")
 "띄어쓰기 없이 작성된 텍스트네 이걸 교정해 줘."
+>> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다")
+"띄어 쓰기 문 제 가 있 습 니 다"
+>> kiwi.space_tolerance = 2 # 형태소 내 공백을 최대 2개까지 허용
+>> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다")
+"띄어 쓰기 문제가 있습니다"
+>> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다", reset_whitespace=True) # 기존 공백 전부 무시
+"띄어쓰기 문제가 있습니다"
 ```
         '''
         ws = re.compile(r'(?<=[가-힣])\s+(?=[가-힣.,?!:;])')
+        any_ws = re.compile(r'\s+')
         space_insertable = re.compile('|'.join([
             r'(([^SUWX]|X[RS]|S[EH]).* ([NMI]|V[VAX]|VCN|XR|XPN|S[WLHN]))',
             r'(SN ([MI]|N[PR]|NN[GP]|V[VAX]|VCN|XR|XPN|S[WH]))',
@@ -1010,7 +1023,13 @@ Notes
             prev_tag = None
             for t in tokens:
                 if last < t.start:
-                    chunks.append(raw[last:t.start])
+                    if (t.tag.startswith('E') or t.tag.startswith('J') or t.tag.startswith('XS')
+                        or t.tag == 'VX' and t.form in '하지'
+                    ):
+                        s = any_ws.sub('', raw[last:t.start])
+                    else:
+                        s = raw[last:t.start]
+                    if s: chunks.append(s)
                     last = t.start
                 if prev_tag and space_insertable.match(prev_tag + ' ' + t.tag):
                     if t.tag == 'VX' and t.form in '하지':
@@ -1019,7 +1038,8 @@ Notes
                         # 이전에 공백이 없는 경우만 삽입
                         chunks.append(' ') 
                 if last < t.end:
-                    chunks.append(raw[last:t.end])
+                    s = any_ws.sub('', raw[last:t.end])
+                    if s: chunks.append(s)
                 last = t.end
                 prev_tag = t.tag
             if last < len(raw):

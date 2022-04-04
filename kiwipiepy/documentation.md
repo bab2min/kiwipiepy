@@ -344,6 +344,13 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.11.1 (2022-04-03)
+    * Kiwi 0.11.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.11.1 )이 반영되었습니다.
+        * Windows 환경에서 한글이나 기타 유니코드를 포함한 경로에 위치한 모델을 읽지 못하는 버그가 수정되었습니다.
+        * 이제 소수점, 자리 구분 쉼표가 섞인 숫자도 SN 품사태그로 제대로 분석됩니다.
+        * `Kiwi.space_tolerance`, `Kiwi.space_penalty` 프로퍼티가 추가되었습니다.
+    * 여러 줄의 텍스트를 결합할 때 공백을 적절히 삽입해주는 메소드인 `Kiwi.glue`, 띄어쓰기 교정을 실시하는 메소드인 `Kiwi.space`가 추가되었습니다.
+
 * 0.11.0 (2022-03-19)
     * Kiwi 0.11.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.11.0 )이 반영되었습니다.
         * 이용자 사전을 관리하는 메소드 `Kiwi.add_pre_analyzed_word`, `Kiwi.add_rule`, `Kiwi.add_re_rule`가 추가되었습니다.
