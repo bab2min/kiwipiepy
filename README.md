@@ -341,19 +341,19 @@ kiwi.extract_words(IterableTextFile('test.txt'), min_cnt=10, max_word_len=10, mi
 이는 extract_add_words를 통해서 자동으로 이뤄질 수도 있고, 수작업으로 직접 추가될 수도 있습니다. 
 다음 메소드들은 사용자 사전을 관리하는데 사용되는 메소드들입니다.
 ```python
-Kiwi.add_user_word(word, pos, score, orig_word=None)
+Kiwi.add_user_word(word, tag, score, orig_word=None)
 Kiwi.add_pre_analyzed_word(form, analyzed, score)
 Kiwi.add_rule(tag, replacer, score)
 Kiwi.add_re_rule(tag, pattern, repl, score)
 Kiwi.load_user_dictionary(user_dict_path)
 ```
 <details>
-<summary><code>add_user_word(word, pos='NNP', score=0.0, orig_word=None)</code></summary>
+<summary><code>add_user_word(word, tag='NNP', score=0.0, orig_word=None)</code></summary>
 
 사용자 사전에 새 형태소를 등록합니다. 
 
 * `word`: 등록할 형태소의 형태입니다. 현재는 띄어쓰기(공백문자)가 포함되지 않는 문자열만 단어로 등록할 수 있습니다.
-* `pos`: 등록할 형태소의 품사입니다. 기본값은 NNP(고유명사)입니다.
+* `tag`: 등록할 형태소의 품사입니다. 기본값은 NNP(고유명사)입니다.
 * `score`: 등록할 형태소의 점수입니다. 
     동일한 형태라도 여러 경우로 분석될 가능성이 있는 경우에, 이 값이 클수록 해당 형태소가 더 우선권을 가지게 됩니다.
 * `orig_word`: 추가할 형태소가 특정 형태소의 변이형인 경우 이 인자로 원본 형태소를 넘겨줄 수 있습니다. 없는 경우 생략할 수 있습니다. 
@@ -465,7 +465,7 @@ score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
 </details>
 <hr>
 
-### 형태소 분석
+### 분석
 
 kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완료되었으면 다음 메소드를 사용하여 형태소 분석을 수행할 수 있습니다.
 
@@ -555,7 +555,7 @@ SystemError: <built-in function next> returned a result with an error set
 <hr>
 
 <details>
-<summary><code>split_into_sents(self, 
+<summary><code>split_into_sents( 
     text, 
     match_options=Match.ALL, 
     normalize_coda=False,
