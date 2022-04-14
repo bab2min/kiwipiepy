@@ -344,6 +344,13 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.11.2 (2022-04-14)
+    * Kiwi 0.11.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.11.2 )이 반영되었습니다.
+        * 특수 문자가 섞인 텍스트 중 일부가 잘못 분석되는 버그가 수정되었습니다.
+        * 특정한 패턴의 텍스트를 입력할 경우 분석 결과가 빈 값으로 나오는 버그가 수정되었습니다.
+        * 받침 정규화 기능(normalizeCoda)이 모든 받침에 대해 적용되었습니다.
+    * `Kiwi.tokenizer`에 `echo` 인자가 추가되었습니다.
+
 * 0.11.1 (2022-04-03)
     * Kiwi 0.11.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.11.1 )이 반영되었습니다.
         * Windows 환경에서 한글이나 기타 유니코드를 포함한 경로에 위치한 모델을 읽지 못하는 버그가 수정되었습니다.
