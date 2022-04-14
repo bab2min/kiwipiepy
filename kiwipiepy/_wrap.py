@@ -181,7 +181,7 @@ inserted_forms: List[str]
         pattern:Union[str, 're.Pattern'],
         repl:Union[str, Callable],
         score:Optional[float] = 0.,
-    ):
+    ) -> List[str]:
         '''.. versionadded:: 0.11.0
 
 `kiwipiepy.Kiwi.add_rule`과 동일한 역할을 수행하되, 변형 규칙에 정규표현식을 사용합니다.
@@ -222,7 +222,7 @@ score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
 
     def load_user_dictionary(self,
         dict_path:str
-    ):
+    ) -> int:
         '''사용자 정의 사전을 읽어옵니다. 사용자 정의 사전 파일은 UTF-8로 인코딩된 텍스트 파일이어야 합니다.
 사용자 정의 사전으로 추가된 단어의 개수를 반환합니다.
     
@@ -245,11 +245,11 @@ Notes
 
     def extract_words(self,
         texts,
-        min_cnt:int = 10,
-        max_word_len:int = 10,
-        min_score:float = 0.25,
-        pos_score:float = -3.,
-        lm_filter:bool = True,
+        min_cnt:Optional[int] = 10,
+        max_word_len:Optional[int] = 10,
+        min_score:Optional[float] = 0.25,
+        pos_score:Optional[float] = -3.,
+        lm_filter:Optional[bool] = True,
     ):
         '''말뭉치로부터 새로운 단어를 추출합니다. 
 이 기능은 https://github.com/lovit/soynlp 의 Word Extraction 기법을 바탕으로 하되, 
@@ -307,11 +307,11 @@ result: List[Tuple[str, float, int, float]]
     
     def extract_add_words(self,
         texts,
-        min_cnt:int = 10,
-        max_word_len:int = 10,
-        min_score:float = 0.25,
-        pos_score:float = -3.,
-        lm_filter:bool = True,
+        min_cnt:Optional[int] = 10,
+        max_word_len:Optional[int] = 10,
+        min_score:Optional[float] = 0.25,
+        pos_score:Optional[float] = -3.,
+        lm_filter:Optional[bool] = True,
     ):
         '''말뭉치로부터 새로운 단어를 추출하고 새로운 명사에 적합한 결과들만 추려냅니다. 그리고 그 결과를 현재 모델에 자동으로 추가합니다.
 
@@ -353,13 +353,13 @@ result: List[Tuple[str, float, int, float]]
     
     def perform(self,
         texts,
-        top_n:int = 1,
-        match_options:int = Match.ALL,
-        min_cnt:int = 10,
-        max_word_len:int = 10,
-        min_score:float = 0.25,
-        pos_score:float = -3.,
-        lm_filter:bool = True,
+        top_n:Optional[int] = 1,
+        match_options:Optional[int] = Match.ALL,
+        min_cnt:Optional[int] = 10,
+        max_word_len:Optional[int] = 10,
+        min_score:Optional[float] = 0.25,
+        pos_score:Optional[float] = -3.,
+        lm_filter:Optional[bool] = True,
     ):
         '''현재 모델의 사본을 만들어
 `kiwipiepy.Kiwi.extract_add_words`메소드로 말뭉치에서 단어를 추출하여 추가하고, `kiwipiepy.Kiwi.analyze`로 형태소 분석을 실시합니다.
@@ -450,9 +450,9 @@ threshold: float
     
     def analyze(self,
         text:Union[str, Iterable[str]],
-        top_n:int = 1,
-        match_options:int = Match.ALL,
-        normalize_coda:bool = False
+        top_n:Optional[int] = 1,
+        match_options:Optional[int] = Match.ALL,
+        normalize_coda:Optional[bool] = False
     ):
         '''형태소 분석을 실시합니다.
 
@@ -674,11 +674,11 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
     
     def _tokenize(self, 
         text:Union[str, Iterable[str]], 
-        match_options:int = Match.ALL,
-        normalize_coda:bool = False,
-        split_sents:bool = False,
+        match_options:Optional[int] = Match.ALL,
+        normalize_coda:Optional[bool] = False,
+        split_sents:Optional[bool] = False,
         stopwords:Optional[Stopwords] = None,
-        echo:bool = False,
+        echo:Optional[bool] = False,
     ):
         import itertools
 
@@ -705,10 +705,11 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
 
     def tokenize(self, 
         text:Union[str, Iterable[str]], 
-        match_options:int = Match.ALL,
-        normalize_coda:bool = False,
-        split_sents:bool = False,
+        match_options:Optional[int] = Match.ALL,
+        normalize_coda:Optional[bool] = False,
+        split_sents:Optional[bool] = False,
         stopwords:Optional[Stopwords] = None,
+        echo:Optional[bool] = False,
     ):
         '''.. versionadded:: 0.10.2
 
@@ -728,10 +729,14 @@ split_sents: bool
     .. versionadded:: 0.10.3
 
     True인 경우 형태소 리스트를 문장별로 묶어서 반환합니다. 자세한 내용은 아래의 Returns 항목을 참조하세요.
-stopwords: Optional[Stopwords]
+stopwords: Stopwords
     .. versionadded:: 0.10.3
 
     이 인자로 None이 아닌 `kiwipiepy.utils.Stopwords` 객체를 줄 경우, 형태소 분석 결과 중 그 객체에 포함되는 불용어를 제외한 나머지 결과만을 반환합니다.
+echo: bool
+    .. versionadded:: 0.11.2
+
+    이 값이 True이고 `text`를 str의 Iterable로 준 경우, 분석 결과뿐만 아니라 원본 입력을 함께 반환합니다. `text`가 단일 str인 경우 이 인자는 무시됩니다.
 
 Returns
 -------
@@ -743,6 +748,10 @@ results: Iterable[List[kiwipiepy.Token]]
     split_sents == False일때 text를 Iterable[str]으로 준 경우.
     반환값은 `result`의 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 
+results_with_echo: Iterable[Tuple[List[kiwipiepy.Token], str]]
+    split_sents == False이고 echo=True일때 text를 Iterable[str]으로 준 경우.
+    반환값은 (`result`의 iterator, `raw_input`)으로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
+
 result_by_sent: List[List[kiwipiepy.Token]]
     split_sents == True일때 text를 str으로 준 경우.
     형태소 분석 결과가 문장별로 묶여서 반환됩니다.
@@ -751,6 +760,10 @@ result_by_sent: List[List[kiwipiepy.Token]]
 results_by_sent: Iterable[List[List[kiwipiepy.Token]]]
     split_sents == True일때 text를 Iterable[str]으로 준 경우.
     반환값은 `result_by_sent`의 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
+
+results_by_sent_with_echo: Iterable[Tuple[List[List[kiwipiepy.Token]], str]]
+    split_sents == True이고 echo=True일때 text를 Iterable[str]으로 준 경우.
+    반환값은 (`result_by_sent`의 iterator, `raw_input`)으로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 
 Notes
 -----
@@ -795,13 +808,13 @@ Notes
  Token(form='출력', tag='NNG', start=18, len=2)]
 ```
         '''
-        return self._tokenize(text, match_options, normalize_coda, split_sents, stopwords)
+        return self._tokenize(text, match_options, normalize_coda, split_sents, stopwords, echo)
 
     def split_into_sents(self, 
         text:Union[str, Iterable[str]], 
-        match_options:int = Match.ALL, 
-        normalize_coda:bool = False,
-        return_tokens:bool = False,
+        match_options:Optional[int] = Match.ALL, 
+        normalize_coda:Optional[bool] = False,
+        return_tokens:Optional[bool] = False,
     ):
         '''..versionadded:: 0.10.3
 
@@ -881,7 +894,7 @@ Notes
 
     def glue(self,
         text_chunks:Iterable[str],
-        return_space_insertions = False,
+        return_space_insertions:Optional[bool] = False,
     ):
         '''..versionadded:: 0.11.1
 
@@ -959,7 +972,7 @@ Notes
 
     def space(self,
         text:Union[str, Iterable[str]],
-        reset_whitespace:bool = False,
+        reset_whitespace:Optional[bool] = False,
     ):
         '''..versionadded:: 0.11.1
 
