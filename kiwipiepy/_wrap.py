@@ -43,6 +43,7 @@ load_default_dict: bool
         options:Optional[int] = None,
         integrate_allomorph:Optional[bool] = None,
         load_default_dict:Optional[bool] = None,
+        sbg=False,
     ) -> None:
         if num_workers is None:
             num_workers = 0
@@ -65,6 +66,7 @@ load_default_dict: bool
             model_path=model_path,
             integrate_allomorph=integrate_allomorph,
             load_default_dict=load_default_dict,
+            sbg=sbg,
         )
 
         self._ns_integrate_allomorph = integrate_allomorph

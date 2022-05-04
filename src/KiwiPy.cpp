@@ -33,9 +33,10 @@ struct KiwiObject : py::CObject<KiwiObject>
 			const char* modelPath = nullptr;
 			size_t numThreads = 0, options = 3;
 			int integrateAllomorph = -1, loadDefaultDict = -1;
-			static const char* kwlist[] = { "num_workers", "model_path", "integrate_allomorph", "load_default_dict", nullptr };
-			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nzpp", (char**)kwlist,
-				&numThreads, &modelPath, &integrateAllomorph, &loadDefaultDict
+			size_t sbg = 0;
+			static const char* kwlist[] = { "num_workers", "model_path", "integrate_allomorph", "load_default_dict", "sbg", nullptr };
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nzppp", (char**)kwlist,
+				&numThreads, &modelPath, &integrateAllomorph, &loadDefaultDict, &sbg
 			)) return -1;
 
 			BuildOption boptions = BuildOption::integrateAllomorph | BuildOption::loadDefaultDict;
@@ -68,7 +69,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 				spath = py::toCpp<string>(pathRet);
 			}
 
-			self->builder = KiwiBuilder{ spath, numThreads, (BuildOption)boptions };
+			self->builder = KiwiBuilder{ spath, numThreads, (BuildOption)boptions, !!sbg };
 			return 0;
 		});
 	}
@@ -215,6 +216,7 @@ struct TokenObject : py::CObject<TokenObject>
 	u16string _form;
 	const char* _tag = nullptr;
 	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _lineNumber = 0;
+	float _score = 0;
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
 	const Morpheme* _baseMorph = nullptr;
@@ -298,6 +300,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 		{ (char*)"base_form", PY_GETTER_MEMFN(&TokenObject::baseForm), nullptr, Token_base_form__doc__, nullptr },
 		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, Token_base_id__doc__, nullptr },
 		{ (char*)"tagged_form", PY_GETTER_MEMFN(&TokenObject::taggedForm), nullptr, Token_tagged_form__doc__, nullptr },
+		{ (char*)"score", PY_GETTER_MEMPTR(&TokenObject::_score), nullptr, Token_id__doc__, nullptr },
 		{ nullptr },
 	};
 
@@ -338,6 +341,7 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_wordPosition = q.wordPosition;
 			tItem->_sentPosition = q.sentPosition;
 			tItem->_lineNumber = q.lineNumber;
+			tItem->_score = q.score;
 			tItem->_morph = q.morph;
 			tItem->_morphId = kiwi.morphToId(q.morph);
 			tItem->_baseMorph = kiwi.idToMorph(q.morph->lmMorphemeId);
