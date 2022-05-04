@@ -131,6 +131,8 @@ if __name__ == '__main__':
     parser.add_argument('datasets', nargs='+')
     parser.add_argument('--write_result')
     parser.add_argument('--write_err')
+    parser.add_argument('--model_path')
+    parser.add_argument('--sbg', default=False, action='store_true')
     args = parser.parse_args()
 
     print('======== Baseline Splitter ========')
@@ -139,7 +141,7 @@ if __name__ == '__main__':
 
     print('======== Kiwi.split_into_sents ========')
     from kiwipiepy import Kiwi
-    kiwi = Kiwi()
+    kiwi = Kiwi(model_path=args.model_path, sbg=args.sbg)
     kiwi.tokenize("foo-bar") # warm-up
     for dataset in args.datasets:
         run_evaluate(dataset, lambda text:[sent.text for sent in kiwi.split_into_sents(text, normalize_coda=True)], args.write_result, args.write_err)
