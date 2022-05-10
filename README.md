@@ -257,6 +257,13 @@ True
  Token(form='사귀', tag='VV', start=6, len=2, 
  Token(form='었', tag='EP', start=7 len=1, 
  Token(form='대', tag='EF', start=8 len=1]
+
+# v0.12.0 신기능
+# 0.12.0 버전부터는 형태소를 결합하여 문장으로 복원하는 기능이 추가되었습니다.
+>>> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV'), ('어요', 'EF')])
+'길을 물어요'
+>>> kiwi.join([('흙', 'NNG'), ('이', 'JKS'), ('묻', 'VV'), ('어요', 'EF')])
+'흙이 묻어요'
 ```
 
 ## 시작하기
@@ -479,6 +486,7 @@ Kiwi.space(text, reset_whitespace=False)
 
 <details>
 <summary><code>tokenize(text, match_option=Match.ALL, normalize_coda=False)</code></summary>
+ 
 입력된 `text`를 형태소 분석하여 그 결과를 간단하게 반환합니다. 분석결과는 다음과 같이 `Token`의 리스트 형태로 반환됩니다.
 
 ```python
@@ -504,10 +512,13 @@ Kiwi.space(text, reset_whitespace=False)
 
 <details>
 <summary><code>analyze(text, top_n=1, match_option=Match.ALL, normalize_coda=False)</code></summary>
+ 
 입력된 `text`를 형태소 분석하여 그 결과를 반환합니다. 총 top_n개의 결과를 자세하게 출력합니다. 반환값은 다음과 같이 구성됩니다.
+ 
 ```python
 [(분석결과1, 점수), (분석결과2, 점수), ... ]
 ```
+ 
 분석결과는 다음과 같이 `Token`의 리스트 형태로 반환됩니다.
 
 실제 예시는 다음과 같습니다.
@@ -764,5 +775,5 @@ Token(form='결과', tag='NNG', start=4, len=2)
 0.10.3 버전부터 문장 분리 기능을 실험적으로 지원합니다. 0.11.0 버전부터는 정확도가 제법 향상되었습니다. 문장 분리 기능의 성능에 대해서는 [이 페이지](benchmark/sentence_split)를 참조해주세요. 
 
 ## 모호성 해소 성능
-여러 가지로 형태소 분석이 가능하여 맥락을 보는 게 필수적인 상황에서 Kiwi가 높은 정확도를 보이는 것이 확인되었습니다. 
+한 단어가 여러 가지로 형태소 분석이 가능하여 맥락을 보는 게 필수적인 상황에서 Kiwi가 높은 정확도를 보이는 것이 확인되었습니다. 
 모호성 해소 성능에 대해서는 [이 페이지](benchmark/disambiguate)를 참조해주세요. 
