@@ -23,7 +23,7 @@ jobs:
         ./install.sh
         popd
     - name: Pull LFS files
-      run: cd Kiwi && git lfs pull
+      run: cd Kiwi && git config --global --add safe.directory /__w/kiwipiepy/kiwipiepy/Kiwi && git lfs pull
     - name: Deploy
       continue-on-error: True
       env:
