@@ -5,8 +5,8 @@ class Model:
     disambiguate_verb_adj = True
 
     @staticmethod
-    def from_name(name):
-        if name == 'kiwi': return KiwiModel()
+    def from_name(name, kiwi_model_path=None, kiwi_sbg=False):
+        if name == 'kiwi': return KiwiModel(kiwi_model_path, kiwi_sbg)
         if name == 'komoran': return KomoranModel()
         if name == 'kkma': return KkmaModel()
         if name == 'hannanum': return HannanumModel()
@@ -23,11 +23,11 @@ class Model:
         return list(map(self._convert, self._tokenize(text)))
 
 class KiwiModel(Model):
-    def __init__(self):
+    def __init__(self, model_path=None, sbg=False):
         import kiwipiepy
         from kiwipiepy import Kiwi
         print("Initialize kiwipiepy ({})".format(kiwipiepy.__version__), file=sys.stderr)
-        self._mdl = Kiwi()
+        self._mdl = Kiwi(model_path=model_path, sbg=sbg)
     
     def _convert(self, morph):
         return morph.form, (morph.tag[:2] if morph.tag.startswith('V') else morph.tag[:1])
@@ -139,7 +139,7 @@ def evaluate(dataset, model, error_output=None, print_all_results=False):
 
 def main(args):
     model_names = args.target.split(',')
-    models = [Model.from_name(n) for n in model_names]
+    models = [Model.from_name(n, kiwi_model_path=args.kiwi_model_path, kiwi_sbg=args.kiwi_sbg) for n in model_names]
 
     if args.error_output_dir:
         os.makedirs(args.error_output_dir, exist_ok=True)
@@ -168,4 +168,6 @@ if __name__ == '__main__':
     parser.add_argument('--target', default='kiwi', help='kiwi,komoran,mecab,kkma,hannanum,okt')
     parser.add_argument('--error_output_dir')
     parser.add_argument('--print_all_results', default=False, action='store_true')
+    parser.add_argument('--kiwi_model_path')
+    parser.add_argument('--kiwi_sbg', default=False, action='store_true')
     main(parser.parse_args())

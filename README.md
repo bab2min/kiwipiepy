@@ -645,6 +645,61 @@ SystemError: <built-in function next> returned a result with an error set
 </details>
 <hr>
 
+<details>
+<summary><code>join(morphs, reset_whitespace=False)</code></summary>
+형태소들을 결합하여 문장으로 복원합니다. 조사나 어미는 앞 형태소에 맞춰 적절한 형태로 변경됩니다.
+
+* `tokens`: 결합한 형태소의 목록입니다.  각 형태소는 `Kiwi.tokenizer`에서 얻어진 `Token` 타입이거나,  (형태, 품사)로 구성된 `tuple` 타입이어야 합니다.
+* `lm_search`: 둘 이상의 형태로 복원 가능한 모호한 형태소가 있는 경우, 이 값이 True면 언어 모델 탐색을 통해 최적의 형태소를 선택합니다. False일 경우 탐색을 실시하지 않지만 더 빠른 속도로 복원이 가능합니다.
+
+
+이 메소드는 형태소를 결합할 때 `space`에서 사용하는 것과 유사한 규칙을 사용하여 공백을 적절히 삽입합니다.
+형태소 그 자체에는 공백 관련 정보가 포함되지 않으므로
+특정 텍스트를 `tokenize`로 분석 후 다시 `join`으로 결합하여도 원본 텍스트가 그대로 복원되지는 않습니다.
+
+
+```python
+>> kiwi.join([('덥', 'VA'), ('어', 'EC')])
+'더워'
+>> tokens = kiwi.tokenize("분석된결과를 다시합칠수있다!")
+# 형태소 분석 결과를 복원. 
+# 복원 시 공백은 규칙에 의해 삽입되므로 원문 텍스트가 그대로 복원되지는 않음.
+>> kiwi.join(tokens)
+'분석된 결과를 다시 합칠 수 있다!'
+>> tokens[3]
+Token(form='결과', tag='NNG', start=4, len=2)
+>> tokens[3] = ('내용', 'NNG') # 4번째 형태소를 결과->내용으로 교체
+>> kiwi.join(tokens) # 다시 join하면 결과를->내용을 로 교체된 걸 확인 가능
+'분석된 내용을 다시 합칠 수 있다!'
+
+# 불규칙 활용여부가 모호한 경우 lm_search=True인 경우 맥락을 고려해 최적의 후보를 선택합니다.
+>> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV'), ('어요', 'EF')])
+'길을 물어요'
+>> kiwi.join([('흙', 'NNG'), ('이', 'JKS'), ('묻', 'VV'), ('어요', 'EF')])
+'흙이 묻어요'
+# lm_search=False이면 탐색을 실시하지 않습니다.
+>> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV'), ('어요', 'EF')], lm_search=False)
+'길을 묻어요'
+>> kiwi.join([('흙', 'NNG'), ('이', 'JKS'), ('묻', 'VV'), ('어요', 'EF')], lm_search=False)
+'흙이 묻어요'
+# 동사/형용사 품사 태그 뒤에 -R(규칙 활용), -I(불규칙 활용)을 덧붙여 활용법을 직접 명시할 수 있습니다.
+>> kiwi.join([('묻', 'VV-R'), ('어요', 'EF')])
+'묻어요'
+>> kiwi.join([('묻', 'VV-I'), ('어요', 'EF')])
+'물어요'
+
+# 과거형 선어말어미를 제거하는 예시
+>> remove_past = lambda s: kiwi.join(t for t in kiwi.tokenize(s) if t.tagged_form != '었/EP')
+>> remove_past('먹었다')
+'먹다'
+>> remove_past('먼 길을 걸었다')
+'먼 길을 걷다'
+>> remove_past('전화를 걸었다.')
+'전화를 걸다.'
+```
+</details>
+<hr>
+
 ## 품사 태그
 
 세종 품사 태그를 기초로 하되, 일부 품사 태그를 추가/수정하여 사용하고 있습니다.
@@ -701,6 +756,9 @@ SystemError: <built-in function next> returned a result with an error set
 </table>
 
 <sup>*</sup> 세종 품사 태그와 다른 독자적인 태그입니다.
+
+0.12.0 버전부터 `VV`, `VA`, `VX`, `XSA` 태그에 불규칙 활용여부를 명시하는 접미사 `-R`와 `-I`이 덧붙을 수 있습니다.
+`-R`은 규칙 활용,`-I`은 불규칙 활용을 나타냅니다.
 
 ## 문장 분리 기능
 0.10.3 버전부터 문장 분리 기능을 실험적으로 지원합니다. 0.11.0 버전부터는 정확도가 제법 향상되었습니다. 문장 분리 기능의 성능에 대해서는 [이 페이지](benchmark/sentence_split)를 참조해주세요. 

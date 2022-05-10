@@ -1410,6 +1410,8 @@ namespace py
 			fn(obj);
 			TypeManager::registerType(&obj, Ty::_name_in_module);
 		}
+
+		static constexpr PyObject* getTypeObj() { return (PyObject*)&obj; }
 	};
 
 	template<typename Ty>

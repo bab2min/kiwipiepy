@@ -1,8 +1,11 @@
-recursive-include kiwipiepy *
-recursive-include src *
-recursive-include Kiwi *
-prune Kiwi/ModelGenerator
-prune Kiwi/eval_data
-
+recursive-include src *.c *.cpp *.h *.hpp
+recursive-include Kiwi/include *.c *.cpp *.h *.hpp *.in CMakeLists.txt
+recursive-include Kiwi/src *.c *.cpp *.h *.hpp *.in CMakeLists.txt
+recursive-include Kiwi/tools *.c *.cpp *.h *.hpp *.in CMakeLists.txt
+recursive-include Kiwi/test *.c *.cpp *.h *.hpp *.in CMakeLists.txt
+recursive-include Kiwi/third_party *.c *.cpp *.h *.hpp *.in CMakeLists.txt
+prune Kiwi/third_party/eigen
+recursive-include Kiwi/third_party/eigen/Eigen *
 include LICENSE.txt
 include CMakeLists.txt
+include Kiwi/CMakeLists.txt

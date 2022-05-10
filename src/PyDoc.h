@@ -90,3 +90,18 @@ DOC_VARIABLE_EN_KO(Token_tagged_form__doc__,
 
 form과 tag를 `형태/품사태그`꼴로 합쳐서 반환합니다.)""
 );
+
+DOC_VARIABLE_EN_KO(Token_score__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.12.0
+
+현재 형태소의 언어 모델 상의 점수를 반환합니다.)""
+);
+
+DOC_VARIABLE_EN_KO(Token_regularity__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.12.0
+
+동/형용사가 규칙 활용하는 경우 True, 불규칙 활용하는 경우 False를 반환합니다.
+그 외의 품사에 대해서는 None을 반환합니다.)""
+);
