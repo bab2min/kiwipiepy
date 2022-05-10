@@ -1,7 +1,6 @@
 import re
 from typing import Callable, List, Optional, Tuple, Union, Iterable
 from collections import namedtuple
-from enum import IntEnum
 import warnings
 
 from _kiwipiepy import _Kiwi
@@ -817,7 +816,7 @@ Notes
         match_options:Optional[int] = Match.ALL, 
         normalize_coda:Optional[bool] = False,
         return_tokens:Optional[bool] = False,
-    ):
+    ) -> Union[List[Sentence], Iterable[List[Sentence]]]:
         '''..versionadded:: 0.10.3
 
 입력 텍스트를 문장 단위로 분할하여 반환합니다. 
@@ -897,7 +896,7 @@ Notes
     def glue(self,
         text_chunks:Iterable[str],
         return_space_insertions:Optional[bool] = False,
-    ):
+    ) -> Union[str, Tuple[str, List[bool]]]:
         '''..versionadded:: 0.11.1
 
 여러 텍스트 조각을 하나로 합치되, 문맥을 고려해 적절한 공백을 사이에 삽입합니다.
@@ -975,7 +974,7 @@ Notes
     def space(self,
         text:Union[str, Iterable[str]],
         reset_whitespace:Optional[bool] = False,
-    ):
+    ) -> Union[str, Iterable[str]]:
         '''..versionadded:: 0.11.1
 
 입력 텍스트에서 띄어쓰기를 교정하여 반환합니다.
@@ -1067,3 +1066,60 @@ Notes
         else:
             if reset_whitespace: text = map(_reset, text)
             return map(_space, super().analyze(text, 1, Match.ALL, echo=True))
+
+    def join(self, 
+        morphs:Iterable[Tuple[str, str]],
+        lm_search:Optional[bool] = True
+    ) -> str:
+        '''..versionadded:: 0.12.0
+
+형태소를 결합하여 문장으로 복원합니다. 
+조사나 어미는 앞 형태소에 맞춰 적절한 형태로 변경됩니다.
+
+Parameters
+----------
+tokens: Iterable[Union[Token, Tuple[str, str]]]
+    결합한 형태소의 목록입니다. 
+    각 형태소는 `Kiwi.tokenizer`에서 얻어진 `Token` 타입이거나, 
+    (형태, 품사)로 구성된 `tuple` 타입이어야 합니다.
+lm_search: bool
+    둘 이상의 형태로 복원 가능한 모호한 형태소가 있는 경우, 이 값이 True면 언어 모델 탐색을 통해 최적의 형태소를 선택합니다.
+    False일 경우 탐색을 실시하지 않지만 더 빠른 속도로 복원이 가능합니다.
+
+Returns
+-------
+result: str
+    입력 형태소의 결합 결과를 반환합니다.
+
+Notes
+-----
+`Kiwi.join`은 형태소를 결합할 때 `Kiwi.space`에서 사용하는 것과 유사한 규칙을 사용하여 공백을 적절히 삽입합니다.
+형태소 그 자체에는 공백 관련 정보가 포함되지 않으므로
+특정 텍스트를 `Kiwi.tokenize`로 분석 후 다시 `Kiwi.join`으로 결합하여도 원본 텍스트가 그대로 복원되지는 않습니다.
+
+
+```python
+>> kiwi.join([('덥', 'VA'), ('어', 'EC')])
+'더워'
+>> tokens = kiwi.tokenize("분석된결과를 다시합칠수있다!")
+# 형태소 분석 결과를 복원. 
+# 복원 시 공백은 규칙에 의해 삽입되므로 원문 텍스트가 그대로 복원되지는 않음.
+>> kiwi.join(tokens)
+'분석된 결과를 다시 합칠 수 있다!'
+>> tokens[3]
+Token(form='결과', tag='NNG', start=4, len=2)
+>> tokens[3] = ('내용', 'NNG') # 4번째 형태소를 결과->내용으로 교체
+>> kiwi.join(tokens) # 다시 join하면 결과를->내용을 로 교체된 걸 확인 가능
+'분석된 내용을 다시 합칠 수 있다!'
+
+# 과거형 선어말어미를 제거하는 예제 함수
+>> remove_past = lambda s: kiwi.join(t for t in kiwi.tokenize(s) if t.tagged_form != '었/EP')
+>> remove_past('먹었다')
+'먹다'
+>> remove_past('먼 길을 걸었다')
+'먼 길을 걷다'
+>> remove_past('전화를 걸었다.')
+'전화를 걸다.'
+```
+        '''
+        return super().join(morphs, lm_search)
