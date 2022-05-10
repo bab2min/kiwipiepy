@@ -474,7 +474,8 @@ score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
 
 ### 분석
 
-kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완료되었으면 다음 메소드를 사용하여 형태소 분석을 수행할 수 있습니다.
+kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완료되었으면 다음 메소드를 사용하여 
+형태소 분석, 문장 분리, 띄어쓰기 교정, 문장 복원 등의 작업을 수행할 수 있습니다.
 
 ```python
 Kiwi.tokenize(text, match_option, normalize_coda)
@@ -482,6 +483,7 @@ Kiwi.analyze(text, top_n, match_option, normalize_coda)
 Kiwi.split_into_sents(text, match_options=Match.ALL, normalize_coda=False, return_tokens=False)
 Kiwi.glue(text_chunks, return_space_insertions=False)
 Kiwi.space(text, reset_whitespace=False)
+Kiwi.join(morphs, lm_search=True)
 ``` 
 
 <details>
@@ -657,10 +659,10 @@ SystemError: <built-in function next> returned a result with an error set
 <hr>
 
 <details>
-<summary><code>join(morphs, reset_whitespace=False)</code></summary>
+<summary><code>join(morphs, lm_search=True)</code></summary>
 형태소들을 결합하여 문장으로 복원합니다. 조사나 어미는 앞 형태소에 맞춰 적절한 형태로 변경됩니다.
 
-* `tokens`: 결합한 형태소의 목록입니다.  각 형태소는 `Kiwi.tokenizer`에서 얻어진 `Token` 타입이거나,  (형태, 품사)로 구성된 `tuple` 타입이어야 합니다.
+* `morphs`: 결합할 형태소의 목록입니다.  각 형태소는 `Kiwi.tokenizer`에서 얻어진 `Token` 타입이거나,  (형태, 품사)로 구성된 `tuple` 타입이어야 합니다.
 * `lm_search`: 둘 이상의 형태로 복원 가능한 모호한 형태소가 있는 경우, 이 값이 True면 언어 모델 탐색을 통해 최적의 형태소를 선택합니다. False일 경우 탐색을 실시하지 않지만 더 빠른 속도로 복원이 가능합니다.
 
 
