@@ -194,3 +194,19 @@ Multilingual을 활용하여 실험한 결과 F1 스코어 46.0%의 성능을 �
     kiwi = Kiwi()
     ret, space_insertions = kiwi.glue(chunks, return_space_insertions=True)
     assert space_insertions == [False, False, True, False, True, True, True]
+
+def test_join():
+    kiwi = Kiwi()
+    tokens = kiwi.tokenize("이렇게 형태소로 분해된 문장을 다시 합칠 수 있을까요?")
+    
+    assert kiwi.join(tokens) == "이렇게 형태소로 분해된 문장을 다시 합칠 수 있을까요?"
+
+    assert (kiwi.join([("왜", "MAG"), ("저", "NP"), ("한테", "JKB"), ("묻", "VV"), ("어요", "EF")]) 
+        == "왜 저한테 물어요"
+    )
+    assert (kiwi.join([("왜", "MAG"), ("저", "NP"), ("한테", "JKB"), ("묻", "VV-R"), ("어요", "EF")])
+        == "왜 저한테 묻어요"
+    )
+    assert (kiwi.join([("왜", "MAG"), ("저", "NP"), ("한테", "JKB"), ("묻", "VV-I"), ("어요", "EF")])
+        == "왜 저한테 물어요"
+    )
