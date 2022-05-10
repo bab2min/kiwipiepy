@@ -1073,12 +1073,12 @@ Notes
     ) -> str:
         '''..versionadded:: 0.12.0
 
-형태소를 결합하여 문장으로 복원합니다. 
+형태소들을 결합하여 문장으로 복원합니다. 
 조사나 어미는 앞 형태소에 맞춰 적절한 형태로 변경됩니다.
 
 Parameters
 ----------
-tokens: Iterable[Union[Token, Tuple[str, str]]]
+morphs: Iterable[Union[Token, Tuple[str, str]]]
     결합한 형태소의 목록입니다. 
     각 형태소는 `Kiwi.tokenizer`에서 얻어진 `Token` 타입이거나, 
     (형태, 품사)로 구성된 `tuple` 타입이어야 합니다.
@@ -1112,7 +1112,23 @@ Token(form='결과', tag='NNG', start=4, len=2)
 >> kiwi.join(tokens) # 다시 join하면 결과를->내용을 로 교체된 걸 확인 가능
 '분석된 내용을 다시 합칠 수 있다!'
 
-# 과거형 선어말어미를 제거하는 예제 함수
+# 불규칙 활용여부가 모호한 경우 lm_search=True인 경우 맥락을 고려해 최적의 후보를 선택합니다.
+>> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV'), ('어요', 'EF')])
+'길을 물어요'
+>> kiwi.join([('흙', 'NNG'), ('이', 'JKS'), ('묻', 'VV'), ('어요', 'EF')])
+'흙이 묻어요'
+# lm_search=False이면 탐색을 실시하지 않습니다.
+>> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV'), ('어요', 'EF')], lm_search=False)
+'길을 묻어요'
+>> kiwi.join([('흙', 'NNG'), ('이', 'JKS'), ('묻', 'VV'), ('어요', 'EF')], lm_search=False)
+'흙이 묻어요'
+# 동사/형용사 품사 태그 뒤에 -R(규칙 활용), -I(불규칙 활용)을 덧붙여 활용법을 직접 명시할 수 있습니다.
+>> kiwi.join([('묻', 'VV-R'), ('어요', 'EF')])
+'묻어요'
+>> kiwi.join([('묻', 'VV-I'), ('어요', 'EF')])
+'물어요'
+
+# 과거형 선어말어미를 제거하는 예시
 >> remove_past = lambda s: kiwi.join(t for t in kiwi.tokenize(s) if t.tagged_form != '었/EP')
 >> remove_past('먹었다')
 '먹다'
