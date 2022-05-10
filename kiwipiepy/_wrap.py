@@ -1079,7 +1079,7 @@ Notes
 Parameters
 ----------
 morphs: Iterable[Union[Token, Tuple[str, str]]]
-    결합한 형태소의 목록입니다. 
+    결합할 형태소의 목록입니다. 
     각 형태소는 `Kiwi.tokenizer`에서 얻어진 `Token` 타입이거나, 
     (형태, 품사)로 구성된 `tuple` 타입이어야 합니다.
 lm_search: bool
