@@ -3,7 +3,7 @@
 """
 from _kiwipiepy import Token
 from kiwipiepy._version import __version__
-from kiwipiepy._wrap import Kiwi, Sentence
+from kiwipiepy._wrap import Kiwi, Sentence, TypoTransformer, TypoDefinition, basic_typos
 import kiwipiepy.utils as utils
 from kiwipiepy.const import Match, Option
 

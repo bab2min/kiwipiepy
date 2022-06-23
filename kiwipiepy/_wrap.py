@@ -1,9 +1,10 @@
 import re
 from typing import Callable, List, Optional, Tuple, Union, Iterable
 from collections import namedtuple
+from dataclasses import dataclass
 import warnings
 
-from _kiwipiepy import _Kiwi
+from _kiwipiepy import _Kiwi, _TypoTransformer
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match, Option
@@ -14,6 +15,153 @@ Sentence.text.__doc__ = '분할된 문장의 텍스트'
 Sentence.start.__doc__ = '전체 텍스트 내에서 분할된 문장이 시작하는 위치 (문자 단위)'
 Sentence.end.__doc__ = '전체 텍스트 내에서 분할된 문장이 끝나는 위치 (문자 단위)'
 Sentence.tokens.__doc__ = '분할된 문장의 형태소 분석 결과'
+
+@dataclass
+class TypoDefinition:
+    orig: List[str]
+    error: List[str]
+    cost: float
+    condition: Optional[str] = None
+
+    def __post_init__(self):
+        if self.condition not in (None, 'vowel', 'applosive'):
+            raise ValueError("`condition` should be one of (None, 'vowel', 'applosive'), but {}".format(self.condition))
+
+_c_to_onset = dict(zip(
+    'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ', 
+    range(19),
+))
+
+_c_to_coda = dict(zip(
+    'ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ', 
+    range(28)
+))
+
+def _convert_consonant(s):
+    ret = []
+    prev_escape = False
+    for c in s:
+        if prev_escape:
+            if c == '\\': ret.append('\\')
+            elif c in _c_to_coda: ret.append(chr(0x11A8 + _c_to_coda[c]))
+            elif c in _c_to_onset:
+                raise ValueError("Wrong consonant '\\{}'".format(c))
+            else:
+                raise ValueError("Wrong escape chr '\\{}'".format(c))
+            prev_escape = False
+        else:
+            if c == '\\': prev_escape = True
+            elif c in _c_to_onset: ret.append(chr(0x1100 + _c_to_onset[c]))
+            elif c in _c_to_coda:
+                raise ValueError("Wrong consonant {}".format(c))
+            else:
+                ret.append(c)
+    return ''.join(ret)
+
+class TypoTransformer(_TypoTransformer):
+    
+    def __init__(self,
+        defs: List[TypoDefinition]
+    ):
+        self._defs = list(defs)
+        super().__init__(
+            ((list(map(_convert_consonant, d.orig)), list(map(_convert_consonant, d.error)), d.cost, d.condition) for d in self._defs)
+        )
+
+    def generate(self, text:str) -> List[str]:
+        return super().generate(text)
+
+    @property
+    def defs(self):
+        return self._defs
+    
+    def __repr__(self):
+        return "TypoTransformer([{}])".format(",\n".join(map(repr, self._defs)))
+
+basic_typos = TypoTransformer([
+    TypoDefinition(["ㅐ", "ㅔ"], ["ㅐ", "ㅔ"], 1.),
+    TypoDefinition(["ㅐ", "ㅔ"], ["ㅒ", "ㅖ"], 1.5),
+    TypoDefinition(["ㅒ", "ㅖ"], ["ㅐ", "ㅔ"], 1.5),
+    TypoDefinition(["ㅒ", "ㅖ"], ["ㅒ", "ㅖ"], 1.),
+    TypoDefinition(["ㅚ", "ㅙ", "ㅞ"], ["ㅚ", "ㅙ", "ㅞ", "ㅐ", "ㅔ"], 1.),
+    TypoDefinition(["ㅝ"], ["ㅗ", "ㅓ"], 1.),
+    TypoDefinition(["ㅟ"], ["ㅣ"], 1.),
+    TypoDefinition(["ㅢ"], ["ㅣ"], 1.),
+    TypoDefinition(["위", "의"], ["이"], float("inf")),
+    TypoDefinition(["자", "쟈"], ["자", "쟈"], 1.),
+    TypoDefinition(["재", "쟤"], ["재", "쟤"], 1.),
+    TypoDefinition(["저", "져"], ["저", "져"], 1.),
+    TypoDefinition(["제", "졔"], ["제", "졔"], 1.),
+    TypoDefinition(["조", "죠", "줘"], ["조", "죠", "줘"], 1.),
+    TypoDefinition(["주", "쥬"], ["주", "쥬"], 1.),
+    TypoDefinition(["차", "챠"], ["차", "챠"], 1.),
+    TypoDefinition(["채", "챼"], ["채", "챼"], 1.),
+    TypoDefinition(["처", "쳐"], ["처", "쳐"], 1.),
+    TypoDefinition(["체", "쳬"], ["체", "쳬"], 1.),
+    TypoDefinition(["초", "쵸", "춰"], ["초", "쵸", "춰"], 1.),
+    TypoDefinition(["추", "츄"], ["추", "츄"], 1.),
+    TypoDefinition(["유", "류"], ["유", "류"], 1.),
+    TypoDefinition(["므", "무"], ["므", "무"], 1.),
+    TypoDefinition(["브", "부"], ["브", "부"], 1.),
+    TypoDefinition(["프", "푸"], ["프", "푸"], 1.),
+    TypoDefinition(["르", "루"], ["르", "루"], 1.),
+    TypoDefinition(["러", "뤄"], ["러", "뤄"], 1.),
+    TypoDefinition(["\ㄲ", "\ㄳ"], ["\ㄱ", "\ㄲ", "\ㄳ"], 1.5),
+    TypoDefinition(["\ㄵ", "\ㄶ"], ["\ㄴ", "\ㄵ", "\ㄶ"], 1.5),
+    TypoDefinition(["\ㄺ", "\ㄻ", "\ㄼ", "\ㄽ", "\ㄾ", "\ㄿ", "\ㅀ"], ["\ㄹ", "\ㄺ", "\ㄻ", "\ㄼ", "\ㄽ", "\ㄾ", "\ㄿ", "\ㅀ"], 1.5),
+    TypoDefinition(["\ㅅ", "\ㅆ"], ["\ㅅ", "\ㅆ"], 1.),
+
+    TypoDefinition(["안"], ["않"], 1.5),
+    TypoDefinition(["맞추", "맞히"], ["맞추", "맞히"], 1.5),
+    TypoDefinition(["맞춰", "맞혀"], ["맞춰", "맞혀"], 1.5),
+    TypoDefinition(["받치", "바치", "받히"], ["받치", "바치", "받히"], 1.5),
+    TypoDefinition(["받쳐", "바쳐", "받혀"], ["받쳐", "바쳐", "받혀"], 1.5),
+    TypoDefinition(["던", "든"], ["던", "든"], 1.),
+    TypoDefinition(["때", "데"], ["때", "데"], 1.5),
+    TypoDefinition(["빛", "빚"], ["빛", "빚"], 1.),
+
+    TypoDefinition(["\ㄷ이", "지"], ["\ㄷ이", "지"], 1.),
+    TypoDefinition(["\ㄷ여", "져"], ["\ㄷ여", "져"], 1.),
+    TypoDefinition(["\ㅌ이", "치"], ["\ㅌ이", "치"], 1.),
+    TypoDefinition(["\ㅌ여", "쳐"], ["\ㅌ여", "쳐"], 1.),
+	
+    TypoDefinition(["ㄱ", "ㄲ"], ["ㄱ", "ㄲ"], 1., "applosive"),
+    TypoDefinition(["ㄷ", "ㄸ"], ["ㄷ", "ㄸ"], 1., "applosive"),
+    TypoDefinition(["ㅂ", "ㅃ"], ["ㅂ", "ㅃ"], 1., "applosive"),
+    TypoDefinition(["ㅅ", "ㅆ"], ["ㅅ", "ㅆ"], 1., "applosive"),
+    TypoDefinition(["ㅈ", "ㅉ"], ["ㅈ", "ㅉ"], 1., "applosive"),
+
+    TypoDefinition(["\ㅎㅎ", "\ㄱㅎ", "\ㅎㄱ"], ["\ㅎㅎ", "\ㄱㅎ", "\ㅎㄱ"], 1.),
+
+    TypoDefinition(["\ㄱㄴ", "\ㄲㄴ", "ᆪㄴ", "ᆿㄴ", "ᆼㄴ"], ["\ㄱㄴ", "\ㄲㄴ", "ᆪㄴ", "ᆿㄴ", "ᆼㄴ"], 1.),
+    TypoDefinition(["\ㄱㅁ", "\ㄲㅁ", "ᆪㅁ", "ᆿㅁ", "ᆼㅁ"], ["\ㄱㅁ", "\ㄲㅁ", "ᆪㅁ", "ᆿㅁ", "ᆼㅁ"], 1.),
+    TypoDefinition(["\ㄱㄹ", "\ㄲㄹ", "ᆪㄹ", "ᆿㄹ", "ᆼㄹ", "ᆼㄴ",], ["\ㄱㄹ", "\ㄲㄹ", "ᆪㄹ", "ᆿㄹ", "ᆼㄹ", "ᆼㄴ",], 1.),
+    TypoDefinition(["\ㄷㄴ", "\ㅅㄴ", "\ㅆㄴ", "\ㅈㄴ", "ᆾㄴ", "ᇀㄴ", "\ㄴㄴ"], ["\ㄷㄴ", "\ㅅㄴ", "\ㅆㄴ", "\ㅈㄴ", "ᆾㄴ", "ᇀㄴ", "\ㄴㄴ"], 1.),
+    TypoDefinition(["\ㄷㅁ", "\ㅅㅁ", "\ㅆㅁ", "\ㅈㅁ", "ᆾㅁ", "ᇀㅁ", "\ㄴㅁ"], ["\ㄷㅁ", "\ㅅㅁ", "\ㅆㅁ", "\ㅈㅁ", "ᆾㅁ", "ᇀㅁ", "\ㄴㅁ"], 1.),
+    TypoDefinition(["\ㄷㄹ", "\ㅅㄹ", "\ㅆㄹ", "\ㅈㄹ", "ᆾㄹ", "ᇀㄹ", "\ㄴㄹ", "\ㄴㄴ",], ["\ㄷㄹ", "\ㅅㄹ", "\ㅆㄹ", "\ㅈㄹ", "ᆾㄹ", "ᇀㄹ", "\ㄴㄹ", "\ㄴㄴ",], 1.),
+    TypoDefinition(["\ㅂㄴ", "ᆹㄴ", "ᇁㄴ", "\ㅁㄴ"], ["\ㅂㄴ", "ᆹㄴ", "ᇁㄴ", "\ㅁㄴ"], 1.),
+    TypoDefinition(["\ㅂㅁ", "ᆹㅁ", "ᇁㅁ", "\ㅁㅁ"], ["\ㅂㅁ", "ᆹㅁ", "ᇁㅁ", "\ㅁㅁ"], 1.),
+    TypoDefinition(["\ㅂㄹ", "ᆹㄹ", "ᇁㄹ", "\ㅁㄹ", "\ㅁㄴ",], ["\ㅂㄹ", "ᆹㄹ", "ᇁㄹ", "\ㅁㄹ", "\ㅁㄴ",], 1.),
+    TypoDefinition(["\ㄴㄹ", "\ㄴㄴ", "\ㄹㄹ", "\ㄹㄴ"], ["\ㄴㄹ", "\ㄴㄴ", "\ㄹㄹ", "\ㄹㄴ"], 1.),
+	
+    TypoDefinition(["\ㄱㅇ", "ㄱ"], ["\ㄱㅇ", "ㄱ"], 1., "vowel"),
+    TypoDefinition(["\ㄲㅇ", "ㄲ"], ["\ㄲㅇ", "ㄲ"], 1., "vowel"),
+    TypoDefinition(["\ㄴㅇ", "\ㄴㅎ", "ㄴ"], ["\ㄴㅇ", "\ㄴㅎ", "ㄴ"], 1., "vowel"),
+    TypoDefinition(["\ㄵㅇ", "\ㄴㅈ"], ["\ㄵㅇ", "\ㄴㅈ"], 1., "vowel"),
+    TypoDefinition(["\ㄶㅇ", "ㄴ"], ["\ㄶㅇ", "ㄴ"], 1., "vowel"),
+    TypoDefinition(["\ㄷㅇ", "ㄷ"], ["\ㄷㅇ", "ㄷ"], 1., "vowel"),
+    TypoDefinition(["\ㄹㅇ", "\ㄹㅎ", "ㄹ"], ["\ㄹㅇ", "\ㄹㅎ", "ㄹ"], 1., "vowel"),
+    TypoDefinition(["\ㅁㅇ", "ㅁ"], ["\ㅁㅇ", "ㅁ"], 1., "vowel"),
+    TypoDefinition(["\ㅂㅇ", "ㅂ"], ["\ㅂㅇ", "ㅂ"], 1., "vowel"),
+    TypoDefinition(["\ㅅㅇ", "ㅅ"], ["\ㅅㅇ", "ㅅ"], 1., "vowel"),
+    TypoDefinition(["\ㅆㅇ", "\ㅅㅅ", "ㅆ"], ["\ㅆㅇ", "\ㅅㅅ", "ㅆ"], 1., "vowel"),
+    TypoDefinition(["\ㅈㅇ", "ㅈ"], ["\ㅈㅇ", "ㅈ"], 1., "vowel"),
+
+    TypoDefinition(["은", "는"], ["은", "는"], 2.),
+    TypoDefinition(["을", "를"], ["을", "를"], 2.),
+
+    TypoDefinition(["ㅣ워", "ㅣ어", "ㅕ"], ["ㅣ워", "ㅣ어", "ㅕ"], 1.5),
+])
 
 class Kiwi(_Kiwi):
     '''Kiwi 클래스는 실제 형태소 분석을 수행하는 kiwipiepy 모듈의 핵심 클래스입니다.
@@ -34,6 +182,15 @@ integrate_allormoph: bool
     True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다. 기본값은 True입니다.
 load_default_dict: bool
     True일 경우 인스턴스 생성시 자동으로 기본 사전을 불러옵니다. 기본 사전은 위키백과와 나무위키에서 추출된 고유 명사 표제어들로 구성되어 있습니다. 기본값은 True입니다.
+model_type: str
+    형태소 분석에 사용할 언어 모델을 지정합니다. 다음 중 하나를 선택할 수 있습니다. 기본값은 `'knlm'`입니다.
+    * knlm: Kneser-ney n-gram 언어 모델을 사용합니다. 먼 거리에 있는 형태소와의 관계는 고려하지 못하지만, 속도가 빠릅니다.
+    * sbg: knlm에 더불어 SkipBigram 모델을 함께 사용합니다. 속도는 약 50% 정도 느리지만, 먼 거리에 있는 형태소와의 관계를 고려할 수 있습니다.
+
+typos
+    교정에 사용할 오타 정보입니다. 기본값은 `None`으로 이 경우 오타 교정을 사용하지 않습니다. `'basic'`으로 입력시 내장된 기본 오타 정보를 이용합니다.
+typo_cost_threshold: float
+    오타 교정시 고려할 최대 오타 비용입니다. 이 비용을 넘어서는 오타에 대해서는 탐색하지 않습니다. 기본값은 2.5입니다.
     '''
 
     def __init__(self, 
@@ -42,7 +199,9 @@ load_default_dict: bool
         options:Optional[int] = None,
         integrate_allomorph:Optional[bool] = None,
         load_default_dict:Optional[bool] = None,
-        sbg=False,
+        model_type:Optional[str] = 'knlm',
+        typos:Optional[Union[str, TypoTransformer]] = None,
+        typo_cost_threshold:Optional[float] = 2.5,
     ) -> None:
         if num_workers is None:
             num_workers = 0
@@ -60,12 +219,19 @@ load_default_dict: bool
         if load_default_dict is None:
             load_default_dict = bool(options & Option.LOAD_DEFAULT_DICTIONARY)
 
+        if model_type not in ('knlm', 'sbg'):
+            raise ValueError("`model_type` should be one of ('knlm', 'sbg'), but {}".format(model_type))
+        
+        if typos == 'basic': typos = basic_typos
+
         super().__init__(
             num_workers=num_workers,
             model_path=model_path,
             integrate_allomorph=integrate_allomorph,
             load_default_dict=load_default_dict,
-            sbg=sbg,
+            sbg=(model_type=='sbg'),
+            typos=typos,
+            typo_cost_threshold=typo_cost_threshold,
         )
 
         self._ns_integrate_allomorph = integrate_allomorph
@@ -75,6 +241,8 @@ load_default_dict: bool
         self._ns_space_penalty = 7.
         self._ns_max_unk_form_size = 6
         self._ns_space_tolerance = 0
+        self._ns_typo_cost_weight = 4.
+        self._ns_model_type = model_type
 
     def add_user_word(self,
         word:str,
@@ -593,6 +761,7 @@ value: int
         self._space_penalty = self._ns_space_penalty
         self._max_unk_form_size = self._ns_max_unk_form_size
         self._space_tolerance = self._ns_space_tolerance
+        self._typo_cost_weight = self._ns_typo_cost_weight
 
     @property
     def cutoff_threshold(self):
@@ -665,6 +834,19 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         self._max_unk_form_size = self._ns_max_unk_form_size = int(v)
 
     @property
+    def typo_cost_weight(self):
+        '''.. versionadded:: 0.13.0
+
+        '''
+
+        return self._ns_typo_cost_weight
+    
+    @typo_cost_weight.setter
+    def typo_cost_weight(self, v:float):
+        if v < 0: raise ValueError("`typo_cost_weight` must be a zero or positive float.")
+        self._typo_cost_weight = self._ns_typo_cost_weight = float(v)
+
+    @property
     def num_workers(self):
         '''.. versionadded:: 0.10.0
 
@@ -673,6 +855,13 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         
         return self._num_workers
     
+    @property
+    def model_type(self):
+        '''.. versionadded:: 0.13.0
+
+        '''
+        return self._ns_model_type
+
     def _tokenize(self, 
         text:Union[str, Iterable[str]], 
         match_options:Optional[int] = Match.ALL,
