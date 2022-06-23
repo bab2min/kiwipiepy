@@ -1,4 +1,4 @@
-# Python3용 Kiwi
+# Kiwipiepy, Python용 Kiwi 패키지
 
 https://github.com/bab2min/kiwipiepy
 
@@ -779,3 +779,6 @@ Token(form='결과', tag='NNG', start=4, len=2)
 ## 모호성 해소 성능
 한 단어가 여러 가지로 형태소 분석이 가능하여 맥락을 보는 게 필수적인 상황에서 Kiwi가 높은 정확도를 보이는 것이 확인되었습니다. 
 모호성 해소 성능에 대해서는 [이 페이지](benchmark/disambiguate)를 참조해주세요. 
+
+## 인용하기
+인용 방법에 대해서는 [Kiwi#인용하기](https://github.com/bab2min/Kiwi#%EC%9D%B8%EC%9A%A9%ED%95%98%EA%B8%B0)를 참조해주세요.
