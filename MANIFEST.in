@@ -1,4 +1,5 @@
 recursive-include src *.c *.cpp *.h *.hpp
+recursive-include kiwipiepy *.py *.md *.txt
 recursive-include Kiwi/include *.c *.cpp *.h *.hpp *.in CMakeLists.txt
 recursive-include Kiwi/src *.c *.cpp *.h *.hpp *.in CMakeLists.txt
 recursive-include Kiwi/tools *.c *.cpp *.h *.hpp *.in CMakeLists.txt
