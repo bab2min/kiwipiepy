@@ -105,3 +105,18 @@ DOC_VARIABLE_EN_KO(Token_regularity__doc__,
 동/형용사가 규칙 활용하는 경우 True, 불규칙 활용하는 경우 False를 반환합니다.
 그 외의 품사에 대해서는 None을 반환합니다.)""
 );
+
+DOC_VARIABLE_EN_KO(Token_typo_cost__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.13.0
+
+현재 형태소의 오타 교정 비용을 반환합니다.)""
+);
+
+
+DOC_VARIABLE_EN_KO(Token_raw_form__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.13.0
+
+텍스트 상에 실제로 등장한 형태. 오타가 교정된 경우 `form`과 다를 수 있음.)""
+);

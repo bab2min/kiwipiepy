@@ -17,6 +17,86 @@ using namespace kiwi;
 
 static PyObject* gModule;
 
+struct TypoTransformerObject : py::CObject<TypoTransformerObject>
+{
+	static constexpr const char* _name = "kiwipiepy._TypoTransformer";
+	static constexpr const char* _name_in_module = "_TypoTransformer";
+	static constexpr int _flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+
+	TypoTransformer tt;
+	PreparedTypoTransformer ptt;
+
+	static int init(TypoTransformerObject* self, PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]()
+		{
+			PyObject* defs;
+			static const char* kwlist[] = { "defs", nullptr };
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", (char**)kwlist,
+				&defs
+			)) return -1;
+			py::foreach<PyObject*>(defs, [&](PyObject* item)
+			{
+				auto orig = py::toCpp<std::vector<std::string>>(PyTuple_GET_ITEM(item, 0));
+				auto error = py::toCpp<std::vector<std::string>>(PyTuple_GET_ITEM(item, 1));
+				auto cost = py::toCpp<float>(PyTuple_GET_ITEM(item, 2));
+				PyObject* cond = PyTuple_GET_ITEM(item, 3);
+				CondVowel condVowel = CondVowel::none;
+				if (cond == Py_None)
+				{
+				}
+				else
+				{
+					auto conds = py::toCpp<std::string>(cond);
+					if (conds == "vowel") condVowel = CondVowel::vowel;
+					else if (conds == "applosive") condVowel = CondVowel::applosive;
+				}
+				
+				for (auto& o : orig)
+				{
+					for (auto& e : error)
+					{
+						self->tt.addTypo(utf8To16(o), utf8To16(e), cost, condVowel);
+					}
+				}
+			}, "`defs` must be an iterable of Tuple[List, List, float, str].");
+			return 0;
+		});
+	}
+
+	PyObject* generate(PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]() -> PyObject*
+		{
+			const char* orig;
+			float costThreshold = 2.5f;
+			static const char* kwlist[] = { "orig", "cost_threshold", nullptr};
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|f", (char**)kwlist,
+				&orig, costThreshold
+			)) return nullptr;
+
+			if (!ptt.ready()) ptt = tt.prepare();
+
+			py::UniqueObj ret{ PyList_New(0) };
+			for (auto r : ptt.generate(utf8To16(orig), costThreshold))
+			{
+				PyList_Append(ret, py::UniqueObj{py::buildPyTuple(r.str, r.cost)});
+			}
+			return ret.release();
+		});
+	}
+};
+
+py::TypeWrapper<TypoTransformerObject> _TypoTransformerSetter{ [](PyTypeObject& obj)
+{
+	static PyMethodDef methods[] =
+	{
+		{ "generate", PY_METHOD_MEMFN(&TypoTransformerObject::generate), METH_VARARGS | METH_KEYWORDS, ""},
+		{ nullptr }
+	};
+	obj.tp_methods = methods;
+} };
+
 struct KiwiObject : py::CObject<KiwiObject>
 {
 	static constexpr const char* _name = "kiwipiepy._Kiwi";
@@ -25,6 +105,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 
 	KiwiBuilder builder;
 	Kiwi kiwi;
+	TypoTransformerObject* typos = nullptr;
+	float typoCostThreshold = 2.5f;
 
 	static int init(KiwiObject *self, PyObject *args, PyObject *kwargs)
 	{
@@ -34,10 +116,27 @@ struct KiwiObject : py::CObject<KiwiObject>
 			size_t numThreads = 0, options = 3;
 			int integrateAllomorph = -1, loadDefaultDict = -1;
 			size_t sbg = 0;
-			static const char* kwlist[] = { "num_workers", "model_path", "integrate_allomorph", "load_default_dict", "sbg", nullptr };
-			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nzppp", (char**)kwlist,
-				&numThreads, &modelPath, &integrateAllomorph, &loadDefaultDict, &sbg
+			PyObject* typos = nullptr;
+			float typoCostThreshold = 2.5f;
+			static const char* kwlist[] = { "num_workers", "model_path", "integrate_allomorph", "load_default_dict", 
+				"sbg", "typos", "typo_cost_threshold", nullptr};
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nzpppOf", (char**)kwlist,
+				&numThreads, &modelPath, &integrateAllomorph, &loadDefaultDict, &sbg, &typos, &typoCostThreshold
 			)) return -1;
+
+			if (typos == nullptr || typos == Py_None)
+			{
+				self->typos = nullptr;
+			}
+			else if (PyObject_IsInstance(typos, (PyObject*)py::Type<TypoTransformerObject>))
+			{
+				self->typos = (TypoTransformerObject*)typos;
+			}
+			else
+			{
+				throw py::ValueError{ "invalid `typos` value: " + py::repr(typos)};
+			}
+			self->typoCostThreshold = typoCostThreshold;
 
 			BuildOption boptions = BuildOption::integrateAllomorph | BuildOption::loadDefaultDict;
 
@@ -77,7 +176,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 	void doPrepare()
 	{
 		if (kiwi.ready()) return;
-		kiwi = builder.build();
+		kiwi = builder.build(typos ? typos->tt : withoutTypo, typoCostThreshold);
 		py::UniqueObj handler{ PyObject_GetAttrString((PyObject*)this, "_on_build") };
 		if (handler)
 		{
@@ -171,6 +270,16 @@ struct KiwiObject : py::CObject<KiwiObject>
 		kiwi.setSpacePenalty(v);
 	}
 
+	float getTypoCostWeight() const
+	{
+		return kiwi.getTypoCostWeight();
+	}
+
+	void setTypoCostWeight(float v)
+	{
+		kiwi.setTypoCostWeight(v);
+	}
+
 	size_t getNumWorkers() const
 	{
 		return kiwi.getNumThreads();
@@ -202,6 +311,7 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ [](PyTypeObject& obj)
 		{ (char*)"_max_unk_form_size", PY_GETTER_MEMFN(&KiwiObject::getMaxUnkFormSize), PY_SETTER_MEMFN(&KiwiObject::setMaxUnkFormSize), "", nullptr },
 		{ (char*)"_space_tolerance", PY_GETTER_MEMFN(&KiwiObject::getSpaceTolerance), PY_SETTER_MEMFN(&KiwiObject::setSpaceTolerance), "", nullptr },
 		{ (char*)"_space_penalty", PY_GETTER_MEMFN(&KiwiObject::getSpacePenalty), PY_SETTER_MEMFN(&KiwiObject::setSpacePenalty), "", nullptr },
+		{ (char*)"_typo_cost_weight", PY_GETTER_MEMFN(&KiwiObject::getTypoCostWeight), PY_SETTER_MEMFN(&KiwiObject::setTypoCostWeight), "", nullptr },
 		{ (char*)"_num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
 		{ nullptr },
 	};
@@ -215,10 +325,10 @@ struct TokenObject : py::CObject<TokenObject>
 	static constexpr const char* _name_in_module = "Token";
 	static constexpr const char* _doc = Token__doc__;
 
-	u16string _form;
+	u16string _form, _raw_form;
 	const char* _tag = nullptr;
 	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _lineNumber = 0;
-	float _score = 0;
+	float _score = 0, _typoCost = 0;
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
 	const Morpheme* _baseMorph = nullptr;
@@ -310,6 +420,8 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, Token_base_id__doc__, nullptr },
 		{ (char*)"tagged_form", PY_GETTER_MEMFN(&TokenObject::taggedForm), nullptr, Token_tagged_form__doc__, nullptr },
 		{ (char*)"score", PY_GETTER_MEMPTR(&TokenObject::_score), nullptr, Token_score__doc__, nullptr },
+		{ (char*)"typo_cost", PY_GETTER_MEMPTR(&TokenObject::_typoCost), nullptr, Token_typo_cost__doc__, nullptr },
+		{ (char*)"raw_form", PY_GETTER_MEMPTR(&TokenObject::_raw_form), nullptr, Token_raw_form__doc__, nullptr },
 		{ (char*)"regularity", PY_GETTER_MEMFN(&TokenObject::regularity), nullptr, Token_regularity__doc__, nullptr },
 		{ nullptr },
 	};
@@ -390,9 +502,11 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_sentPosition = q.sentPosition;
 			tItem->_lineNumber = q.lineNumber;
 			tItem->_score = q.score;
+			tItem->_typoCost = q.typoCost;
 			tItem->_morph = q.morph;
 			tItem->_morphId = kiwi.morphToId(q.morph);
 			tItem->_baseMorph = kiwi.idToMorph(q.morph->lmMorphemeId);
+			tItem->_raw_form = q.typoCost ? kiwi.getTypoForm(q.typoFormId) : tItem->_form;
 
 			PyList_SetItem(rList, jdx++, item.release());
 			u32offset += u32chrs;
