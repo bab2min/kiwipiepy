@@ -1,6 +1,6 @@
 import os
 
-from kiwipiepy import Kiwi
+from kiwipiepy import Kiwi, TypoTransformer, basic_typos
 from kiwipiepy.utils import Stopwords
 
 curpath = os.path.dirname(os.path.abspath(__file__))
@@ -210,3 +210,19 @@ def test_join():
     assert (kiwi.join([("왜", "MAG"), ("저", "NP"), ("한테", "JKB"), ("묻", "VV-I"), ("어요", "EF")])
         == "왜 저한테 물어요"
     )
+
+def test_typo_transformer():
+    print(basic_typos.generate("안돼"))
+
+def test_typo_correction():
+    kiwi = Kiwi(typos='basic')
+    ret = kiwi.tokenize("외않된대?")
+    assert ret[0].form == '왜'
+    assert ret[1].form == '안'
+    assert ret[2].form == '되'
+    assert ret[3].form == 'ᆫ대'
+    print(ret)
+
+def test_sbg():
+    kiwi = Kiwi(model_type='sbg')
+    print(kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.'))
