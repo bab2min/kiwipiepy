@@ -72,7 +72,7 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 			float costThreshold = 2.5f;
 			static const char* kwlist[] = { "orig", "cost_threshold", nullptr};
 			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|f", (char**)kwlist,
-				&orig, costThreshold
+				&orig, &costThreshold
 			)) return nullptr;
 
 			if (!ptt.ready()) ptt = tt.prepare();
