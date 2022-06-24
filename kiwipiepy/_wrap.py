@@ -18,6 +18,33 @@ Sentence.tokens.__doc__ = '분할된 문장의 형태소 분석 결과'
 
 @dataclass
 class TypoDefinition:
+    '''.. versionadded:: 0.13.0
+
+오타 생성 규칙을 정의하는 dataclass
+
+Parameters
+----------
+orig: List[str]
+    원본 문자열
+error: List[str]
+    교체될 오타의 문자열
+cost: float
+    교체 비용
+condition: str
+    오타 교체가 가능한 환경. `None`, `'vowel'`(모음 뒤), `'applosive'`(불파음 뒤) 중 하나. 생략 시 기본값은 `None`입니다.
+
+Notes
+-----
+`orig`나 `error`는 완전한 음절 혹은 모음이나 자음을 포함할 수 있습니다. 자음의 경우 종성은 '\\'로 escape해주어야 합니다.
+
+```python
+TypoDefinition(['개'], ['게'], 1.0) # '개'를 '게'로 교체
+TypoDefinition(['ㅐ'], ['ㅔ'], 1.0) # 모든 'ㅐ'를 'ㅒ'로 교체
+TypoDefinition(['ㄲ'], ['ㄱ'], 1.0) # 모든 초성 'ㄲ'을 초성 'ㄱ'으로 교체
+TypoDefinition(['ㄳ'], ['ㄱ'], 1.0) # 'ㄳ'에 해당하는 초성은 없으므로 ValueError 발생
+TypoDefinition(['\ㄳ'], ['\ㄱ'], 1.0) # 모든 종성 'ㄳ'을 종성 'ㄱ'으로 교체
+```
+    '''
     orig: List[str]
     error: List[str]
     cost: float
@@ -59,7 +86,39 @@ def _convert_consonant(s):
     return ''.join(ret)
 
 class TypoTransformer(_TypoTransformer):
+    '''.. versionadded:: 0.13.0
     
+오타 교정 기능에 사용되는 오타 생성기를 정의합니다.
+
+Parameters
+----------
+defs: List[TypoDefinition]
+    오타 생성 규칙을 정의하는 TypoDefinition의 List입니다.
+
+Notes
+-----
+이 클래스의 인스턴스를 Kiwi 생성시의 typos 인자로 주면 Kiwi의 오타 교정 기능이 활성화됩니다.
+```python
+>> from kiwipiepy import Kiwi, TypoTransformer, TypoDefinition
+>> typos = TypoTransformer([
+    TypoDefinition(["ㅐ", "ㅔ"], ["ㅐ", "ㅔ"], 1.), # ㅐ 혹은 ㅖ를 ㅐ 혹은 ㅖ로 교체하여 오타를 생성. 생성 비용은 1
+    TypoDefinition(["ㅔ"], ["ㅖ"], 2.), # ㅔ를 ㅖ로 교체하여 오타를 생성. 생성 비용은 2
+])
+>> typos.generate('과제', 1.) # 생성 비용이 1.0이하인 오타들을 생성
+[('과제', 0.0), ('과재', 1.0)]
+>> typos.generate('과제', 2.) # 생성 비용이 2.0이하인 오타들을 생성
+[('과제', 0.0), ('과재', 1.0), ('과졔', 2.0)]
+
+>> kiwi = Kiwi(typos=typos, typo_cost_threshold=2.) # typos에 정의된 오타들을 교정 후보로 삼는 Kiwi 생성.
+>> kiwi.tokenize('과재를 했다') 
+[Token(form='과제', tag='NNG', start=0, len=2), 
+ Token(form='를', tag='JKO', start=2, len=1), 
+ Token(form='하', tag='VV', start=4, len=1), 
+ Token(form='었', tag='EP', start=4, len=1), 
+ Token(form='다', tag='EF', start=5, len=1)]
+```
+    '''
+
     def __init__(self,
         defs: List[TypoDefinition]
     ):
@@ -68,15 +127,30 @@ class TypoTransformer(_TypoTransformer):
             ((list(map(_convert_consonant, d.orig)), list(map(_convert_consonant, d.error)), d.cost, d.condition) for d in self._defs)
         )
 
-    def generate(self, text:str) -> List[str]:
-        return super().generate(text)
+    def generate(self, text:str, cost_threshold:float) -> List[Tuple[str, float]]:
+        '''입력 텍스트로부터 오타를 생성합니다.
+
+Parameters
+----------
+text: str
+    원본 텍스트
+cost_threshold: float
+    생성 가능한 오타의 최대 비용
+
+Returns
+-------
+errors: List[Tuple[str, float]]
+    생성된 오타와 그 생성 비용의 List
+        '''
+        return super().generate(text, cost_threshold)
 
     @property
     def defs(self):
+        '''현재 오타 생성기의 정의자 목록'''
         return self._defs
     
     def __repr__(self):
-        return "TypoTransformer([{}])".format(",\n".join(map(repr, self._defs)))
+        return "TypoTransformer([{}])".format(",\n  ".join(map(repr, self._defs)))
 
 basic_typos = TypoTransformer([
     TypoDefinition(["ㅐ", "ㅔ"], ["ㅐ", "ㅔ"], 1.),
@@ -151,11 +225,17 @@ basic_typos = TypoTransformer([
     TypoDefinition(["\ㄶㅇ", "ㄴ"], ["\ㄶㅇ", "ㄴ"], 1., "vowel"),
     TypoDefinition(["\ㄷㅇ", "ㄷ"], ["\ㄷㅇ", "ㄷ"], 1., "vowel"),
     TypoDefinition(["\ㄹㅇ", "\ㄹㅎ", "ㄹ"], ["\ㄹㅇ", "\ㄹㅎ", "ㄹ"], 1., "vowel"),
+    TypoDefinition(["\ㄺㅇ", "\ㄹㄱ"], ["\ㄺㅇ", "\ㄹㄱ"], 1., "vowel"),
+    TypoDefinition(["\ㄺㅎ", "\ㄹㅋ"], ["\ㄺㅎ", "\ㄹㅋ"], 1., "vowel"),
     TypoDefinition(["\ㅁㅇ", "ㅁ"], ["\ㅁㅇ", "ㅁ"], 1., "vowel"),
     TypoDefinition(["\ㅂㅇ", "ㅂ"], ["\ㅂㅇ", "ㅂ"], 1., "vowel"),
     TypoDefinition(["\ㅅㅇ", "ㅅ"], ["\ㅅㅇ", "ㅅ"], 1., "vowel"),
     TypoDefinition(["\ㅆㅇ", "\ㅅㅅ", "ㅆ"], ["\ㅆㅇ", "\ㅅㅅ", "ㅆ"], 1., "vowel"),
     TypoDefinition(["\ㅈㅇ", "ㅈ"], ["\ㅈㅇ", "ㅈ"], 1., "vowel"),
+    TypoDefinition(["\ㅊㅇ", "\ㅊㅎ", "\ㅈㅎ", "ㅊ"], ["\ㅊㅇ", "\ㅊㅎ", "\ㅈㅎ", "ㅊ"], 1., "vowel"),
+    TypoDefinition(["\ㅋㅇ", "\ㅋㅎ", "\ㄱㅎ", "ㅋ"], ["\ㅋㅇ", "\ㅋㅎ", "\ㄱㅎ", "ㅋ"], 1., "vowel"),
+    TypoDefinition(["\ㅌㅇ", "\ㅌㅎ", "\ㄷㅎ", "ㅌ"], ["\ㅌㅇ", "\ㅌㅎ", "\ㄷㅎ", "ㅌ"], 1., "vowel"),
+    TypoDefinition(["\ㅍㅇ", "\ㅍㅎ", "\ㅂㅎ", "ㅍ"], ["\ㅍㅇ", "\ㅍㅎ", "\ㅂㅎ", "ㅍ"], 1., "vowel"),
 
     TypoDefinition(["은", "는"], ["은", "는"], 2.),
     TypoDefinition(["을", "를"], ["을", "를"], 2.),
@@ -183,13 +263,21 @@ integrate_allormoph: bool
 load_default_dict: bool
     True일 경우 인스턴스 생성시 자동으로 기본 사전을 불러옵니다. 기본 사전은 위키백과와 나무위키에서 추출된 고유 명사 표제어들로 구성되어 있습니다. 기본값은 True입니다.
 model_type: str
-    형태소 분석에 사용할 언어 모델을 지정합니다. 다음 중 하나를 선택할 수 있습니다. 기본값은 `'knlm'`입니다.
-    * knlm: Kneser-ney n-gram 언어 모델을 사용합니다. 먼 거리에 있는 형태소와의 관계는 고려하지 못하지만, 속도가 빠릅니다.
-    * sbg: knlm에 더불어 SkipBigram 모델을 함께 사용합니다. 속도는 약 50% 정도 느리지만, 먼 거리에 있는 형태소와의 관계를 고려할 수 있습니다.
+    .. versionadded:: 0.13.0
 
-typos
+    형태소 분석에 사용할 언어 모델을 지정합니다. 다음 중 하나를 선택할 수 있습니다. 기본값은 `'knlm'`입니다.
+
+    * `knlm`: Kneser-ney n-gram 언어 모델을 사용합니다. 먼 거리에 있는 형태소와의 관계는 고려하지 못하지만, 속도가 빠릅니다.
+    * `sbg`: knlm에 더불어 SkipBigram 모델을 함께 사용합니다. 속도는 약 50% 정도 느리지만, 먼 거리에 있는 형태소와의 관계를 고려할 수 있습니다.
+
+typos: Union[str, TypoTransformer]
+    .. versionadded:: 0.13.0
+
     교정에 사용할 오타 정보입니다. 기본값은 `None`으로 이 경우 오타 교정을 사용하지 않습니다. `'basic'`으로 입력시 내장된 기본 오타 정보를 이용합니다.
+    이에 대한 자세한 내용은 `kiwipiepy.TypoTransformer`를 참조하세요.
 typo_cost_threshold: float
+    .. versionadded:: 0.13.0
+
     오타 교정시 고려할 최대 오타 비용입니다. 이 비용을 넘어서는 오타에 대해서는 탐색하지 않습니다. 기본값은 2.5입니다.
     '''
 
@@ -241,7 +329,7 @@ typo_cost_threshold: float
         self._ns_space_penalty = 7.
         self._ns_max_unk_form_size = 6
         self._ns_space_tolerance = 0
-        self._ns_typo_cost_weight = 4.
+        self._ns_typo_cost_weight = 6.
         self._ns_model_type = model_type
 
     def add_user_word(self,
@@ -837,6 +925,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
     def typo_cost_weight(self):
         '''.. versionadded:: 0.13.0
 
+오타 교정 시에 사용할 교정 가중치. 이 값이 클수록 교정을 보수적으로 수행합니다. 기본값은 6입니다.
         '''
 
         return self._ns_typo_cost_weight
@@ -859,6 +948,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
     def model_type(self):
         '''.. versionadded:: 0.13.0
 
+형태소 분석에 사용 중인 언어 모델의 종류 (읽기 전용)
         '''
         return self._ns_model_type
 
@@ -1269,7 +1359,7 @@ Parameters
 ----------
 morphs: Iterable[Union[Token, Tuple[str, str]]]
     결합할 형태소의 목록입니다. 
-    각 형태소는 `Kiwi.tokenizer`에서 얻어진 `Token` 타입이거나, 
+    각 형태소는 `Kiwi.tokenize`에서 얻어진 `Token` 타입이거나, 
     (형태, 품사)로 구성된 `tuple` 타입이어야 합니다.
 lm_search: bool
     둘 이상의 형태로 복원 가능한 모호한 형태소가 있는 경우, 이 값이 True면 언어 모델 탐색을 통해 최적의 형태소를 선택합니다.

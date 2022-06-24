@@ -169,9 +169,9 @@ next(result_iter) # 종료된 파일에서 분석해야할 다음 텍스트를 �
 ```python
 from kiwipiepy import Kiwi
 kiwi = Kiwi()
-kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=False)
+kiwi.tokenize("안 먹었엌ㅋㅋ", normalize_coda=False)
 # [Token(form='안', tag='NNP', start=0, len=1), Token(form='먹었엌', tag='NNP', start=2, len=3), Token(form='ㅋㅋ', tag='SW', start=5, len=2)]
-kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=True)
+kiwi.tokenize("안 먹었엌ㅋㅋ", normalize_coda=True)
 # [Token(form='안', tag='MAG', start=0, len=1), Token(form='먹', tag='VV', start=2, len=1), Token(form='었', tag='EP', start=3, len=1), Token(form='어', tag='EF', start=4, len=1), Token(form='ㅋㅋㅋ', tag='SW', start=5, len=2)]
 ```
 0.10.0 버전 변경사항
@@ -363,7 +363,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
         * 특수 문자가 섞인 텍스트 중 일부가 잘못 분석되는 버그가 수정되었습니다.
         * 특정한 패턴의 텍스트를 입력할 경우 분석 결과가 빈 값으로 나오는 버그가 수정되었습니다.
         * 받침 정규화 기능(normalizeCoda)이 모든 받침에 대해 적용되었습니다.
-    * `Kiwi.tokenizer`에 `echo` 인자가 추가되었습니다.
+    * `Kiwi.tokenize`에 `echo` 인자가 추가되었습니다.
 
 * 0.11.1 (2022-04-03)
     * Kiwi 0.11.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.11.1 )이 반영되었습니다.

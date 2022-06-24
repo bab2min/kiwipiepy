@@ -498,11 +498,11 @@ Kiwi.join(morphs, lm_search=True)
 
 `normalize_coda`는 ㅋㅋㅋ,ㅎㅎㅎ와 같은 초성체가 뒤따라와서 받침으로 들어갔을때 분석에 실패하는 문제를 해결해줍니다.
 ```python
->> kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=False)
+>> kiwi.tokenize("안 먹었엌ㅋㅋ", normalize_coda=False)
 [Token(form='안', tag='NNP', start=0, len=1), 
  Token(form='먹었엌', tag='NNP', start=2, len=3), 
  Token(form='ㅋㅋ', tag='SW', start=5, len=2)]
->> kiwi.tokenizer("안 먹었엌ㅋㅋ", normalize_coda=True)
+>> kiwi.tokenize("안 먹었엌ㅋㅋ", normalize_coda=True)
 [Token(form='안', tag='MAG', start=0, len=1), 
  Token(form='먹', tag='VV', start=2, len=1), 
  Token(form='었', tag='EP', start=3, len=1), 
