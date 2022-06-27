@@ -48,7 +48,8 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 				else
 				{
 					auto conds = py::toCpp<std::string>(cond);
-					if (conds == "vowel") condVowel = CondVowel::vowel;
+					if (conds == "any") condVowel = CondVowel::any;
+					else if (conds == "vowel") condVowel = CondVowel::vowel;
 					else if (conds == "applosive") condVowel = CondVowel::applosive;
 				}
 				
