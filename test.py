@@ -216,7 +216,7 @@ def test_typo_transformer():
 
 def test_typo_correction():
     kiwi = Kiwi(typos='basic')
-    ret = kiwi.tokenize("외않된대?")
+    ret = kiwi.tokenize("외않됀대?")
     assert ret[0].form == '왜'
     assert ret[1].form == '안'
     assert ret[2].form == '되'
@@ -224,5 +224,7 @@ def test_typo_correction():
     print(ret)
 
 def test_sbg():
+    kiwi = Kiwi(model_type='knlm')
+    print(kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.'))
     kiwi = Kiwi(model_type='sbg')
     print(kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.'))
