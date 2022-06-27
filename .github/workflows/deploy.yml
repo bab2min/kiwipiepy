@@ -35,6 +35,7 @@ jobs:
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
         
         /opt/python/cp38-cp38/bin/python setup.py sdist
         /opt/python/cp38-cp38/bin/python -m pip install twine wheel
