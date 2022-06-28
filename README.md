@@ -266,6 +266,37 @@ True
 '흙이 묻어요'
 
 # v0.13.0 신기능
+# 더 강력한 언어 모델인 SkipBigram(sbg)이 추가되었습니다.
+# 기존의 knlm과 달리 먼 거리에 있는 형태소를 고려할 수 있습니다.
+>>> kiwi = Kiwi(model_type='knlm')
+>>> kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.')
+[Token(form='이', tag='MM', start=0, len=1), 
+ Token(form='번호', tag='NNG', start=2, len=2), 
+ Token(form='로', tag='JKB', start=4, len=1), 
+ Token(form='전화', tag='NNG', start=6, len=2), 
+ Token(form='를', tag='JKO', start=8, len=1), 
+ Token(form='이따가', tag='MAG', start=10, len=3), 
+ Token(form='꼭', tag='MAG', start=14, len=1), 
+ Token(form='반드시', tag='MAG', start=16, len=3), 
+ Token(form='걷', tag='VV-I', start=20, len=1),  # 걷다/걸다 중 틀리게 '걷다'를 선택했음.
+ Token(form='어', tag='EF', start=21, len=1), 
+ Token(form='.', tag='SF', start=22, len=1)]
+
+>>> kiwi = Kiwi(model_type='sbg')
+>>> kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.')
+[Token(form='이', tag='MM', start=0, len=1), 
+ Token(form='번호', tag='NNG', start=2, len=2), 
+ Token(form='로', tag='JKB', start=4, len=1), 
+ Token(form='전화', tag='NNG', start=6, len=2), 
+ Token(form='를', tag='JKO', start=8, len=1), 
+ Token(form='이따가', tag='MAG', start=10, len=3), 
+ Token(form='꼭', tag='MAG', start=14, len=1), 
+ Token(form='반드시', tag='MAG', start=16, len=3), 
+ Token(form='걸', tag='VV', start=20, len=1), # 걷다/걸다 중 바르게 '걸다'를 선택했음.
+ Token(form='어', tag='EC', start=21, len=1), 
+ Token(form='.', tag='SF', start=22, len=1)]
+
+# 또한 오타 교정 기능이 추가되었습니다.
 # 간단한 오타를 교정하여, 사소한 오타 때문에 전체 분석 결과가 어긋나는 문제를 해결할 수 있습니다.
 >>> kiwi = Kiwi(model_type='sbg', typos='basic')
 >>> kiwi.tokenize('외않됀대?') # 오타 교정 사용 시 로딩 시간이 5~10초 정도 소요됨
