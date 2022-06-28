@@ -265,6 +265,85 @@ kiwi.extract_words(IterableTextFile('test.txt'), 10, 10, 0.25)
 단어점수는 생략 가능하며, 생략 시 기본값인 0으로 처리됩니다.
 실제 예시에 대해서는 Kiwi에 내장된 기본 사전 파일인 https://raw.githubusercontent.com/bab2min/Kiwi/main/ModelGenerator/default.dict 을 참조해주세요.
 
+언어 모델
+---------
+Kiwi는 최적의 형태소 조합을 탐색하기 위해 내부적으로 언어 모델을 사용합니다. 
+0.13.0 버전 이전까지는 Kneser-ney 언어 모델(`knlm`)만을 사용했지만, 0.13.0버전부터 SkipBigram(`sbg`)이라는 새로운 언어 모델에 대한 지원이 추가되었습니다.
+기본값은 `knlm`로 설정되어 있지만, 상황에 따라 이용자가 더 적절한 모델을 선택하여 사용할 수 있습니다. 각 모델의 특징은 다음과 같습니다.
+
+* knlm: 0.12.0버전까지 기본적으로 제공되던 모델로, 속도가 빠르고 짧은 거리 내의 형태소(주로 2~3개) 간의 관계를 높은 정확도로 모델링할 수 있습니다.
+  그러나 먼 거리의 형태소 간의 관계는 고려하지 못하는 한계가 있습니다.
+* sbg: 0.13.0버전에서 추가된 모델로, sbg를 사용시 내부적으로 knlm의 결과에 SkipBigram 결과를 보정하는 식으로 구동됩니다.
+  `knlm`에 비해 약 30%정도 처리 시간이 늘어나지면, 먼 거리의 형태소(실질 형태소 기준 최대 8개까지) 간의 관계를 적당한 정확도로 모델링할 수 있습니다.
+
+두 모델 간의 분석 결과 차이는 다음처럼 형태소의 모호성이 먼 거리의 형태소를 통해 해소되는 경우 잘 드러납니다.
+```python
+>> kiwi = Kiwi(model_type='knlm')
+>> kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.')
+[Token(form='이', tag='MM', start=0, len=1), 
+ Token(form='번호', tag='NNG', start=2, len=2), 
+ Token(form='로', tag='JKB', start=4, len=1), 
+ Token(form='전화', tag='NNG', start=6, len=2), 
+ Token(form='를', tag='JKO', start=8, len=1), 
+ Token(form='이따가', tag='MAG', start=10, len=3), 
+ Token(form='꼭', tag='MAG', start=14, len=1), 
+ Token(form='반드시', tag='MAG', start=16, len=3), 
+ Token(form='걷', tag='VV-I', start=20, len=1),  # 걷다/걸다 중 틀리게 '걷다'를 선택했음.
+ Token(form='어', tag='EF', start=21, len=1), 
+ Token(form='.', tag='SF', start=22, len=1)]
+
+>> kiwi = Kiwi(model_type='sbg')
+>> kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.')
+[Token(form='이', tag='MM', start=0, len=1), 
+ Token(form='번호', tag='NNG', start=2, len=2), 
+ Token(form='로', tag='JKB', start=4, len=1), 
+ Token(form='전화', tag='NNG', start=6, len=2), 
+ Token(form='를', tag='JKO', start=8, len=1), 
+ Token(form='이따가', tag='MAG', start=10, len=3), 
+ Token(form='꼭', tag='MAG', start=14, len=1), 
+ Token(form='반드시', tag='MAG', start=16, len=3), 
+ Token(form='걸', tag='VV', start=20, len=1), # 걷다/걸다 중 바르게 '걸다'를 선택했음.
+ Token(form='어', tag='EC', start=21, len=1), 
+ Token(form='.', tag='SF', start=22, len=1)]
+```
+
+오타 교정
+---------
+연속적인 문자열을 처리하는 모델의 경우, 특정 지점에서 분석 오류가 발생하면 그 오류 때문에 뒤따르는 분석 결과들이 전부 틀려버리는 경우가 종종 있습니다.
+이를 개선하기 위해 0.13.0버전부터 간단한 수준의 오타를 자동으로 교정하는 기능이 추가되었습니다. 
+오타 교정을 위해서는 특정 형태소가 어떤 식으로 오타로 변형되는지 정의한, 오타 정의자가 필요합니다. 패키지에 내장된 기본 오타 정의자인 `kiwipiepy.basic_typos` 혹은 `'basic'` 를 사용해도 되고, 직접 오타를 정의할 수도 있습니다.
+```python
+>> from kiwipiepy import Kiwi, TypoTransformer, TypoDefinition, basic_typo
+>> kiwi = Kiwi(typos=basic_typo) # basic_typo 대신 str으로 'basic'이라고 입력해도 됨
+>> kiwi.tokenize('외않됀대?') # 초기에는 로딩 시간으로 5~10초 정도 소요됨
+[Token(form='왜', tag='MAG', start=0, len=1),
+ Token(form='안', tag='MAG', start=1, len=1),
+ Token(form='되', tag='VV', start=2, len=1),
+ Token(form='ᆫ대', tag='EF', start=2, len=2),
+ Token(form='?', tag='SF', start=4, len=1)]
+>> kiwi.typo_cost_weight = 6 # 오타 교정 비용을 변경할 수 있음. 기본값은 6
+>> kiwi.tokenize('일정표를 게시했다')
+[Token(form='일정표', tag='NNG', start=0, len=3),
+ Token(form='를', tag='JKO', start=3, len=1), 
+ Token(form='게시', tag='NNG', start=5, len=2), 
+ Token(form='하', tag='XSV', start=7, len=1), 
+ Token(form='었', tag='EP', start=7, len=1), 
+ Token(form='다', tag='EF', start=8, len=1)]
+
+>> kiwi.typo_cost_weight = 2 # 교정 비용을 낮추면 더 적극적으로 교정을 수행함. 맞는 표현도 과도교정될 수 있으니 주의
+>> kiwi.tokenize('일정표를 게시했다')
+[Token(form='일정표', tag='NNG', start=0, len=3),
+ Token(form='를', tag='JKO', start=3, len=1), 
+ Token(form='개시', tag='NNG', start=5, len=2), # '게시'가 맞는 표현이지만 '개시'로 잘못 교정되었음
+ Token(form='하', tag='XSV', start=7, len=1), 
+ Token(form='었', tag='EP', start=7, len=1), 
+ Token(form='다', tag='EF', start=8, len=1)]
+```
+오타 정의자를 직접 정의하는 방법에 대해서는 `kiwipiepy.TypoTransformer` 를 참조하십시오. 
+현재 Kiwi에서 수행하는 오타 교정은 각각의 형태소를 경계로 적용되기에 여러 형태소를 넘나드는 오타는 교정하지 못합니다.
+
+오타 교정 기능을 사용할 경우 Kiwi 초기화 시에 약 5~10초 정도의 시간이 추가로 소요되며, 문장 당 처리시간은 2배 정도로 늘어납니다. 메모리 사용량은 약 2~3배 정도 증가합니다.
+
 데모
 ----
 https://lab.bab2min.pe.kr/kiwi 에서 데모를 실행해 볼 수 있습니다.
@@ -347,6 +426,14 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.13.0 (2022-06-28)
+    * Kiwi 0.13.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.13.0 )이 반영되었습니다.
+        * 형태소 분석 시 간단한 오타 교정을 수행하는 기능 추가
+        * SkipBigram 언어 모델 추가. `Kiwi(model_type='sbg')` 로 사용 가능
+        * 분석 결과에서 개별 형태소의 오타 교정 비용을 반환하는 `Token.typo_cost` 필드, 오타 교정 전 형태를 반환하는 `Token.raw_form` 필드 추가
+    * 각종 버그가 수정되었습니다.
+        * 배포 판에서 `stopwords.txt` 파일이 누락되었던 버그 수정
+
 * 0.12.0 (2022-05-10)
     * Kiwi 0.12.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.12.0 )이 반영되었습니다.
         * 형태소에 불규칙 활용 여부를 반영하는 `Token.regularity` 필드 추가

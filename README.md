@@ -264,6 +264,34 @@ True
 '길을 물어요'
 >>> kiwi.join([('흙', 'NNG'), ('이', 'JKS'), ('묻', 'VV'), ('어요', 'EF')])
 '흙이 묻어요'
+
+# v0.13.0 신기능
+# 간단한 오타를 교정하여, 사소한 오타 때문에 전체 분석 결과가 어긋나는 문제를 해결할 수 있습니다.
+>>> kiwi = Kiwi(model_type='sbg', typos='basic')
+>>> kiwi.tokenize('외않됀대?') # 오타 교정 사용 시 로딩 시간이 5~10초 정도 소요됨
+[Token(form='왜', tag='MAG', start=0, len=1),
+ Token(form='안', tag='MAG', start=1, len=1),
+ Token(form='되', tag='VV', start=2, len=1),
+ Token(form='ᆫ대', tag='EF', start=2, len=2),
+ Token(form='?', tag='SF', start=4, len=1)]
+
+>>> kiwi.tokenize('장례희망이 뭐냐는 선섕님의 질문에 벙어리가 됫따') 
+[Token(form='장래', tag='NNG', start=0, len=2),
+ Token(form='희망', tag='NNG', start=2, len=2), 
+ Token(form='이', tag='JKS', start=4, len=1), 
+ Token(form='뭐', tag='NP', start=6, len=1), 
+ Token(form='이', tag='VCP', start=7, len=0), 
+ Token(form='냐는', tag='ETM', start=7, len=2), 
+ Token(form='선생', tag='NNG', start=10, len=2), 
+ Token(form='님', tag='XSN', start=12, len=1), 
+ Token(form='의', tag='JKG', start=13, len=1), 
+ Token(form='질문', tag='NNG', start=15, len=2), 
+ Token(form='에', tag='JKB', start=17, len=1), 
+ Token(form='벙어리', tag='NNG', start=19, len=3), 
+ Token(form='가', tag='JKC', start=22, len=1), 
+ Token(form='되', tag='VV', start=24, len=1), 
+ Token(form='엇', tag='EP', start=24, len=1), 
+ Token(form='다', tag='EF', start=25, len=1)]
 ```
 
 ## 시작하기
@@ -275,7 +303,7 @@ kiwi = Kiwi()
 ```
 Kiwi 생성자는 다음과 같습니다.
 ```python
-Kiwi(num_workers=0, model_path=None, load_default_dict=True, integrate_allomorph=True)
+Kiwi(num_workers=0, model_path=None, load_default_dict=True, integrate_allomorph=True, model_type='knlm', typos=None, typo_cost_threshold=2.5)
 ```
 * `num_workers`:  2 이상이면 단어 추출 및 형태소 분석에 멀티 코어를 활용하여 조금 더 빠른 속도로 분석을 진행할 수 있습니다. <br>
 1인 경우 단일 코어만 활용합니다. num_workers가 0이면 현재 환경에서 사용가능한 모든 코어를 활용합니다. <br>
@@ -283,6 +311,9 @@ Kiwi(num_workers=0, model_path=None, load_default_dict=True, integrate_allomorph
 * `model_path`: 형태소 분석 모델이 있는 경로를 지정합니다. 생략시 `kiwipiepy_model` 패키지로부터 모델 경로를 불러옵니다.
 * `load_default_dict`: 추가 사전을 로드합니다. 추가 사전은 위키백과의 표제어 타이틀로 구성되어 있습니다. 이 경우 로딩 및 분석 시간이 약간 증가하지만 다양한 고유명사를 좀 더 잘 잡아낼 수 있습니다. 분석 결과에 원치 않는 고유명사가 잡히는 것을 방지하려면 이를 False로 설정하십시오.
 * `integrate_allomorph`: 어미 중, '아/어', '았/었'과 같이 동일하지만 음운 환경에 따라 형태가 달라지는 이형태들을 자동으로 통합합니다.
+* `model_type`: 형태소 분석에 사용할 언어 모델을 지정합니다. `'knlm'`, `'sbg'` 중 하나를 선택할 수 있습니다. `'sbg'` 는 상대적으로 느리지만 먼 거리에 있는 형태소 간의 관계를 포착할 수 있습니다.
+* `typos`: 형태소 분석 시 간단한 오타를 교정합니다. `None`으로 설정 시 교정을 수행하지 않습니다.
+* `typo_cost_threshold`: 오타 교정을 허용할 최대 오타 비용을 설정합니다.
 
 kiwi 객체는 크게 다음 세 종류의 작업을 수행할 수 있습니다.
 * 코퍼스로부터 미등록 단어 추출
