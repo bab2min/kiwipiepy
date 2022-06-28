@@ -1,9 +1,10 @@
 import re
 from typing import Callable, List, Optional, Tuple, Union, Iterable
 from collections import namedtuple
+from dataclasses import dataclass
 import warnings
 
-from _kiwipiepy import _Kiwi
+from _kiwipiepy import _Kiwi, _TypoTransformer
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match, Option
@@ -14,6 +15,143 @@ Sentence.text.__doc__ = '분할된 문장의 텍스트'
 Sentence.start.__doc__ = '전체 텍스트 내에서 분할된 문장이 시작하는 위치 (문자 단위)'
 Sentence.end.__doc__ = '전체 텍스트 내에서 분할된 문장이 끝나는 위치 (문자 단위)'
 Sentence.tokens.__doc__ = '분할된 문장의 형태소 분석 결과'
+
+@dataclass
+class TypoDefinition:
+    '''.. versionadded:: 0.13.0
+
+오타 생성 규칙을 정의하는 dataclass
+
+Parameters
+----------
+orig: List[str]
+    원본 문자열
+error: List[str]
+    교체될 오타의 문자열
+cost: float
+    교체 비용
+condition: str
+    오타 교체가 가능한 환경 조건. `None`, `'any'`(아무 글자 뒤), `'vowel'`(모음 뒤), `'applosive'`(불파음 뒤) 중 하나. 생략 시 기본값은 `None`입니다.
+
+Notes
+-----
+`orig`나 `error`는 완전한 음절 혹은 모음이나 자음을 포함할 수 있습니다. 자음의 경우 종성은 '\\'로 escape해주어야 합니다.
+
+```python
+TypoDefinition(['개'], ['게'], 1.0) # '개'를 '게'로 교체
+TypoDefinition(['ㅐ'], ['ㅔ'], 1.0) # 모든 'ㅐ'를 'ㅒ'로 교체
+TypoDefinition(['ㄲ'], ['ㄱ'], 1.0) # 모든 초성 'ㄲ'을 초성 'ㄱ'으로 교체
+TypoDefinition(['ㄳ'], ['ㄱ'], 1.0) # 'ㄳ'에 해당하는 초성은 없으므로 ValueError 발생
+TypoDefinition(['\ㄳ'], ['\ㄱ'], 1.0) # 모든 종성 'ㄳ'을 종성 'ㄱ'으로 교체
+```
+    '''
+    orig: List[str]
+    error: List[str]
+    cost: float
+    condition: Optional[str] = None
+
+    def __post_init__(self):
+        if self.condition not in (None, 'any', 'vowel', 'applosive'):
+            raise ValueError("`condition` should be one of (None, 'any', 'vowel', 'applosive'), but {}".format(self.condition))
+
+_c_to_onset = dict(zip(
+    'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ', 
+    range(19),
+))
+
+_c_to_coda = dict(zip(
+    'ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ', 
+    range(28)
+))
+
+def _convert_consonant(s):
+    ret = []
+    prev_escape = False
+    for c in s:
+        if prev_escape:
+            if c == '\\': ret.append('\\')
+            elif c in _c_to_coda: ret.append(chr(0x11A8 + _c_to_coda[c]))
+            elif c in _c_to_onset:
+                raise ValueError("Wrong consonant '\\{}'".format(c))
+            else:
+                raise ValueError("Wrong escape chr '\\{}'".format(c))
+            prev_escape = False
+        else:
+            if c == '\\': prev_escape = True
+            elif c in _c_to_onset: ret.append(chr(0x1100 + _c_to_onset[c]))
+            elif c in _c_to_coda:
+                raise ValueError("Wrong consonant {}".format(c))
+            else:
+                ret.append(c)
+    return ''.join(ret)
+
+class TypoTransformer(_TypoTransformer):
+    '''.. versionadded:: 0.13.0
+    
+오타 교정 기능에 사용되는 오타 생성기를 정의합니다.
+
+Parameters
+----------
+defs: List[TypoDefinition]
+    오타 생성 규칙을 정의하는 TypoDefinition의 List입니다.
+
+Notes
+-----
+이 클래스의 인스턴스를 Kiwi 생성시의 typos 인자로 주면 Kiwi의 오타 교정 기능이 활성화됩니다.
+```python
+>> from kiwipiepy import Kiwi, TypoTransformer, TypoDefinition
+>> typos = TypoTransformer([
+    TypoDefinition(["ㅐ", "ㅔ"], ["ㅐ", "ㅔ"], 1.), # ㅐ 혹은 ㅖ를 ㅐ 혹은 ㅖ로 교체하여 오타를 생성. 생성 비용은 1
+    TypoDefinition(["ㅔ"], ["ㅖ"], 2.), # ㅔ를 ㅖ로 교체하여 오타를 생성. 생성 비용은 2
+])
+>> typos.generate('과제', 1.) # 생성 비용이 1.0이하인 오타들을 생성
+[('과제', 0.0), ('과재', 1.0)]
+>> typos.generate('과제', 2.) # 생성 비용이 2.0이하인 오타들을 생성
+[('과제', 0.0), ('과재', 1.0), ('과졔', 2.0)]
+
+>> kiwi = Kiwi(typos=typos, typo_cost_threshold=2.) # typos에 정의된 오타들을 교정 후보로 삼는 Kiwi 생성.
+>> kiwi.tokenize('과재를 했다') 
+[Token(form='과제', tag='NNG', start=0, len=2), 
+ Token(form='를', tag='JKO', start=2, len=1), 
+ Token(form='하', tag='VV', start=4, len=1), 
+ Token(form='었', tag='EP', start=4, len=1), 
+ Token(form='다', tag='EF', start=5, len=1)]
+```
+    '''
+
+    def __init__(self,
+        defs: List[TypoDefinition]
+    ):
+        self._defs = list(defs)
+        super().__init__(
+            ((list(map(_convert_consonant, d.orig)), list(map(_convert_consonant, d.error)), d.cost, d.condition) for d in self._defs)
+        )
+
+    def generate(self, text:str, cost_threshold:float = 2.5) -> List[Tuple[str, float]]:
+        '''입력 텍스트로부터 오타를 생성합니다.
+
+Parameters
+----------
+text: str
+    원본 텍스트
+cost_threshold: float
+    생성 가능한 오타의 최대 비용
+
+Returns
+-------
+errors: List[Tuple[str, float]]
+    생성된 오타와 그 생성 비용의 List
+        '''
+        return super().generate(text, cost_threshold)
+
+    @property
+    def defs(self):
+        '''현재 오타 생성기의 정의자 목록'''
+        return self._defs
+    
+    def __repr__(self):
+        return "TypoTransformer([{}])".format(",\n  ".join(map(repr, self._defs)))
+
 
 class Kiwi(_Kiwi):
     '''Kiwi 클래스는 실제 형태소 분석을 수행하는 kiwipiepy 모듈의 핵심 클래스입니다.
@@ -34,6 +172,20 @@ integrate_allormoph: bool
     True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다. 기본값은 True입니다.
 load_default_dict: bool
     True일 경우 인스턴스 생성시 자동으로 기본 사전을 불러옵니다. 기본 사전은 위키백과와 나무위키에서 추출된 고유 명사 표제어들로 구성되어 있습니다. 기본값은 True입니다.
+model_type: str
+    .. versionadded:: 0.13.0
+
+    형태소 분석에 사용할 언어 모델을 지정합니다. `'knlm'`, `'sbg'` 중 하나를 선택할 수 있습니다. 기본값은 `'knlm'`입니다. 각 모델에 대한 자세한 설명은 <a href='#_4'>여기</a>를 참조하세요.
+
+typos: Union[str, TypoTransformer]
+    .. versionadded:: 0.13.0
+
+    교정에 사용할 오타 정보입니다. 기본값은 `None`으로 이 경우 오타 교정을 사용하지 않습니다. `'basic'`으로 입력시 내장된 기본 오타 정보를 이용합니다.
+    이에 대한 자세한 내용은 `kiwipiepy.TypoTransformer` 및 <a href='#_5'>여기</a>를 참조하세요.
+typo_cost_threshold: float
+    .. versionadded:: 0.13.0
+
+    오타 교정시 고려할 최대 오타 비용입니다. 이 비용을 넘어서는 오타에 대해서는 탐색하지 않습니다. 기본값은 2.5입니다.
     '''
 
     def __init__(self, 
@@ -42,7 +194,9 @@ load_default_dict: bool
         options:Optional[int] = None,
         integrate_allomorph:Optional[bool] = None,
         load_default_dict:Optional[bool] = None,
-        sbg=False,
+        model_type:Optional[str] = 'knlm',
+        typos:Optional[Union[str, TypoTransformer]] = None,
+        typo_cost_threshold:Optional[float] = 2.5,
     ) -> None:
         if num_workers is None:
             num_workers = 0
@@ -60,12 +214,21 @@ load_default_dict: bool
         if load_default_dict is None:
             load_default_dict = bool(options & Option.LOAD_DEFAULT_DICTIONARY)
 
+        if model_type not in ('knlm', 'sbg'):
+            raise ValueError("`model_type` should be one of ('knlm', 'sbg'), but {}".format(model_type))
+        
+        if typos == 'basic': 
+            import kiwipiepy
+            typos = kiwipiepy.basic_typos
+
         super().__init__(
             num_workers=num_workers,
             model_path=model_path,
             integrate_allomorph=integrate_allomorph,
             load_default_dict=load_default_dict,
-            sbg=sbg,
+            sbg=(model_type=='sbg'),
+            typos=typos,
+            typo_cost_threshold=typo_cost_threshold,
         )
 
         self._ns_integrate_allomorph = integrate_allomorph
@@ -75,6 +238,8 @@ load_default_dict: bool
         self._ns_space_penalty = 7.
         self._ns_max_unk_form_size = 6
         self._ns_space_tolerance = 0
+        self._ns_typo_cost_weight = 6.
+        self._ns_model_type = model_type
 
     def add_user_word(self,
         word:str,
@@ -593,6 +758,7 @@ value: int
         self._space_penalty = self._ns_space_penalty
         self._max_unk_form_size = self._ns_max_unk_form_size
         self._space_tolerance = self._ns_space_tolerance
+        self._typo_cost_weight = self._ns_typo_cost_weight
 
     @property
     def cutoff_threshold(self):
@@ -665,6 +831,20 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         self._max_unk_form_size = self._ns_max_unk_form_size = int(v)
 
     @property
+    def typo_cost_weight(self):
+        '''.. versionadded:: 0.13.0
+
+오타 교정 시에 사용할 교정 가중치. 이 값이 클수록 교정을 보수적으로 수행합니다. 기본값은 6입니다.
+        '''
+
+        return self._ns_typo_cost_weight
+    
+    @typo_cost_weight.setter
+    def typo_cost_weight(self, v:float):
+        if v < 0: raise ValueError("`typo_cost_weight` must be a zero or positive float.")
+        self._typo_cost_weight = self._ns_typo_cost_weight = float(v)
+
+    @property
     def num_workers(self):
         '''.. versionadded:: 0.10.0
 
@@ -673,6 +853,14 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         
         return self._num_workers
     
+    @property
+    def model_type(self):
+        '''.. versionadded:: 0.13.0
+
+형태소 분석에 사용 중인 언어 모델의 종류 (읽기 전용)
+        '''
+        return self._ns_model_type
+
     def _tokenize(self, 
         text:Union[str, Iterable[str]], 
         match_options:Optional[int] = Match.ALL,
@@ -1080,7 +1268,7 @@ Parameters
 ----------
 morphs: Iterable[Union[Token, Tuple[str, str]]]
     결합할 형태소의 목록입니다. 
-    각 형태소는 `Kiwi.tokenizer`에서 얻어진 `Token` 타입이거나, 
+    각 형태소는 `Kiwi.tokenize`에서 얻어진 `Token` 타입이거나, 
     (형태, 품사)로 구성된 `tuple` 타입이어야 합니다.
 lm_search: bool
     둘 이상의 형태로 복원 가능한 모호한 형태소가 있는 경우, 이 값이 True면 언어 모델 탐색을 통해 최적의 형태소를 선택합니다.

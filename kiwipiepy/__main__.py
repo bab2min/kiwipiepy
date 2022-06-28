@@ -1,5 +1,8 @@
 import sys
-import readline
+try:
+    import readline
+except:
+    pass
 
 from kiwipiepy import Kiwi, __version__
 
@@ -40,7 +43,7 @@ def join(args, kiwi:Kiwi):
 def main(args):
     print("kiwipiepy v{}".format(__version__))
 
-    kiwi = Kiwi(model_path=args.model_path, sbg=args.sbg)
+    kiwi = Kiwi(model_path=args.model_path, model_type=args.model_type, typos=args.typos, typo_cost_threshold=args.typo_cost_threshold)
     if args.task == 'tokenize':
         tokenize(args, kiwi)
     elif args.task == 'space':
@@ -52,10 +55,12 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path')
-    parser.add_argument('--sbg', default=False, action='store_true')
+    parser.add_argument('--model_type', default='knlm', choices=['knlm', 'sbg'])
     parser.add_argument('--top_n', default=1, type=int)
     parser.add_argument('--normalize_coda', default=False, action='store_true')
     parser.add_argument('--reset_whitespace', default=False, action='store_true')
     parser.add_argument('--task', default='tokenize', choices=['tokenize', 'space', 'join'])
+    parser.add_argument('--typos')
+    parser.add_argument('--typo_cost_threshold', default=2.5, type=float)
     
     main(parser.parse_args())

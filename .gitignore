@@ -265,3 +265,4 @@ __pycache__
 .java/
 *.err
 benchmark/disambiguate/errors/
+model/kiwipiepy_model/skipbigram.mdl
