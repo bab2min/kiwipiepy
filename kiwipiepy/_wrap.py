@@ -175,16 +175,13 @@ load_default_dict: bool
 model_type: str
     .. versionadded:: 0.13.0
 
-    형태소 분석에 사용할 언어 모델을 지정합니다. 다음 중 하나를 선택할 수 있습니다. 기본값은 `'knlm'`입니다.
-
-    * `knlm`: Kneser-ney n-gram 언어 모델을 사용합니다. 먼 거리에 있는 형태소와의 관계는 고려하지 못하지만, 속도가 빠릅니다.
-    * `sbg`: knlm에 더불어 SkipBigram 모델을 함께 사용합니다. 속도는 약 50% 정도 느리지만, 먼 거리에 있는 형태소와의 관계를 고려할 수 있습니다.
+    형태소 분석에 사용할 언어 모델을 지정합니다. `'knlm'`, `'sbg'` 중 하나를 선택할 수 있습니다. 기본값은 `'knlm'`입니다. 각 모델에 대한 자세한 설명은 <a href='#_4'>여기</a>를 참조하세요.
 
 typos: Union[str, TypoTransformer]
     .. versionadded:: 0.13.0
 
     교정에 사용할 오타 정보입니다. 기본값은 `None`으로 이 경우 오타 교정을 사용하지 않습니다. `'basic'`으로 입력시 내장된 기본 오타 정보를 이용합니다.
-    이에 대한 자세한 내용은 `kiwipiepy.TypoTransformer`를 참조하세요.
+    이에 대한 자세한 내용은 `kiwipiepy.TypoTransformer` 및 <a href='#_5'>여기</a>를 참조하세요.
 typo_cost_threshold: float
     .. versionadded:: 0.13.0
 
@@ -220,7 +217,9 @@ typo_cost_threshold: float
         if model_type not in ('knlm', 'sbg'):
             raise ValueError("`model_type` should be one of ('knlm', 'sbg'), but {}".format(model_type))
         
-        if typos == 'basic': typos = basic_typos
+        if typos == 'basic': 
+            import kiwipiepy
+            typos = kiwipiepy.basic_typos
 
         super().__init__(
             num_workers=num_workers,

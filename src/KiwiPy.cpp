@@ -320,6 +320,20 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ [](PyTypeObject& obj)
 	obj.tp_getset = getsets;
 }};
 
+static bool allowInitTokenObject = false;
+struct AllowInitToken
+{
+	AllowInitToken()
+	{
+		allowInitTokenObject = true;
+	}
+
+	~AllowInitToken()
+	{
+		allowInitTokenObject = false;
+	}
+};
+
 struct TokenObject : py::CObject<TokenObject>
 {
 	static constexpr const char* _name = "kiwipiepy.Token";
@@ -337,7 +351,11 @@ struct TokenObject : py::CObject<TokenObject>
 
 	static int init(TokenObject* self, PyObject* args, PyObject* kwargs)
 	{
-		return 0;
+		return py::handleExc([&]()
+		{
+			if (allowInitTokenObject) return 0;
+			throw py::RuntimeError{ "Cannot create a new instance of `kiwipiepy.Token`." };
+		});
 	}
 
 	uint32_t end()
@@ -440,6 +458,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 
 PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 {
+	AllowInitToken allowInitToken;
 	py::UniqueObj retList{ PyList_New(res.size()) };
 	size_t idx = 0;
 	for (auto& p : res)
