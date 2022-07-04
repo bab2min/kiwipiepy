@@ -426,6 +426,10 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.13.1 (2022-07-05)
+    * Kiwi 0.13.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.13.1 )이 반영되었습니다.
+        * `Kiwi.join` 이 일부 입력에 대해 오류를 발생시키는 문제를 해결했습니다.
+
 * 0.13.0 (2022-06-28)
     * Kiwi 0.13.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.13.0 )이 반영되었습니다.
         * 형태소 분석 시 간단한 오타 교정을 수행하는 기능 추가
