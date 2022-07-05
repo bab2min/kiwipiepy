@@ -37,6 +37,8 @@ jobs:
         mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
         
+        yum install libffi-devel -y
+
         /opt/python/cp38-cp38/bin/python setup.py sdist
         /opt/python/cp38-cp38/bin/python -m pip install twine wheel
         /opt/python/cp38-cp38/bin/python -m twine upload dist/*.tar.gz
