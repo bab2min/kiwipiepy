@@ -1,4 +1,5 @@
 import sys
+from pprint import pprint
 try:
     import readline
 except:
@@ -11,7 +12,7 @@ def tokenize(args, kiwi:Kiwi):
         while True:
             txt = input('>>> ')
             for res in kiwi.analyze(txt, args.top_n, normalize_coda=args.normalize_coda):
-                print(res)
+                pprint(res)
     except (EOFError, KeyboardInterrupt):
         print()
 
@@ -40,6 +41,15 @@ def join(args, kiwi:Kiwi):
     except (EOFError, KeyboardInterrupt):
         print()
 
+def split(args, kiwi:Kiwi):
+    try:
+        while True:
+            txt = input('>>> ')
+            for res in kiwi.split_into_sents(txt, normalize_coda=args.normalize_coda):
+                pprint(res)
+    except (EOFError, KeyboardInterrupt):
+        print()
+
 def main(args):
     print("kiwipiepy v{}".format(__version__))
 
@@ -50,6 +60,8 @@ def main(args):
         space(args, kiwi)
     elif args.task == 'join':
         join(args, kiwi)
+    elif args.task == 'split':
+        split(args, kiwi)
 
 if __name__ == '__main__':
     import argparse
@@ -59,7 +71,7 @@ if __name__ == '__main__':
     parser.add_argument('--top_n', default=1, type=int)
     parser.add_argument('--normalize_coda', default=False, action='store_true')
     parser.add_argument('--reset_whitespace', default=False, action='store_true')
-    parser.add_argument('--task', default='tokenize', choices=['tokenize', 'space', 'join'])
+    parser.add_argument('--task', default='tokenize', choices=['tokenize', 'space', 'join', 'split'])
     parser.add_argument('--typos')
     parser.add_argument('--typo_cost_threshold', default=2.5, type=float)
     
