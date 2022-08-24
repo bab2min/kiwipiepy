@@ -448,6 +448,18 @@ namespace py
 	inline std::string repr(PyObject* o)
 	{
 		UniqueObj r{ PyObject_Repr(o) };
+		if (!r) throw ExcPropagation{};
+		return toCpp<std::string>(r, "");
+	}
+
+	inline std::string reprWithNestedError(PyObject* o)
+	{
+		PyObject* type, * value, * traceback;
+		PyErr_Fetch(&type, &value, &traceback);
+		PyErr_Clear();
+		UniqueObj r{ PyObject_Repr(o) };
+		if (!r) throw ExcPropagation{};
+		PyErr_Restore(type, value, traceback);
 		return toCpp<std::string>(r, "");
 	}
 
@@ -456,6 +468,7 @@ namespace py
 	{
 		UniqueObj p{ py::buildPyValue(std::forward<_Ty>(o)) };
 		UniqueObj r{ PyObject_Repr(p) };
+		if (!r) throw ExcPropagation{};
 		return toCpp<std::string>(r, "");
 	}
 
@@ -463,7 +476,7 @@ namespace py
 	inline _Ty toCpp(PyObject* obj)
 	{
 		if (!obj) throw ConversionFail{ "cannot convert null pointer into appropriate C++ type" };
-		return ValueBuilder<_Ty>{}._toCpp(obj, [=](){ return "cannot convert " + repr(obj) + " into appropriate C++ type"; });
+		return ValueBuilder<_Ty>{}._toCpp(obj, [=](){ return "cannot convert " + reprWithNestedError(obj) + " into appropriate C++ type"; });
 	}
 
 	template<typename _Ty>

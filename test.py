@@ -233,3 +233,16 @@ def test_sbg():
     print(kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.'))
     kiwi = Kiwi(model_type='sbg')
     print(kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.'))
+
+def test_issue_92():
+    kiwi = Kiwi(typos='basic')
+    try:
+        kiwi.join(kiwi.analyze('쁘'))
+        raise AssertionError("expected to raise `ValueError`")
+    except ValueError:
+        pass
+    except:
+        raise
+
+    kiwi.join([('사랑','NNG')])
+
