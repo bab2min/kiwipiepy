@@ -62,6 +62,13 @@ DOC_VARIABLE_EN_KO(Token_sent_position__doc__,
 형태소의 입력 텍스트 내 문장 번호 (0부터 시작))""
 );
 
+DOC_VARIABLE_EN_KO(Token_sub_sent_position__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.14.0
+
+형태소가 안긴 문장에 속한 경우, 현 문장 내의 안긴 문장 번호. (1부터 시작. 0일 경우 안긴 문장이 아님))""
+);
+
 DOC_VARIABLE_EN_KO(Token_line_number__doc__,
     u8R""()"",
     u8R""(.. versionadded:: 0.10.3

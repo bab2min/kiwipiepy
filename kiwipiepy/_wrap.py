@@ -9,12 +9,16 @@ from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match, Option
 
-Sentence = namedtuple('Sentence', ['text', 'start', 'end', 'tokens'])
+Sentence = namedtuple('Sentence', ['text', 'start', 'end', 'tokens', 'subs'])
 Sentence.__doc__ = '문장 분할 결과를 담기 위한 `namedtuple`입니다.'
 Sentence.text.__doc__ = '분할된 문장의 텍스트'
 Sentence.start.__doc__ = '전체 텍스트 내에서 분할된 문장이 시작하는 위치 (문자 단위)'
 Sentence.end.__doc__ = '전체 텍스트 내에서 분할된 문장이 끝나는 위치 (문자 단위)'
 Sentence.tokens.__doc__ = '분할된 문장의 형태소 분석 결과'
+Sentence.subs.__doc__ = '''.. versionadded:: 0.14.0
+
+현 문장 내에 포함된 안긴 문장의 목록
+'''
 
 @dataclass
 class TypoDefinition:
@@ -1004,6 +1008,7 @@ Notes
         match_options:Optional[int] = Match.ALL, 
         normalize_coda:Optional[bool] = False,
         return_tokens:Optional[bool] = False,
+        return_sub_sents:Optional[bool] = True,
     ) -> Union[List[Sentence], Iterable[List[Sentence]]]:
         '''..versionadded:: 0.10.3
 
@@ -1073,7 +1078,23 @@ Notes
             for sent in sents:
                 start = sent[0].start
                 end = sent[-1].end
-                ret.append(Sentence(raw_input[start:end], start, end, sent if return_tokens else None))
+                tokens = sent if return_tokens else None
+                subs = None
+                if return_sub_sents:
+                    subs = []
+                    sub_toks = []
+                    last = 0
+                    for tok in sent:
+                        if tok.sub_sent_position != last:
+                            if last:
+                                subs.append(Sentence(raw_input[sub_start:last_end], sub_start, last_end, sub_toks if return_tokens else None, None))
+                                sub_toks = []
+                            sub_start = tok.start
+                        if tok.sub_sent_position:
+                            sub_toks.append(tok)
+                        last = tok.sub_sent_position
+                        last_end = tok.end
+                ret.append(Sentence(raw_input[start:end], start, end, tokens, subs))
             return ret
 
         if isinstance(text, str):

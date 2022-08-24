@@ -342,7 +342,7 @@ struct TokenObject : py::CObject<TokenObject>
 
 	u16string _form, _raw_form;
 	const char* _tag = nullptr;
-	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _lineNumber = 0;
+	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _subSentPosition = 0, _lineNumber = 0;
 	float _score = 0, _typoCost = 0;
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
@@ -434,6 +434,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 		{ (char*)"id", PY_GETTER_MEMPTR(&TokenObject::_morphId), nullptr, Token_id__doc__, nullptr },
 		{ (char*)"word_position", PY_GETTER_MEMPTR(&TokenObject::_wordPosition), nullptr, Token_word_position__doc__, nullptr },
 		{ (char*)"sent_position", PY_GETTER_MEMPTR(&TokenObject::_sentPosition), nullptr, Token_sent_position__doc__, nullptr },
+		{ (char*)"sub_sent_position", PY_GETTER_MEMPTR(&TokenObject::_subSentPosition), nullptr, Token_sub_sent_position__doc__, nullptr },
 		{ (char*)"line_number", PY_GETTER_MEMPTR(&TokenObject::_lineNumber), nullptr, Token_line_number__doc__, nullptr },
 		{ (char*)"base_form", PY_GETTER_MEMFN(&TokenObject::baseForm), nullptr, Token_base_form__doc__, nullptr },
 		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, Token_base_id__doc__, nullptr },
@@ -520,6 +521,7 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_len = q.length - u32chrs;
 			tItem->_wordPosition = q.wordPosition;
 			tItem->_sentPosition = q.sentPosition;
+			tItem->_subSentPosition = q.subSentPosition;
 			tItem->_lineNumber = q.lineNumber;
 			tItem->_score = q.score;
 			tItem->_typoCost = q.typoCost;
