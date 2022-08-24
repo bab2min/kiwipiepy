@@ -232,7 +232,7 @@ typo_cost_threshold: float
         )
 
         self._ns_integrate_allomorph = integrate_allomorph
-        self._ns_cutoff_threshold = 5.
+        self._ns_cutoff_threshold = 8.
         self._ns_unk_form_score_scale = 3.
         self._ns_unk_form_score_bias = 5.
         self._ns_space_penalty = 7.
