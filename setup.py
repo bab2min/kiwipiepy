@@ -214,7 +214,7 @@ setup(
     keywords='Korean morphological analysis',
     install_requires=[
         'dataclasses',
-        'kiwipiepy_model~=0.13'
+        'kiwipiepy_model~=0.14'
     ],
     packages=['kiwipiepy'],
     include_package_data=True,

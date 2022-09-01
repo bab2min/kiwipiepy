@@ -261,9 +261,15 @@ kiwi.extract_words(IterableTextFile('test.txt'), 10, 10, 0.25)
 사겼다	사귀/VV + 었/EP + 다/EF	-1.0
 #
 # 현재는 공백을 포함하는 다어절 형태를 등록할 수 없습니다.
+#
+# <규칙 기반의 변형된 이형태를 추가하는 경우>
+# (형태 규칙)$ \t (변형된 형태/품사태그) \t (점수)
+# 예) 요$	용/EF	-5
 ```
 단어점수는 생략 가능하며, 생략 시 기본값인 0으로 처리됩니다.
 실제 예시에 대해서는 Kiwi에 내장된 기본 사전 파일인 https://raw.githubusercontent.com/bab2min/Kiwi/main/ModelGenerator/default.dict 을 참조해주세요.
+
+또한 0.14.0버전부터 내장된 기본 오타 사전이 추가되었습니다. 이에 대해서는 https://raw.githubusercontent.com/bab2min/Kiwi/main/ModelGenerator/typo.dict 을 참조해주세요.
 
 언어 모델
 ---------
@@ -403,9 +409,11 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 <tr><td>XSV</td><td>동사 파생 접미사</td></tr>
 <tr><td>XSA</td><td>형용사 파생 접미사</td></tr>
 <tr><th rowspan='1'>어근</th><td>XR</td><td>어근</td></tr>
-<tr><th rowspan='9'>부호, 외국어, 특수문자(S)</th><td>SF</td><td>종결 부호(. ! ?)</td></tr>
+<tr><th rowspan='11'>부호, 외국어, 특수문자(S)</th><td>SF</td><td>종결 부호(. ! ?)</td></tr>
 <tr><td>SP</td><td>구분 부호(, / : ;)</td></tr>
 <tr><td>SS</td><td>인용 부호 및 괄호(' " ( ) [ ] < > { } ― ‘ ’ “ ” ≪ ≫ 등)</td></tr>
+<tr><td>SSO</td><td>SS 중 여는 부호</td></tr>
+<tr><td>SSC</td><td>SS 중 닫는 부호</td></tr>
 <tr><td>SE</td><td>줄임표(…)</td></tr>
 <tr><td>SO</td><td>붙임표(- ~)</td></tr>
 <tr><td>SW</td><td>기타 특수 문자</td></tr>
@@ -413,10 +421,11 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 <tr><td>SH</td><td>한자</td></tr>
 <tr><td>SN</td><td>숫자(0-9)</td></tr>
 <tr><th rowspan='1'>분석 불능</th><td>UN</td><td>분석 불능<sup>*</sup></td></tr>
-<tr><th rowspan='4'>웹(W)</th><td>W_URL</td><td>URL 주소<sup>*</sup></td></tr>
+<tr><th rowspan='5'>웹(W)</th><td>W_URL</td><td>URL 주소<sup>*</sup></td></tr>
 <tr><td>W_EMAIL</td><td>이메일 주소<sup>*</sup></td></tr>
 <tr><td>W_HASHTAG</td><td>해시태그(#abcd)<sup>*</sup></td></tr>
 <tr><td>W_MENTION</td><td>멘션(@abcd)<sup>*</sup></td></tr>
+<tr><td>W_SERIAL</td><td>일련번호(전화번호, 통장번호, IP주소 등)<sup>*</sup></td></tr>
 </table>
 
 <sup>*</sup> 세종 품사 태그와 다른 독자적인 태그입니다.
@@ -426,6 +435,18 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.14.0 (2022-09-01)
+    * Kiwi 0.14.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.14.0 )이 반영되었습니다.
+        * 동사 '이르다'의 모호성 해소 기능 추가
+        * W_SERIAL 태그 추가. SS 태그를 SSO, SSC 태그로 세분화
+        * 인용문 등으로 둘러싸인 안긴 문장이 포함된 문장에 대해 문장 분리 성능 개선
+        * `랬/댔/잖`의 분석 정확도 개선
+        * 내장 오타 사전 추가. 사용을 원치 않는 경우 `Kiwi(load_typo_dict=False)`로 끌 수 있습니다.
+    * 각종 버그가 수정되었습니다.
+        * 오타 교정 기능이 켜져 있는 경우 `Kiwi.join`이 실패하는 문제 해결
+        * 사용자 사전에 숫자를 포함한 NNP를 추가해도 반영이 되지 않는 문제 해결
+        * `Kiwi.join`이 일부 텍스트를 잘못 결합시키는 오류 해결
+
 * 0.13.1 (2022-07-05)
     * Kiwi 0.13.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.13.1 )이 반영되었습니다.
         * `Kiwi.join` 이 일부 입력에 대해 오류를 발생시키는 문제를 해결했습니다.

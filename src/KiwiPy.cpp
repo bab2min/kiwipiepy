@@ -1,4 +1,4 @@
-#include <stdexcept>
+﻿#include <stdexcept>
 
 #ifdef _DEBUG
 #undef _DEBUG
@@ -115,14 +115,15 @@ struct KiwiObject : py::CObject<KiwiObject>
 		{
 			const char* modelPath = nullptr;
 			size_t numThreads = 0, options = 3;
-			int integrateAllomorph = -1, loadDefaultDict = -1;
+			int integrateAllomorph = -1, loadDefaultDict = -1, loadTypoDict = 0;
 			size_t sbg = 0;
 			PyObject* typos = nullptr;
 			float typoCostThreshold = 2.5f;
-			static const char* kwlist[] = { "num_workers", "model_path", "integrate_allomorph", "load_default_dict", 
+			static const char* kwlist[] = { "num_workers", "model_path", "integrate_allomorph", 
+				"load_default_dict", "load_typo_dict",
 				"sbg", "typos", "typo_cost_threshold", nullptr};
-			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nzpppOf", (char**)kwlist,
-				&numThreads, &modelPath, &integrateAllomorph, &loadDefaultDict, &sbg, &typos, &typoCostThreshold
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nzppppOf", (char**)kwlist,
+				&numThreads, &modelPath, &integrateAllomorph, &loadDefaultDict, &loadTypoDict, &sbg, &typos, &typoCostThreshold
 			)) return -1;
 
 			if (typos == nullptr || typos == Py_None)
@@ -152,6 +153,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 				boptions = (boptions & ~BuildOption::loadDefaultDict)
 					| (loadDefaultDict ? BuildOption::loadDefaultDict : BuildOption::none);
 			}
+
+			if (loadTypoDict) boptions |= BuildOption::loadTypoDict;
 
 			string spath;
 			if (modelPath)
@@ -483,7 +486,7 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			if (tag == POSTag::vv || tag == POSTag::va || tag == POSTag::vx || tag == POSTag::xsa)
 			{
 				size_t coda = (tItem->_form.back() - 0xAC00) % 28;
-				if (coda == 7 || coda == 17 || coda == 19)
+				if (coda == 7 || coda == 17 || coda == 19 || tItem->_form == u"이르")
 				{
 					if (tItem->_regularity)
 					{
