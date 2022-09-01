@@ -113,17 +113,17 @@ def test_split_into_sents():
     assert sents[5].text == "아주 맛있었음...! ^^"
 
 def test_add_rule():
-    kiwi = Kiwi()
-    ores, oscore = kiwi.analyze("했어요! 하잖아요! 할까요?")[0]
+    kiwi = Kiwi(load_typo_dict=False)
+    ores, oscore = kiwi.analyze("했어요! 하잖아요! 할까요? 좋아요!")[0]
 
     assert len(kiwi.add_re_rule("EF", r"요$", "용", score=0)) > 0
-    res, score = kiwi.analyze("했어용! 하잖아용! 할까용?")[0]
+    res, score = kiwi.analyze("했어용! 하잖아용! 할까용? 좋아용!")[0]
     assert score == oscore
 
     kiwi = Kiwi()
     assert len(kiwi.add_re_rule("EF", r"요$", "용", score=-1)) > 0
-    res, score = kiwi.analyze("했어용! 하잖아용! 할까용?")[0]
-    assert score == oscore - 3
+    res, score = kiwi.analyze("했어용! 하잖아용! 할까용? 좋아용!")[0]
+    assert score == oscore - 4
 
 def test_add_pre_analyzed_word():
     kiwi = Kiwi()
