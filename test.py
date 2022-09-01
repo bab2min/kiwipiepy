@@ -120,7 +120,7 @@ def test_add_rule():
     res, score = kiwi.analyze("했어용! 하잖아용! 할까용? 좋아용!")[0]
     assert score == oscore
 
-    kiwi = Kiwi()
+    kiwi = Kiwi(load_typo_dict=False)
     assert len(kiwi.add_re_rule("EF", r"요$", "용", score=-1)) > 0
     res, score = kiwi.analyze("했어용! 하잖아용! 할까용? 좋아용!")[0]
     assert score == oscore - 4
