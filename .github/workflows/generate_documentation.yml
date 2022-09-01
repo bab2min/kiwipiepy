@@ -32,7 +32,7 @@ jobs:
 
         mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/default.dict model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
         
