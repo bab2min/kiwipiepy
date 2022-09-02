@@ -1,4 +1,4 @@
-#include <stdexcept>
+﻿#include <stdexcept>
 
 #ifdef _DEBUG
 #undef _DEBUG
@@ -115,14 +115,15 @@ struct KiwiObject : py::CObject<KiwiObject>
 		{
 			const char* modelPath = nullptr;
 			size_t numThreads = 0, options = 3;
-			int integrateAllomorph = -1, loadDefaultDict = -1;
+			int integrateAllomorph = -1, loadDefaultDict = -1, loadTypoDict = 0;
 			size_t sbg = 0;
 			PyObject* typos = nullptr;
 			float typoCostThreshold = 2.5f;
-			static const char* kwlist[] = { "num_workers", "model_path", "integrate_allomorph", "load_default_dict", 
+			static const char* kwlist[] = { "num_workers", "model_path", "integrate_allomorph", 
+				"load_default_dict", "load_typo_dict",
 				"sbg", "typos", "typo_cost_threshold", nullptr};
-			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nzpppOf", (char**)kwlist,
-				&numThreads, &modelPath, &integrateAllomorph, &loadDefaultDict, &sbg, &typos, &typoCostThreshold
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|nzppppOf", (char**)kwlist,
+				&numThreads, &modelPath, &integrateAllomorph, &loadDefaultDict, &loadTypoDict, &sbg, &typos, &typoCostThreshold
 			)) return -1;
 
 			if (typos == nullptr || typos == Py_None)
@@ -152,6 +153,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 				boptions = (boptions & ~BuildOption::loadDefaultDict)
 					| (loadDefaultDict ? BuildOption::loadDefaultDict : BuildOption::none);
 			}
+
+			if (loadTypoDict) boptions |= BuildOption::loadTypoDict;
 
 			string spath;
 			if (modelPath)
@@ -342,7 +345,7 @@ struct TokenObject : py::CObject<TokenObject>
 
 	u16string _form, _raw_form;
 	const char* _tag = nullptr;
-	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _lineNumber = 0;
+	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _subSentPosition = 0, _lineNumber = 0;
 	float _score = 0, _typoCost = 0;
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
@@ -434,6 +437,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 		{ (char*)"id", PY_GETTER_MEMPTR(&TokenObject::_morphId), nullptr, Token_id__doc__, nullptr },
 		{ (char*)"word_position", PY_GETTER_MEMPTR(&TokenObject::_wordPosition), nullptr, Token_word_position__doc__, nullptr },
 		{ (char*)"sent_position", PY_GETTER_MEMPTR(&TokenObject::_sentPosition), nullptr, Token_sent_position__doc__, nullptr },
+		{ (char*)"sub_sent_position", PY_GETTER_MEMPTR(&TokenObject::_subSentPosition), nullptr, Token_sub_sent_position__doc__, nullptr },
 		{ (char*)"line_number", PY_GETTER_MEMPTR(&TokenObject::_lineNumber), nullptr, Token_line_number__doc__, nullptr },
 		{ (char*)"base_form", PY_GETTER_MEMFN(&TokenObject::baseForm), nullptr, Token_base_form__doc__, nullptr },
 		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, Token_base_id__doc__, nullptr },
@@ -482,7 +486,7 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			if (tag == POSTag::vv || tag == POSTag::va || tag == POSTag::vx || tag == POSTag::xsa)
 			{
 				size_t coda = (tItem->_form.back() - 0xAC00) % 28;
-				if (coda == 7 || coda == 17 || coda == 19)
+				if (coda == 7 || coda == 17 || coda == 19 || tItem->_form == u"이르")
 				{
 					if (tItem->_regularity)
 					{
@@ -520,6 +524,7 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_len = q.length - u32chrs;
 			tItem->_wordPosition = q.wordPosition;
 			tItem->_sentPosition = q.sentPosition;
+			tItem->_subSentPosition = q.subSentPosition;
 			tItem->_lineNumber = q.lineNumber;
 			tItem->_score = q.score;
 			tItem->_typoCost = q.typoCost;

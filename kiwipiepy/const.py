@@ -33,20 +33,26 @@ class Match(IntEnum):
     분석 시 특수한 문자열 패턴 중 어떤 것들을 추출할 지 선택할 수 있습니다.
     bitwise OR 연산으로 여러 개 선택하여 사용가능합니다.
     """
-    URL = 1
+    URL = 1 << 0
     """ 인터넷 주소 형태의 텍스트를 W_URL이라는 태그로 추출합니다. """
-    EMAIL = 2
+    EMAIL = 1 << 1
     """ 이메일 주소 형태의 텍스트를 W_EMAIL이라는 태그로 추출합니다. """
-    HASHTAG = 4
+    HASHTAG = 1 << 2
     """ 해시태그(#해시태그) 형태의 텍스트를 W_HASHTAG라는 태그로 추출합니다. """
-    MENTION = 8
+    MENTION = 1 << 3
     """
     멘션(@멘션) 형태의 텍스트를 W_MENTION이라는 태그로 추출합니다.
     
     .. versionadded:: 0.8.2
     """
-    ALL = URL | EMAIL | HASHTAG | MENTION
-    """ URL, EMAIL, HASHTAG, MENTION를 모두 사용합니다. """
+    SERIAL = 1 << 4
+    """
+    일련번호 형태의 텍스트를 W_SERIAL이라는 태그로 추출합니다.
+    
+    .. versionadded:: 0.14.0
+    """
+    ALL = URL | EMAIL | HASHTAG | MENTION | SERIAL
+    """ URL, EMAIL, HASHTAG, MENTION, SERIAL을 모두 사용합니다. """
     NORMALIZING_CODA = 1 << 16
     """ '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다. """
     JOIN_NOUN_PREFIX = 1 << 17

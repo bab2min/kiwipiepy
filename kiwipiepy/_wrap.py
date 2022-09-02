@@ -9,12 +9,16 @@ from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match, Option
 
-Sentence = namedtuple('Sentence', ['text', 'start', 'end', 'tokens'])
+Sentence = namedtuple('Sentence', ['text', 'start', 'end', 'tokens', 'subs'])
 Sentence.__doc__ = '문장 분할 결과를 담기 위한 `namedtuple`입니다.'
 Sentence.text.__doc__ = '분할된 문장의 텍스트'
 Sentence.start.__doc__ = '전체 텍스트 내에서 분할된 문장이 시작하는 위치 (문자 단위)'
 Sentence.end.__doc__ = '전체 텍스트 내에서 분할된 문장이 끝나는 위치 (문자 단위)'
 Sentence.tokens.__doc__ = '분할된 문장의 형태소 분석 결과'
+Sentence.subs.__doc__ = '''.. versionadded:: 0.14.0
+
+현 문장 내에 포함된 안긴 문장의 목록
+'''
 
 @dataclass
 class TypoDefinition:
@@ -172,6 +176,10 @@ integrate_allormoph: bool
     True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다. 기본값은 True입니다.
 load_default_dict: bool
     True일 경우 인스턴스 생성시 자동으로 기본 사전을 불러옵니다. 기본 사전은 위키백과와 나무위키에서 추출된 고유 명사 표제어들로 구성되어 있습니다. 기본값은 True입니다.
+load_typo_dict: bool
+    .. versionadded:: 0.14.0
+    
+    True일 경우 인스턴스 생성시 자동으로 내장 오타 사전을 불러옵니다. 오타 사전은 자주 틀리는 오타 일부와 인터넷에서 자주 쓰이는 변형된 종결 어미로 구성되어 있습니다. 기본값은 True입니다.
 model_type: str
     .. versionadded:: 0.13.0
 
@@ -194,6 +202,7 @@ typo_cost_threshold: float
         options:Optional[int] = None,
         integrate_allomorph:Optional[bool] = None,
         load_default_dict:Optional[bool] = None,
+        load_typo_dict:Optional[bool] = None,
         model_type:Optional[str] = 'knlm',
         typos:Optional[Union[str, TypoTransformer]] = None,
         typo_cost_threshold:Optional[float] = 2.5,
@@ -213,6 +222,8 @@ typo_cost_threshold: float
             integrate_allomorph = bool(options & Option.INTEGRATE_ALLOMORPH)
         if load_default_dict is None:
             load_default_dict = bool(options & Option.LOAD_DEFAULT_DICTIONARY)
+        if load_typo_dict is None:
+            load_typo_dict = True
 
         if model_type not in ('knlm', 'sbg'):
             raise ValueError("`model_type` should be one of ('knlm', 'sbg'), but {}".format(model_type))
@@ -226,13 +237,14 @@ typo_cost_threshold: float
             model_path=model_path,
             integrate_allomorph=integrate_allomorph,
             load_default_dict=load_default_dict,
+            load_typo_dict=load_typo_dict,
             sbg=(model_type=='sbg'),
             typos=typos,
             typo_cost_threshold=typo_cost_threshold,
         )
 
         self._ns_integrate_allomorph = integrate_allomorph
-        self._ns_cutoff_threshold = 5.
+        self._ns_cutoff_threshold = 8.
         self._ns_unk_form_score_scale = 3.
         self._ns_unk_form_score_bias = 5.
         self._ns_space_penalty = 7.
@@ -1004,6 +1016,7 @@ Notes
         match_options:Optional[int] = Match.ALL, 
         normalize_coda:Optional[bool] = False,
         return_tokens:Optional[bool] = False,
+        return_sub_sents:Optional[bool] = True,
     ) -> Union[List[Sentence], Iterable[List[Sentence]]]:
         '''..versionadded:: 0.10.3
 
@@ -1022,6 +1035,10 @@ normalize_coda: bool
     True인 경우 '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다.
 return_tokens: bool
     True인 경우 문장별 형태소 분석 결과도 함께 반환합니다.
+return_sub_Sents: bool
+    ..versionadded:: 0.14.0
+
+    True인 경우 문장 내 안긴 문장의 목록도 함께 반환합니다.
 
 Returns
 -------
@@ -1042,8 +1059,9 @@ Notes
 
 ```python
 >> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘")
-[Sentence(text='여러 문장으로 구성된 텍스트네', start=0, end=16, tokens=None),
- Sentence(text='이걸 분리해줘', start=17, end=24, tokens=None)]
+[Sentence(text='여러 문장으로 구성된 텍스트네', start=0, end=16, tokens=None, subs=[]),
+ Sentence(text='이걸 분리해줘', start=17, end=24, tokens=None, subs=[])]
+
 >> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘", return_tokens=True)
 [Sentence(text='여러 문장으로 구성된 텍스트네', start=0, end=16, tokens=[
   Token(form='여러', tag='MM', start=0, len=2), 
@@ -1055,7 +1073,7 @@ Notes
   Token(form='텍스트', tag='NNG', start=12, len=3), 
   Token(form='이', tag='VCP', start=15, len=1), 
   Token(form='네', tag='EF', start=15, len=1)
- ]),
+ ], subs=[]),
  Sentence(text='이걸 분리해줘', start=17, end=24, tokens=[
   Token(form='이거', tag='NP', start=17, len=2), 
   Token(form='ᆯ', tag='JKO', start=19, len=0), 
@@ -1064,7 +1082,18 @@ Notes
   Token(form='어', tag='EC', start=22, len=1), 
   Token(form='주', tag='VX', start=23, len=1), 
   Token(form='어', tag='EF', start=23, len=1)
- ])]
+ ], subs=[])]
+
+# 0.14.0 버전부터는 문장 안에 또 다른 문장이 포함된 경우도 처리 가능
+>> kiwi.split_into_sents("회사의 정보 서비스를 책임지고 있는 로웬버그John Loewenberg는" 
+     "<서비스 산업에 있어 종이는 혈관내의 콜레스트롤과 같다. 나쁜 종이는 동맥을 막는 내부의 물질이다.>"
+     "라고 말한다.")
+[Sentence(text='회사의 정보 서비스를 책임지고 있는 로웬버그John Loewenberg는' 
+  '<서비스 산업에 있어 종이는 혈관내의 콜레스트롤과 같다. 나쁜 종이는 동맥을 막는 내부의 물질이다.>'
+  '라고 말한다.', start=0, end=104, tokens=None, subs=[
+  Sentence(text='서비스 산업에 있어 종이는 혈관내의 콜레스트롤과 같다.', start=42, end=72, tokens=None, subs=None), 
+  Sentence(text='나쁜 종이는 동맥을 막는 내부의 물질이다.', start=73, end=96, tokens=None, subs=None)
+])]
 ```
         '''
         def _make_result(arg):
@@ -1073,7 +1102,23 @@ Notes
             for sent in sents:
                 start = sent[0].start
                 end = sent[-1].end
-                ret.append(Sentence(raw_input[start:end], start, end, sent if return_tokens else None))
+                tokens = sent if return_tokens else None
+                subs = None
+                if return_sub_sents:
+                    subs = []
+                    sub_toks = []
+                    last = 0
+                    for tok in sent:
+                        if tok.sub_sent_position != last:
+                            if last:
+                                subs.append(Sentence(raw_input[sub_start:last_end], sub_start, last_end, sub_toks if return_tokens else None, None))
+                                sub_toks = []
+                            sub_start = tok.start
+                        if tok.sub_sent_position:
+                            sub_toks.append(tok)
+                        last = tok.sub_sent_position
+                        last_end = tok.end
+                ret.append(Sentence(raw_input[start:end], start, end, tokens, subs))
             return ret
 
         if isinstance(text, str):

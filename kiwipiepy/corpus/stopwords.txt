@@ -1,6 +1,8 @@
 /SF
 /SP
 /SS
+/SSO
+/SSC
 /SE
 /SO
 /SW
