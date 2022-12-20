@@ -814,9 +814,11 @@ Token(form='결과', tag='NNG', start=4, len=2)
 <tr><td>XSV</td><td>동사 파생 접미사</td></tr>
 <tr><td>XSA</td><td>형용사 파생 접미사</td></tr>
 <tr><th rowspan='1'>어근</th><td>XR</td><td>어근</td></tr>
-<tr><th rowspan='9'>부호, 외국어, 특수문자(S)</th><td>SF</td><td>종결 부호(. ! ?)</td></tr>
+<tr><th rowspan='11'>부호, 외국어, 특수문자(S)</th><td>SF</td><td>종결 부호(. ! ?)</td></tr>
 <tr><td>SP</td><td>구분 부호(, / : ;)</td></tr>
 <tr><td>SS</td><td>인용 부호 및 괄호(' " ( ) [ ] < > { } ― ‘ ’ “ ” ≪ ≫ 등)</td></tr>
+<tr><td>SSO</td><td>SS 중 여는 부호</td></tr>
+<tr><td>SSC</td><td>SS 중 닫는 부호</td></tr>
 <tr><td>SE</td><td>줄임표(…)</td></tr>
 <tr><td>SO</td><td>붙임표(- ~)</td></tr>
 <tr><td>SW</td><td>기타 특수 문자</td></tr>
