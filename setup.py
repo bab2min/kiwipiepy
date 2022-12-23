@@ -18,7 +18,10 @@ def get_extra_cmake_options():
     """read --clean, --no, --set, --compiler-flags, and -G options from the command line and add them as cmake switches.
     """
     _cmake_extra_options = ["-DKIWI_BUILD_TEST=0", "-DCMAKE_POSITION_INDEPENDENT_CODE=1", "-DKIWI_USE_MIMALLOC=" + ("1" if os.environ.get('USE_MIMALLOC') else "0")]
+    if os.environ.get('KIWI_CPU_ARCH'):
+        _cmake_extra_options.append("-DKIWI_CPU_ARCH=" + os.environ['KIWI_CPU_ARCH'])
     _clean_build_folder = False
+    print(_cmake_extra_options)
 
     opt_key = None
 

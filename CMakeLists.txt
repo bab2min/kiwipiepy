@@ -42,6 +42,7 @@ endif()
 
 if (APPLE)
   message(STATUS "Apple Clang: use undefined=dynamic_lookup")
+  set(CMAKE_OSX_ARCHITECTURES "${KIWI_CPU_ARCH}")
   set ( CMAKE_C_FLAGS_DEBUG "-undefined dynamic_lookup ${CMAKE_C_FLAGS_DEBUG}" )
   set ( CMAKE_CXX_FLAGS_DEBUG "-undefined dynamic_lookup ${CMAKE_CXX_FLAGS_DEBUG}" )
   set ( CMAKE_C_FLAGS_RELEASE "-undefined dynamic_lookup ${CMAKE_C_FLAGS_RELEASE}" )
