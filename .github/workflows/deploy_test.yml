@@ -100,7 +100,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.6]
+        python-version: [3.6, 3.7]
 
     steps:
     - uses: actions/checkout@v2
@@ -127,7 +127,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.7, 3.8, 3.9, "3.10", 3.11]
+        python-version: [3.8, 3.9, "3.10", 3.11]
 
     steps:
     - uses: actions/checkout@v2
@@ -144,13 +144,9 @@ jobs:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        brew install rename
         python -m pip install twine wheel numpy==`python .github/workflows/numpy_version.py`
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py bdist_wheel
-        rename "s/_universal2/_x86_64/" dist/*.whl
-        rm -rf build/*
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 python setup.py bdist_wheel
-        rename "s/_universal2/_arm64/" dist/*.whl
         twine upload --repository testpypi dist/*
 
   build_windows:
