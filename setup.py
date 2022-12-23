@@ -12,6 +12,8 @@ from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 from distutils.version import LooseVersion
 
+import numpy as np
+
 def get_extra_cmake_options():
     """read --clean, --no, --set, --compiler-flags, and -G options from the command line and add them as cmake switches.
     """
@@ -117,7 +119,7 @@ class CMakeBuild(build_ext):
         libs = self.get_libraries(ext)
 
         cmake_args = [
-            '-DINCLUDE_DIRS={}'.format(';'.join(self.include_dirs)),
+            '-DINCLUDE_DIRS={}'.format(';'.join(self.include_dirs + [np.get_include()])),
             '-DLIBRARY_DIRS={}'.format(';'.join(self.library_dirs)),
             '-DLIBRARIES={}'.format(';'.join(libs)),
             '-DPYTHON_EXECUTABLE=' + sys.executable,
@@ -214,7 +216,8 @@ setup(
     keywords='Korean morphological analysis',
     install_requires=[
         'dataclasses',
-        'kiwipiepy_model~=0.14'
+        'kiwipiepy_model~=0.14',
+        'numpy',
     ],
     packages=['kiwipiepy'],
     include_package_data=True,
