@@ -14,6 +14,12 @@ from distutils.version import LooseVersion
 
 import numpy as np
 
+if os.environ.get('KIWI_CPU_ARCH'):
+    from sysconfig import get_platform
+    fd = get_platform().split('-')
+    if fd[0] == 'macosx':
+        os.environ['_PYTHON_HOST_PLATFORM'] = '-'.join(fd[:-1] + [os.environ['KIWI_CPU_ARCH']])
+
 def get_extra_cmake_options():
     """read --clean, --no, --set, --compiler-flags, and -G options from the command line and add them as cmake switches.
     """
