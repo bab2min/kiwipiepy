@@ -260,7 +260,7 @@ struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
 	{
 		const size_t batchSize = self->obj->hsd.getBatchSize();
 		const size_t windowSize = self->obj->hsd.getWindowSize();
-		npy_intp sizes[2] = { batchSize * 4, windowSize };
+		npy_intp sizes[2] = { (npy_intp)batchSize * 4, (npy_intp)windowSize };
 		py::UniqueObj inData{ PyArray_EMPTY(2, sizes, NPY_INT64, 0) };
 		py::UniqueObj outData{ PyArray_EMPTY(1, sizes, NPY_INT64, 0) };
 		py::UniqueObj lmLProbsData{ PyArray_EMPTY(1, sizes, NPY_FLOAT32, 0) };
@@ -701,6 +701,8 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 							break;
 						case POSTag::xsa:
 							tItem->_tag = "XSA-R";
+							break;
+						default:
 							break;
 						}
 					}
