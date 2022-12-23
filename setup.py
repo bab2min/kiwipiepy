@@ -20,6 +20,8 @@ def get_extra_cmake_options():
     _cmake_extra_options = ["-DKIWI_BUILD_TEST=0", "-DCMAKE_POSITION_INDEPENDENT_CODE=1", "-DKIWI_USE_MIMALLOC=" + ("1" if os.environ.get('USE_MIMALLOC') else "0")]
     if os.environ.get('KIWI_CPU_ARCH'):
         _cmake_extra_options.append("-DKIWI_CPU_ARCH=" + os.environ['KIWI_CPU_ARCH'])
+    if os.environ.get('MACOSX_DEPLOYMENT_TARGET'):
+        _cmake_extra_options.append("-DCMAKE_OSX_DEPLOYMENT_TARGET=" + os.environ['MACOSX_DEPLOYMENT_TARGET'])
     _clean_build_folder = False
     print(_cmake_extra_options)
 
