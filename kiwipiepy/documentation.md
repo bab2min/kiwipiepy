@@ -435,6 +435,13 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.14.1 (2022-12-24)
+    * Kiwi 0.14.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.14.1 )이 반영되었습니다.
+        * 특정 텍스트에 대해 형태소 분할 없이 전체 결과를 그대로 반환하는 오류 해결
+        * EF 뒤에 보조용언이 따라오는 경우 문장을 분리하지 않도록 개선
+    * 이제 Python 3.11을 지원합니다.
+        * 추가로 이제 macOS용 binary wheel을 arm64, x86_64로 나누어서 제공합니다.
+
 * 0.14.0 (2022-09-01)
     * Kiwi 0.14.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.14.0 )이 반영되었습니다.
         * 동사 '이르다'의 모호성 해소 기능 추가
