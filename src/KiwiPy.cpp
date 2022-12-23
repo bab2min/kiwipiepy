@@ -1,16 +1,12 @@
 ﻿#include <stdexcept>
+#define USE_NUMPY
+#define MAIN_MODULE
 
-#ifdef _DEBUG
-#undef _DEBUG
 #include "PyUtils.h"
 #include "PyDoc.h"
-#define _DEBUG
-#else 
-#include "PyUtils.h"
-#include "PyDoc.h"
-#endif
 
 #include <kiwi/Kiwi.h>
+#include <kiwi/HSDataset.h>
 
 using namespace std;
 using namespace kiwi;
@@ -96,6 +92,206 @@ py::TypeWrapper<TypoTransformerObject> _TypoTransformerSetter{ [](PyTypeObject& 
 		{ nullptr }
 	};
 	obj.tp_methods = methods;
+} };
+
+struct HSDatasetIterObject;
+
+struct HSDatasetObject : py::CObject<HSDatasetObject>
+{
+	static constexpr const char* _name = "kiwipiepy._HSDataset";
+	static constexpr const char* _name_in_module = "_HSDataset";
+	static constexpr int _flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+
+	HSDataset hsd;
+
+	static int init(HSDatasetObject* self, PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]()
+		{
+			return 0;
+		});
+	}
+
+	static HSDatasetIterObject* iter(HSDatasetObject* self)
+	{
+		py::UniqueCObj<HSDatasetIterObject> ret{ (HSDatasetIterObject*)PyObject_CallFunctionObjArgs((PyObject*)py::Type<HSDatasetIterObject>, self, nullptr) };
+		return ret.release();
+	}
+
+	size_t getVocabSize() const
+	{
+		return hsd.vocabSize();
+	}
+
+	size_t getNgramNodeSize() const
+	{
+		return hsd.ngramNodeSize();
+	}
+
+	size_t getBatchSize() const
+	{
+		return hsd.getBatchSize();
+	}
+
+	size_t getWindowSize() const
+	{
+		return hsd.getWindowSize();
+	}
+
+	size_t numSents() const
+	{
+		return hsd.numSents();
+	}
+
+	static Py_ssize_t len(HSDatasetObject* self)
+	{
+		return self->hsd.numEstimBatches();
+	}
+
+	PyObject* estimVocabFrequency()
+	{
+		return py::handleExc([&]() -> PyObject*
+		{
+			return py::buildPyValue(hsd.estimVocabFrequency());
+		});
+	}
+
+	PyObject* getVocabInfo(PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]() -> PyObject*
+		{
+			size_t index;
+			static const char* kwlist[] = { "index", nullptr };
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n", (char**)kwlist,
+				&index
+			)) return nullptr;
+
+			if (index >= hsd.vocabSize()) throw py::ValueError{ to_string(index) };
+			return py::buildPyTuple(hsd.vocabForm(index), tagToString(hsd.vocabInfo(index).tag));
+		});
+	}
+
+	PyObject* getSent(PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]() -> PyObject*
+		{
+			size_t index, augment = 0;
+			static const char* kwlist[] = { "index", "augment", nullptr};
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n|p", (char**)kwlist,
+				&index, &augment
+			)) return nullptr;
+
+			if (index >= hsd.numSents()) throw py::ValueError{ to_string(index) };
+			if (augment)
+			{
+				auto sent = hsd.getAugmentedSent(index);
+				return py::buildPyValueTransform(sent.begin(), sent.end(), [](size_t v) { return (uint32_t)v; });
+			}
+			else
+			{
+				auto sent = hsd.getSent(index);
+				return py::buildPyValueTransform(sent.begin(), sent.end(), [](size_t v) { return (uint32_t)v; });
+			}
+		});
+	}
+};
+
+py::TypeWrapper<HSDatasetObject> _HSDatasetSetter{ [](PyTypeObject& obj)
+{
+	static PyMethodDef methods[] =
+	{
+		{ "get_vocab_info", PY_METHOD_MEMFN(&HSDatasetObject::getVocabInfo), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "get_sent", PY_METHOD_MEMFN(&HSDatasetObject::getSent), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "estim_vocab_frequency", PY_METHOD_MEMFN(&HSDatasetObject::estimVocabFrequency), METH_NOARGS, ""},
+		{ nullptr }
+	};
+	static PyGetSetDef getsets[] =
+	{
+		{ (char*)"vocab_size", PY_GETTER_MEMFN(&HSDatasetObject::getVocabSize), nullptr, "", nullptr },
+		{ (char*)"ngram_node_size", PY_GETTER_MEMFN(&HSDatasetObject::getNgramNodeSize), nullptr, "", nullptr },
+		{ (char*)"batch_size", PY_GETTER_MEMFN(&HSDatasetObject::getBatchSize), nullptr, "", nullptr },
+		{ (char*)"window_size", PY_GETTER_MEMFN(&HSDatasetObject::getWindowSize), nullptr, "", nullptr },
+		{ (char*)"num_sents", PY_GETTER_MEMFN(&HSDatasetObject::numSents), nullptr, "", nullptr },
+		{ nullptr },
+	};
+	static PySequenceMethods seq = {
+		(lenfunc)HSDatasetObject::len,
+		nullptr,
+		nullptr,
+		nullptr,
+	};
+
+	obj.tp_methods = methods;
+	obj.tp_getset = getsets;
+	obj.tp_as_sequence = &seq;
+} };
+
+struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
+{
+	static constexpr const char* _name = "kiwipiepy._HSDatasetIter";
+	static constexpr const char* _name_in_module = "_HSDatasetIter";
+	static constexpr int _flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+
+	py::UniqueCObj<HSDatasetObject> obj;
+
+	static int init(HSDatasetIterObject* self, PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]()
+		{
+			PyObject* dataset;
+			static const char* kwlist[] = { "dataset", nullptr};
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", (char**)kwlist,
+				&dataset
+			)) return -1;
+			Py_INCREF(dataset);
+			self->obj = py::UniqueCObj<HSDatasetObject>{ (HSDatasetObject*)dataset };
+			self->obj->hsd.reset();
+			return 0;
+		});
+	}
+
+	static HSDatasetIterObject* iter(HSDatasetIterObject* self)
+	{
+		Py_INCREF(self);
+		return self;
+	}
+
+	static PyObject* iternext(HSDatasetIterObject* self)
+	{
+		const size_t batchSize = self->obj->hsd.getBatchSize();
+		const size_t windowSize = self->obj->hsd.getWindowSize();
+		npy_intp sizes[2] = { batchSize * 4, windowSize };
+		py::UniqueObj inData{ PyArray_EMPTY(2, sizes, NPY_INT64, 0) };
+		py::UniqueObj outData{ PyArray_EMPTY(1, sizes, NPY_INT64, 0) };
+		py::UniqueObj lmLProbsData{ PyArray_EMPTY(1, sizes, NPY_FLOAT32, 0) };
+		py::UniqueObj outNgramNodeData{ PyArray_EMPTY(1, sizes, NPY_INT64, 0) };
+		float restLm = 0;
+		uint32_t restLmCnt = 0;
+
+		const size_t sz = self->obj->hsd.next(
+			(int64_t*)PyArray_DATA((PyArrayObject*)inData.get()),
+			(int64_t*)PyArray_DATA((PyArrayObject*)outData.get()),
+			(float*)PyArray_DATA((PyArrayObject*)lmLProbsData.get()),
+			(int64_t*)PyArray_DATA((PyArrayObject*)outNgramNodeData.get()),
+			restLm,
+			restLmCnt
+		);
+		if (!sz) return nullptr;
+
+		//if (sz < batchSize)
+		{
+			py::UniqueObj slice{ PySlice_New(nullptr, py::UniqueObj{py::buildPyValue(sz)}, nullptr) };
+			inData = py::UniqueObj{ PyObject_GetItem(inData, slice) };
+			outData = py::UniqueObj{ PyObject_GetItem(outData, slice) };
+			lmLProbsData = py::UniqueObj{ PyObject_GetItem(lmLProbsData, slice) };
+			outNgramNodeData = py::UniqueObj{ PyObject_GetItem(outNgramNodeData, slice) };
+		}
+		return py::buildPyTuple(inData, outData, lmLProbsData, outNgramNodeData, restLm, restLmCnt);
+	}
+};
+
+py::TypeWrapper<HSDatasetIterObject> _HSDatasetIterSetter{ [](PyTypeObject& obj)
+{
 } };
 
 struct KiwiObject : py::CObject<KiwiObject>
@@ -203,6 +399,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 	PyObject* perform(PyObject* args, PyObject* kwargs);
 	PyObject* getMorpheme(PyObject* args, PyObject* kwargs);
 	PyObject* join(PyObject* args, PyObject* kwargs);
+	PyObject* makeHSDataset(PyObject* args, PyObject* kwargs);
 
 	float getCutOffThreshold() const
 	{
@@ -304,6 +501,7 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ [](PyTypeObject& obj)
 		{ "analyze", PY_METHOD_MEMFN(&KiwiObject::analyze), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "morpheme", PY_METHOD_MEMFN(&KiwiObject::getMorpheme), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "join", PY_METHOD_MEMFN(&KiwiObject::join), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "make_hsdataset", PY_METHOD_MEMFN(&KiwiObject::makeHSDataset), METH_VARARGS | METH_KEYWORDS, "" },
 		{ nullptr }
 	};
 	static PyGetSetDef getsets[] =
@@ -908,6 +1106,50 @@ PyObject* KiwiObject::join(PyObject* args, PyObject* kwargs)
 	});
 }
 
+PyObject* KiwiObject::makeHSDataset(PyObject* args, PyObject* kwargs)
+{
+	return py::handleExc([&]() -> PyObject*
+	{
+		PyObject* inputPathes, * tokenFilter = nullptr;
+		size_t batchSize, windowSize, numWorkers, seed = 42;
+		double dropout = 0, splitRatio = 0;
+		static const char* kwlist[] = { "input_pathes", "batch_size", "window_size", "num_workers", "dropout", "token_filter", "split_ratio", "seed", nullptr};
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Onnn|dOdn", (char**)kwlist, &inputPathes, &batchSize, &windowSize, &numWorkers, &dropout, &tokenFilter, &splitRatio, &seed)) return nullptr;
+
+		KiwiBuilder::TokenFilter tf;
+		if (tokenFilter && tokenFilter != Py_None)
+		{
+			tf = [&](const u16string& form, POSTag tag)
+			{
+				py::UniqueObj ret{ PyObject_CallObject(tokenFilter, py::buildPyTuple(form, tagToString(tag))) };
+				if (!ret) throw py::ExcPropagation{};
+				auto truth = PyObject_IsTrue(ret);
+				if (truth < 0) throw py::ExcPropagation{};
+				return !!truth;
+			};
+		}
+
+		HSDataset anotherDataset;
+		auto dataset = builder.makeHSDataset(py::toCpp<vector<string>>(inputPathes), batchSize, windowSize, numWorkers, dropout, tf, splitRatio, &anotherDataset);
+		dataset.seed(seed);
+		if (splitRatio == 0)
+		{
+			py::UniqueObj ret{ PyObject_CallObject((PyObject*)py::Type<HSDatasetObject>, nullptr) };
+			((HSDatasetObject*)ret.get())->hsd = move(dataset);
+			return ret.release();
+		}
+		else
+		{
+			py::UniqueObj ret1{ PyObject_CallObject((PyObject*)py::Type<HSDatasetObject>, nullptr) };
+			((HSDatasetObject*)ret1.get())->hsd = move(dataset);
+			py::UniqueObj ret2{ PyObject_CallObject((PyObject*)py::Type<HSDatasetObject>, nullptr) };
+			((HSDatasetObject*)ret2.get())->hsd = move(anotherDataset);
+			auto ret = py::buildPyTuple(ret1, ret2);
+			return ret;
+		}
+	});
+}
+
 PyObject* moduleInit()
 {
 	static PyModuleDef mod =
@@ -926,5 +1168,6 @@ PyObject* moduleInit()
 
 PyMODINIT_FUNC PyInit__kiwipiepy()
 {
+	import_array();
 	return moduleInit();
 }
