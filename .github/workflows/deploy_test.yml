@@ -7,7 +7,7 @@ on:
 
 jobs:
   build_manylinux:
-    name: Build for manylinux
+    name: Build for manylinux2010
     runs-on: ubuntu-latest
     container:
       image: docker://quay.io/pypa/manylinux2010_x86_64
@@ -37,20 +37,62 @@ jobs:
         mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
         
         yum install libffi-devel -y
-        /opt/python/cp38-cp38/bin/python -m pip install twine wheel numpy==`/opt/python/cp38-cp38/bin/python .github/workflows/numpy_version.py`
-        /opt/python/cp38-cp38/bin/python setup.py sdist
-        /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi dist/*.tar.gz
-        for cp in cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311
+        /opt/python/cp39-cp39/bin/python -m pip install --upgrade pip setuptools
+        /opt/python/cp39-cp39/bin/python -m pip install "cryptography<38" "twine<4" wheel numpy==`/opt/python/cp39-cp39/bin/python .github/workflows/numpy_version.py`
+        /opt/python/cp39-cp39/bin/python setup.py sdist
+        /opt/python/cp39-cp39/bin/python -m twine upload --repository testpypi dist/*.tar.gz
+        for cp in cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310
         do
           /opt/python/${cp}/bin/python -m pip install twine wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
           USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
           auditwheel repair dist/*-${cp}-linux_x86_64.whl
         done
-        /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi wheelhouse/*.whl
+        /opt/python/cp39-cp39/bin/python -m twine upload --repository testpypi wheelhouse/*.whl
         
         cd model
-        /opt/python/cp38-cp38/bin/python setup.py sdist
-        /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi dist/*.tar.gz
+        /opt/python/cp39-cp39/bin/python setup.py sdist
+        /opt/python/cp39-cp39/bin/python -m twine upload --repository testpypi dist/*.tar.gz
+
+  build_manylinux2014:
+    name: Build for manylinux2014
+    runs-on: ubuntu-latest
+    container:
+      image: docker://quay.io/pypa/manylinux2014_x86_64
+
+    steps:        
+    - uses: actions/checkout@v1
+      with:
+        submodules: recursive
+    - name: Install Git LFS
+      run: |
+        mkdir gitlfs && pushd gitlfs
+        curl -L https://github.com/git-lfs/git-lfs/releases/download/v2.13.2/git-lfs-linux-amd64-v2.13.2.tar.gz | tar -zxv
+        ./install.sh
+        popd
+    - name: Pull LFS files
+      run: cd Kiwi && git config --global --add safe.directory /__w/kiwipiepy/kiwipiepy/Kiwi && git lfs pull
+    - name: Deploy
+      continue-on-error: True
+      env:
+        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: |
+        mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
+        mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
+        
+        yum install libffi-devel -y
+        /opt/python/cp311-cp311/bin/python -m pip install --upgrade pip setuptools
+        /opt/python/cp311-cp311/bin/python -m pip install twine wheel numpy==`/opt/python/cp311-cp311/bin/python .github/workflows/numpy_version.py`
+        for cp in cp311-cp311
+        do
+          /opt/python/${cp}/bin/python -m pip install twine wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
+          USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
+          auditwheel repair dist/*-${cp}-linux_x86_64.whl
+        done
+        /opt/python/cp311-cp311/bin/python -m twine upload --repository testpypi wheelhouse/*.whl
 
   build_macos_10_15:
     name: Build for macOS 10.15
@@ -164,6 +206,7 @@ jobs:
         run: |          
           for cp in cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311
           do
+            /opt/python/${cp}/bin/python -m pip install --upgrade pip setuptools
             /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
             USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
             auditwheel repair dist/*-${cp}-*.whl
