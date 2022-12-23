@@ -928,6 +928,28 @@ namespace py
 			};
 		};
 
+#ifdef __APPLE__
+		template<>
+		struct NpyType<long>
+		{
+			enum { 
+				type = NPY_INT64, 
+				signed_type = type,
+				npy_type = type,
+			};
+		};
+
+		template<>
+		struct NpyType<unsigned long>
+		{
+			enum { 
+				type = NPY_UINT64, 
+				signed_type = NPY_INT64,
+				npy_type = type,
+			};
+		};
+#endif
+
 		template<>
 		struct NpyType<float>
 		{
