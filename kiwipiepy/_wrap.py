@@ -4,7 +4,7 @@ from collections import namedtuple
 from dataclasses import dataclass
 import warnings
 
-from _kiwipiepy import _Kiwi, _TypoTransformer
+from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match, Option
@@ -156,6 +156,8 @@ errors: List[Tuple[str, float]]
     def __repr__(self):
         return "TypoTransformer([{}])".format(",\n  ".join(map(repr, self._defs)))
 
+class HSDataset(_HSDataset):
+    pass
 
 class Kiwi(_Kiwi):
     '''Kiwi 클래스는 실제 형태소 분석을 수행하는 kiwipiepy 모듈의 핵심 클래스입니다.
@@ -1372,3 +1374,15 @@ Token(form='결과', tag='NNG', start=4, len=2)
 ```
         '''
         return super().join(morphs, lm_search)
+
+    def evaluate(self,
+        sequences:List[List[int]],
+        prefix:Optional[List[int]] = None,
+        suffix:Optional[List[int]] = None,
+    ):
+        raise NotImplementedError
+
+    def predict_next(self,
+        prefix:List[int],
+    ):
+        raise NotImplementedError
