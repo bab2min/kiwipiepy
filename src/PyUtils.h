@@ -1334,9 +1334,16 @@ namespace py
 
 		~ResultIter()
 		{
-			for (auto& p : futures)
+			waitQueue();
+		}
+
+		void waitQueue()
+		{
+			while (!futures.empty())
 			{
-				p.get();
+				auto f = std::move(futures.front());
+				futures.pop_front();
+				f.get();
 			}
 		}
 
@@ -1473,6 +1480,7 @@ namespace py
 			{
 				PyObject* exc, * val, * tb, * val2;
 				PyErr_Fetch(&exc, &val, &tb);
+				PyErr_NormalizeException(&exc, &val, &tb);
 				if (tb)
 				{
 					PyException_SetTraceback(val, tb);
@@ -1481,7 +1489,9 @@ namespace py
 				Py_DECREF(exc);
 				PyObject* et = e.pytype();
 				val2 = PyObject_CallFunctionObjArgs(et, py::UniqueObj{ buildPyValue(e.what()) }.get(), nullptr);
+				Py_INCREF(val);
 				PyException_SetCause(val2, val);
+				PyException_SetContext(val2, val);
 				PyErr_SetObject(et, val2);
 				Py_DECREF(val2);
 			}
@@ -1515,6 +1525,7 @@ namespace py
 			{
 				PyObject* exc, * val, * tb, * val2;
 				PyErr_Fetch(&exc, &val, &tb);
+				PyErr_NormalizeException(&exc, &val, &tb);
 				if (tb)
 				{
 					PyException_SetTraceback(val, tb);
@@ -1523,7 +1534,9 @@ namespace py
 				Py_DECREF(exc);
 				PyObject* et = e.pytype();
 				val2 = PyObject_CallFunctionObjArgs(et, py::UniqueObj{ buildPyValue(e.what()) }.get(), nullptr);
+				Py_INCREF(val);
 				PyException_SetCause(val2, val);
+				PyException_SetContext(val2, val);
 				PyErr_SetObject(et, val2);
 				Py_DECREF(val2);
 			}
@@ -1784,11 +1797,13 @@ namespace py
 	template<typename Ty, typename Val, Val Ty::* mem>
 	setter set_property()
 	{
-		return (setter)[](PyObject* self, PyObject* val, void* closure) -> PyObject*
+		return (setter)[](PyObject* self, PyObject* val, void* closure) -> int
 		{
 			return handleExc([&]()
 			{
+				if (!val) return -1;
 				((Ty*)self)->*mem = toCpp<Val>(val);
+				return 0;
 			});
 		};
 	}
