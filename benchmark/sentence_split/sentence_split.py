@@ -81,7 +81,7 @@ def evaluate_split(gold, pred):
 
 def run_evaluate(dataset, split_func, result_output=None, err_output=None):
     import time
-    f1, em = [], []
+    f1, norm_f1, em = [], [], []
     system_sents = 0
     elapsed = 0
     
@@ -95,6 +95,8 @@ def run_evaluate(dataset, split_func, result_output=None, err_output=None):
         pred = split_func(text)
         elapsed += time.perf_counter() - pcount
         s, e, ep, pred_matches = evaluate_split(gold, pred)
+        length_penalty = min(len(gold) / len(pred), 1)
+        norm_s = [_s * length_penalty for _s in s]
         if result_output is not None:
             rout.write('\n'.join(pred) + '\n\n')
             rout.flush()
@@ -107,6 +109,7 @@ def run_evaluate(dataset, split_func, result_output=None, err_output=None):
             fout.write('\n')
             fout.flush()
         f1 += s
+        norm_f1 += norm_s
         em += e
         system_sents += len(ep)
     
@@ -116,7 +119,14 @@ def run_evaluate(dataset, split_func, result_output=None, err_output=None):
         fout.close()
 
     print("[Sentence Split Benchmark] Dataset: " + dataset)
-    print(f"Gold: {len(f1)} sents,  System: {system_sents} sents,  EM: {sum(em) / len(em):.5f},  F1: {sum(f1) / len(f1):.5f},  Latency: {elapsed*1000:.2f} msec")
+    print(
+        f"Gold: {len(f1)} sents, "
+        f"System: {system_sents} sents, "
+        f"EM: {sum(em) / len(em):.5f}, "
+        f"F1: {sum(f1) / len(f1):.5f}, "
+        f"Normalized F1: {sum(norm_f1) / len(norm_f1):.5f}, "
+        f"Latency: {elapsed*1000:.2f} msec"
+    )
     print()
 
 def baseline_splitter(text):
