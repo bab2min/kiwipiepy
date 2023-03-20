@@ -254,6 +254,23 @@ typo_cost_threshold: float
         self._ns_space_tolerance = 0
         self._ns_typo_cost_weight = 6.
         self._ns_model_type = model_type
+        self._model_path = model_path
+        self._load_default_dict = load_default_dict
+        self._load_typo_dict = load_typo_dict
+        self._typos = typos
+
+    def __repr__(self):
+        return (
+            f"Kiwi(num_workers={self.num_workers!r}, " 
+            f"model_path={self._model_path!r}, "
+            f"integrate_allomorph={self.integrate_allomorph!r}, "
+            f"load_default_dict={self._load_default_dict!r}, "
+            f"load_typo_dict={self._load_typo_dict!r}, "
+            f"model_type={self.model_type!r}, "
+            f"typos={self._typos!r}, "
+            f"typo_cost_threshold={self.typo_cost_threshold!r}"
+            f")"
+        )
 
     def add_user_word(self,
         word:str,
@@ -632,7 +649,8 @@ threshold: float
         text:Union[str, Iterable[str]],
         top_n:Optional[int] = 1,
         match_options:Optional[int] = Match.ALL,
-        normalize_coda:Optional[bool] = False
+        normalize_coda:Optional[bool] = False,
+        z_coda:Optional[bool] = True,
     ):
         '''형태소 분석을 실시합니다.
 
@@ -696,6 +714,8 @@ with open('result.txt', 'w', encoding='utf-8') as output:
         '''
         if normalize_coda:
             match_options |= Match.NORMALIZING_CODA
+        if z_coda:
+            match_options |= Match.Z_CODA
         return super().analyze(text, top_n, match_options)
     
     def get_option(self,
@@ -875,10 +895,24 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         '''
         return self._ns_model_type
 
+    @property
+    def typo_cost_threshold(self):
+        '''.. versionadded:: 0.15.0
+
+오타 교정시 고려할 최대 오타 비용입니다. 이 비용을 넘어서는 오타에 대해서는 탐색하지 않습니다. 기본값은 2.5입니다.
+        '''
+        return self._typo_cost_threshold
+    
+    @typo_cost_threshold.setter
+    def typo_cost_threshold(self, v:float):
+        if v <= 0: raise ValueError("`typo_cost_threshold` must greater than 0")
+        self._typo_cost_threshold = float(v)
+
     def _tokenize(self, 
         text:Union[str, Iterable[str]], 
         match_options:Optional[int] = Match.ALL,
         normalize_coda:Optional[bool] = False,
+        z_coda:Optional[bool] = True,
         split_sents:Optional[bool] = False,
         stopwords:Optional[Stopwords] = None,
         echo:Optional[bool] = False,
@@ -899,6 +933,8 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
 
         if normalize_coda:
             match_options |= Match.NORMALIZING_CODA
+        if z_coda:
+            match_options |= Match.Z_CODA
 
         if isinstance(text, str):
             echo = False
@@ -910,6 +946,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         text:Union[str, Iterable[str]], 
         match_options:Optional[int] = Match.ALL,
         normalize_coda:Optional[bool] = False,
+        z_coda:Optional[bool] = True,
         split_sents:Optional[bool] = False,
         stopwords:Optional[Stopwords] = None,
         echo:Optional[bool] = False,
@@ -1011,12 +1048,13 @@ Notes
  Token(form='출력', tag='NNG', start=18, len=2)]
 ```
         '''
-        return self._tokenize(text, match_options, normalize_coda, split_sents, stopwords, echo)
+        return self._tokenize(text, match_options, normalize_coda, z_coda, split_sents, stopwords, echo)
 
     def split_into_sents(self, 
         text:Union[str, Iterable[str]], 
         match_options:Optional[int] = Match.ALL, 
         normalize_coda:Optional[bool] = False,
+        z_coda:Optional[bool] = True,
         return_tokens:Optional[bool] = False,
         return_sub_sents:Optional[bool] = True,
     ) -> Union[List[Sentence], Iterable[List[Sentence]]]:
@@ -1124,9 +1162,9 @@ Notes
             return ret
 
         if isinstance(text, str):
-            return _make_result((self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, split_sents=True), text))
+            return _make_result((self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, z_coda=z_coda, split_sents=True), text))
 
-        return map(_make_result, self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, split_sents=True, echo=True))
+        return map(_make_result, self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, z_coda=z_coda, split_sents=True, echo=True))
 
     def glue(self,
         text_chunks:Iterable[str],
@@ -1297,10 +1335,10 @@ Notes
 
         if isinstance(text, str):
             if reset_whitespace: text = _reset(text)
-            return _space((super().analyze(text, 1, Match.ALL), text))
+            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA), text))
         else:
             if reset_whitespace: text = map(_reset, text)
-            return map(_space, super().analyze(text, 1, Match.ALL, echo=True))
+            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, echo=True))
 
     def join(self, 
         morphs:Iterable[Tuple[str, str]],

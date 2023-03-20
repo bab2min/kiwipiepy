@@ -79,13 +79,31 @@ class Match(IntEnum):
 
     .. versionadded:: 0.11.0
     """
+    JOIN_ADV_SUFFIX = 1 << 21
+    """
+    부사 파생접미사를 분리하지 않고 결합합니다. 요란/XR 히/XSM -> 요란히/MAG
+
+    .. versionadded:: 0.15.0
+    """
+    SPLIT_COMPLEX = 1 << 22
+    """
+    더 잘게 분할 가능한 형태소를 모두 분할합니다. 고마움/NNG -> 고맙/VA-I 음/ETN
+
+    .. versionadded:: 0.15.0
+    """
+    Z_CODA = 1 << 23
+    """
+    조사/어미에 덧붙은 받침을 Z_CODA 태그로 분리합니다. 했어욗 -> 하/VV 었/EP 어요/EF ㄳ/Z_CODA
+
+    .. versionadded:: 0.15.0
+    """
     JOIN_V_SUFFIX = JOIN_VERB_SUFFIX | JOIN_ADJ_SUFFIX
     """
     동사/형용사형 파생접미사를 분리하지 않고 결합합니다.
 
     .. versionadded:: 0.11.0
     """
-    JOIN_AFFIX = JOIN_NOUN_PREFIX | JOIN_NOUN_SUFFIX | JOIN_V_SUFFIX
+    JOIN_AFFIX = JOIN_NOUN_PREFIX | JOIN_NOUN_SUFFIX | JOIN_V_SUFFIX | JOIN_ADV_SUFFIX
     """
     모든 접두사/접미사를 분리하지 않고 결합합니다.
 
