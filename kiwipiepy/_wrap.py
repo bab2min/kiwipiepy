@@ -1168,6 +1168,7 @@ Notes
 
     def glue(self,
         text_chunks:Iterable[str],
+        insert_new_lines:Iterable[bool] = None,
         return_space_insertions:Optional[bool] = False,
     ) -> Union[str, Tuple[str, List[bool]]]:
         '''..versionadded:: 0.11.1
@@ -1178,6 +1179,9 @@ Parameters
 ----------
 text_chunks: Iterable[str]
     합칠 텍스트 조각들의 목록입니다.
+insert_new_lines: Iterable[bool]
+    합칠 때 공백 대신 줄바꿈을 사용할지 여부를 각 텍스트 조각별로 설정합니다. insert_new_lines의 길이는 text_chunks와 동일해야 합니다.
+    생략 시 줄바꿈을 사용하지 않고 공백만을 사용합니다.
 return_space_insertions: bool
     True인 경우, 각 조각별 공백 삽입 유무를 `List[bool]`로 반환합니다.
     기본값은 False입니다.
@@ -1212,7 +1216,11 @@ Notes
 
         all_chunks = []
         def _zip_consequences(it):
-            prev = next(it).strip()
+            try:
+                prev = next(it).strip()
+            except StopIteration:
+                return
+
             all_chunks.append(prev)
             for s in it:
                 s = s.strip()
@@ -1221,7 +1229,16 @@ Notes
                 prev = s
                 all_chunks.append(prev)
         
+        def _repeat_false():
+            while 1:
+                yield False
+
         riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL)
+            
+        if insert_new_lines is None: 
+            insert_new_lines = _repeat_false()
+        else:
+            insert_new_lines = iter(insert_new_lines)
         i = 0
         ret = []
         space_insertions = []
@@ -1229,15 +1246,17 @@ Notes
             while 1:
                 _, score_with_space = next(riter)[0]
                 _, score_without_space = next(riter)[0]
+                is_new_line = next(insert_new_lines)
                 ret.append(all_chunks[i])
                 if score_with_space >= score_without_space or re.search(r'[0-9A-Za-z]$', all_chunks[i]):
-                    ret.append(' ')
+                    ret.append('\n' if is_new_line else ' ')
                     space_insertions.append(True)
                 else:
                     space_insertions.append(False)
                 i += 1
         except StopIteration:
-            ret.append(all_chunks[i])
+            if i < len(all_chunks):
+                ret.append(all_chunks[i])
         
         if return_space_insertions:
             return ''.join(ret), space_insertions
