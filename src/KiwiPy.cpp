@@ -1,4 +1,4 @@
-﻿#include <stdexcept>
+#include <stdexcept>
 #define USE_NUMPY
 #define MAIN_MODULE
 
@@ -514,6 +514,7 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ [](PyTypeObject& obj)
 		{ (char*)"_space_tolerance", PY_GETTER_MEMFN(&KiwiObject::getSpaceTolerance), PY_SETTER_MEMFN(&KiwiObject::setSpaceTolerance), "", nullptr },
 		{ (char*)"_space_penalty", PY_GETTER_MEMFN(&KiwiObject::getSpacePenalty), PY_SETTER_MEMFN(&KiwiObject::setSpacePenalty), "", nullptr },
 		{ (char*)"_typo_cost_weight", PY_GETTER_MEMFN(&KiwiObject::getTypoCostWeight), PY_SETTER_MEMFN(&KiwiObject::setTypoCostWeight), "", nullptr },
+		{ (char*)"_typo_cost_threshold", PY_GETTER_MEMPTR(&KiwiObject::typoCostThreshold), PY_SETTER_MEMPTR(&KiwiObject::typoCostThreshold), "", nullptr },
 		{ (char*)"_num_workers", PY_GETTER_MEMFN(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
 		{ nullptr },
 	};
@@ -564,7 +565,7 @@ struct TokenObject : py::CObject<TokenObject>
 		return _pos + _len;
 	}
 
-	u16string taggedForm()
+	u16string taggedForm() const
 	{
 		u16string ret = _form;
 		ret.push_back(u'/');
@@ -572,12 +573,12 @@ struct TokenObject : py::CObject<TokenObject>
 	 	return ret;
 	}
 
-	u16string baseForm()
+	u16string baseForm() const
 	{
 	 	return kiwi::joinHangul(_baseMorph->getForm());
 	}
 
-	size_t baseId()
+	size_t baseId() const
 	{
 		return (_baseMorph - _morph) + _morphId;
 	}
@@ -589,8 +590,14 @@ struct TokenObject : py::CObject<TokenObject>
 
 	PyObject* regularity()
 	{
-		if (_tag[0] == 'V') return py::buildPyValue(_regularity);
-		return py::buildPyValue(nullptr);
+		if (_tag[0] == 'V') return py::buildPyValue(_regularity).release();
+		return py::buildPyValue(nullptr).release();
+	}
+
+	u16string lemma() const
+	{
+		if (_tag[0] == 'V') return _form + u'다';
+		else return _form;
 	}
 
 	static PyObject* getitem(TokenObject* self, Py_ssize_t idx)
@@ -644,6 +651,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 		{ (char*)"typo_cost", PY_GETTER_MEMPTR(&TokenObject::_typoCost), nullptr, Token_typo_cost__doc__, nullptr },
 		{ (char*)"raw_form", PY_GETTER_MEMPTR(&TokenObject::_raw_form), nullptr, Token_raw_form__doc__, nullptr },
 		{ (char*)"regularity", PY_GETTER_MEMFN(&TokenObject::regularity), nullptr, Token_regularity__doc__, nullptr },
+		{ (char*)"lemma", PY_GETTER_MEMFN(&TokenObject::lemma), nullptr, Token_lemma__doc__, nullptr },
 		{ nullptr },
 	};
 
