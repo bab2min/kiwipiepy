@@ -1,4 +1,4 @@
-#include <stdexcept>
+﻿#include <stdexcept>
 #define USE_NUMPY
 #define MAIN_MODULE
 
@@ -77,7 +77,7 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 			py::UniqueObj ret{ PyList_New(0) };
 			for (auto r : ptt.generate(utf8To16(orig), costThreshold))
 			{
-				PyList_Append(ret, py::UniqueObj{py::buildPyTuple(r.str, r.cost)});
+				PyList_Append(ret.get(), py::buildPyTuple(r.str, r.cost).get());
 			}
 			return ret.release();
 		});
@@ -152,7 +152,7 @@ struct HSDatasetObject : py::CObject<HSDatasetObject>
 	{
 		return py::handleExc([&]() -> PyObject*
 		{
-			return py::buildPyValue(hsd.estimVocabFrequency());
+			return py::buildPyValue(hsd.estimVocabFrequency()).release();
 		});
 	}
 
@@ -167,7 +167,7 @@ struct HSDatasetObject : py::CObject<HSDatasetObject>
 			)) return nullptr;
 
 			if (index >= hsd.vocabSize()) throw py::ValueError{ to_string(index) };
-			return py::buildPyTuple(hsd.vocabForm(index), tagToString(hsd.vocabInfo(index).tag));
+			return py::buildPyTuple(hsd.vocabForm(index), tagToString(hsd.vocabInfo(index).tag)).release();
 		});
 	}
 
@@ -185,12 +185,12 @@ struct HSDatasetObject : py::CObject<HSDatasetObject>
 			if (augment)
 			{
 				auto sent = hsd.getAugmentedSent(index);
-				return py::buildPyValueTransform(sent.begin(), sent.end(), [](size_t v) { return (uint32_t)v; });
+				return py::buildPyValueTransform(sent.begin(), sent.end(), [](size_t v) { return (uint32_t)v; }).release();
 			}
 			else
 			{
 				auto sent = hsd.getSent(index);
-				return py::buildPyValueTransform(sent.begin(), sent.end(), [](size_t v) { return (uint32_t)v; });
+				return py::buildPyValueTransform(sent.begin(), sent.end(), [](size_t v) { return (uint32_t)v; }).release();
 			}
 		});
 	}
@@ -280,13 +280,13 @@ struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
 
 		//if (sz < batchSize)
 		{
-			py::UniqueObj slice{ PySlice_New(nullptr, py::UniqueObj{py::buildPyValue(sz)}, nullptr) };
-			inData = py::UniqueObj{ PyObject_GetItem(inData, slice) };
-			outData = py::UniqueObj{ PyObject_GetItem(outData, slice) };
-			lmLProbsData = py::UniqueObj{ PyObject_GetItem(lmLProbsData, slice) };
-			outNgramNodeData = py::UniqueObj{ PyObject_GetItem(outNgramNodeData, slice) };
+			py::UniqueObj slice{ PySlice_New(nullptr, py::buildPyValue(sz).get(), nullptr)};
+			inData = py::UniqueObj{ PyObject_GetItem(inData.get(), slice.get())};
+			outData = py::UniqueObj{ PyObject_GetItem(outData.get(), slice.get())};
+			lmLProbsData = py::UniqueObj{ PyObject_GetItem(lmLProbsData.get(), slice.get())};
+			outNgramNodeData = py::UniqueObj{ PyObject_GetItem(outNgramNodeData.get(), slice.get())};
 		}
-		return py::buildPyTuple(inData, outData, lmLProbsData, outNgramNodeData, restLm, restLmCnt);
+		return py::buildPyTuple(inData, outData, lmLProbsData, outNgramNodeData, restLm, restLmCnt).release();
 	}
 };
 
@@ -361,11 +361,11 @@ struct KiwiObject : py::CObject<KiwiObject>
 			{
 				py::UniqueObj modelModule{ PyImport_ImportModule("kiwipiepy_model") };
 				if (!modelModule) throw py::ExcPropagation{};
-				py::UniqueObj pathFunc{ PyObject_GetAttrString(modelModule, "get_model_path")};
+				py::UniqueObj pathFunc{ PyObject_GetAttrString(modelModule.get(), "get_model_path")};
 				if (!pathFunc) throw py::ExcPropagation{};
-				py::UniqueObj pathRet{ PyObject_CallObject(pathFunc, nullptr) };
+				py::UniqueObj pathRet{ PyObject_CallObject(pathFunc.get(), nullptr)};
 				if (!pathRet) throw py::ExcPropagation{};
-				spath = py::toCpp<string>(pathRet);
+				spath = py::toCpp<string>(pathRet.get());
 			}
 
 			self->builder = KiwiBuilder{ spath, numThreads, (BuildOption)boptions, !!sbg };
@@ -380,7 +380,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 		py::UniqueObj handler{ PyObject_GetAttrString((PyObject*)this, "_on_build") };
 		if (handler)
 		{
-			py::UniqueObj res{ PyObject_CallFunctionObjArgs(handler, nullptr) };
+			py::UniqueObj res{ PyObject_CallFunctionObjArgs(handler.get(), nullptr)};
 			if (!res) throw py::ExcPropagation{};
 		}
 		else
@@ -607,10 +607,10 @@ struct TokenObject : py::CObject<TokenObject>
 			if (idx < 0) idx += len(self);
 			switch (idx)
 			{
-			case 0: return py::buildPyValue(self->_form);
-			case 1: return py::buildPyValue(self->_tag);
-			case 2: return py::buildPyValue(self->_pos);
-			case 3: return py::buildPyValue(self->_len);
+			case 0: return py::buildPyValue(self->_form).release();
+			case 1: return py::buildPyValue(self->_tag).release();
+			case 2: return py::buildPyValue(self->_pos).release();
+			case 3: return py::buildPyValue(self->_len).release();
 			}
 			throw py::IndexError{ "index out of range" };
 		});
@@ -625,7 +625,7 @@ struct TokenObject : py::CObject<TokenObject>
 				"tag=" + py::reprFromCpp(self->_tag) + ", "
 				"start=" + to_string(self->_pos) + ", "
 				"len=" + to_string(self->_len) +
-			")");
+			")").release();
 		});
 	}
 };
@@ -666,7 +666,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 	obj.tp_as_sequence = &seq;
 } };
 
-PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
+py::UniqueObj resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 {
 	AllowInitToken allowInitToken;
 	py::UniqueObj retList{ PyList_New(res.size()) };
@@ -741,12 +741,12 @@ PyObject* resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_baseMorph = kiwi.idToMorph(q.morph->lmMorphemeId);
 			tItem->_raw_form = q.typoCost ? kiwi.getTypoForm(q.typoFormId) : tItem->_form;
 
-			PyList_SetItem(rList, jdx++, item.release());
+			PyList_SET_ITEM(rList.get(), jdx++, item.release());
 			u32offset += u32chrs;
 		}
-		PyList_SetItem(retList, idx++, py::buildPyTuple(move(rList), p.second));
+		PyList_SET_ITEM(retList.get(), idx++, py::buildPyTuple(move(rList), p.second).release());
 	}
-	return retList.release();
+	return retList;
 }
 
 struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
@@ -758,9 +758,14 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
 	size_t topN = 1;
 	Match matchOptions = Match::all;
 
-	PyObject* buildPy(vector<TokenResult>&& v)
+	~KiwiResIter()
 	{
-		return py::handleExc([&]() -> PyObject*
+		waitQueue();
+	}
+
+	py::UniqueObj buildPy(vector<TokenResult>&& v)
+	{
+		return py::handleExc([&]()
 		{
 			if (v.size() > topN) v.erase(v.begin() + topN, v.end());
 			return resToPyList(move(v), kiwi->kiwi);
@@ -818,7 +823,7 @@ PyObject* KiwiObject::addUserWord(PyObject* args, PyObject *kwargs)
 			added = builder.addWord(utf8To16(word), pos, score);
 		}
 		if (added) kiwi = Kiwi{};
-		return py::buildPyValue(added);
+		return py::buildPyValue(added).release();
 	});
 }
 
@@ -873,7 +878,7 @@ PyObject* KiwiObject::addPreAnalyzedWord(PyObject* args, PyObject* kwargs)
 		{
 			auto added = builder.addPreAnalyzedWord(utf8To16(form), analyzed, positions, score);
 			if (added) kiwi = Kiwi{};
-			return py::buildPyValue(added);
+			return py::buildPyValue(added).release();
 		}
 		catch (const UnknownMorphemeException& e)
 		{
@@ -899,10 +904,10 @@ PyObject* KiwiObject::addRule(PyObject* args, PyObject* kwargs)
 		{
 			py::UniqueObj ret{ PyObject_CallFunctionObjArgs(replacer, py::UniqueObj{ py::buildPyValue(input) }.get(), nullptr) };
 			if (!ret) throw py::ExcPropagation{};
-			return py::toCpp<u16string>(ret);
+			return py::toCpp<u16string>(ret.get());
 		}, score);
 		if (!added.empty()) kiwi = Kiwi{};
-		return py::buildPyValue(added);
+		return py::buildPyValue(added).release();
 	});
 }
 
@@ -916,7 +921,7 @@ PyObject* KiwiObject::loadUserDictionary(PyObject* args, PyObject *kwargs)
 
 		auto ret = builder.loadDictionary(path);
 		if (ret) kiwi = Kiwi{};
-		return py::buildPyValue(ret);
+		return py::buildPyValue(ret).release();
 	});
 }
 
@@ -935,7 +940,7 @@ U16MultipleReader obj2reader(PyObject* obj)
 				if (PyErr_Occurred()) throw py::ExcPropagation{};
 				return {};
 			}
-			auto ret = py::toCpp<u16string>(item);
+			auto ret = py::toCpp<u16string>(item.get());
 			if (ret.empty()) ret.push_back(' ');
 			return ret;
 		};
@@ -961,7 +966,7 @@ PyObject* KiwiObject::extractWords(PyObject* args, PyObject *kwargs)
 		{
 			auto v = py::buildPyTuple(utf16To8(r.form).c_str(), r.score, r.freq, r.posScore[POSTag::nnp]);
 			if (!v) throw py::ExcPropagation{};
-			PyList_SetItem(retList, idx++, v);
+			PyList_SET_ITEM(retList.get(), idx++, v.release());
 		}
 		return retList.release();
 	});
@@ -987,7 +992,7 @@ PyObject* KiwiObject::extractAddWords(PyObject* args, PyObject *kwargs)
 		{
 			auto v = py::buildPyTuple(utf16To8(r.form).c_str(), r.score, r.freq, r.posScore[POSTag::nnp]);
 			if (!v) throw py::ExcPropagation{};
-			PyList_SetItem(retList, idx++, v);
+			PyList_SET_ITEM(retList.get(), idx++, v.release());
 		}
 		return retList.release();
 	});
@@ -1007,7 +1012,7 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 		{
 			auto res = kiwi.analyze(PyUnicode_AsUTF8(text), max(topN, (size_t)10), (Match)matchOptions);
 			if (res.size() > topN) res.erase(res.begin() + topN, res.end());
-			return resToPyList(move(res), kiwi);
+			return resToPyList(move(res), kiwi).release();
 		}
 		else
 		{
@@ -1050,7 +1055,7 @@ PyObject* KiwiObject::perform(PyObject* args, PyObject *kwargs)
 		py::UniqueObj ret{ PyList_New(0) };
 		tKiwi.analyze(topN, reader(), [&](vector<TokenResult>&& res)
 		{
-			PyList_Append(ret, py::UniqueObj{ resToPyList(move(res), kiwi) });
+			PyList_Append(ret.get(), resToPyList(move(res), kiwi).get());
 		}, (Match)matchOptions);
 		return ret.release();
 	});
@@ -1112,7 +1117,7 @@ PyObject* KiwiObject::join(PyObject* args, PyObject* kwargs)
 				throw py::ConversionFail{ "`morphs` must be an iterable of `Tuple[str, str]`." };
 			}
 		}, "`morphs` must be an iterable of `Tuple[str, str]`.");
-		return py::buildPyValue(joiner.getU8());
+		return py::buildPyValue(joiner.getU8()).release();
 	});
 }
 
@@ -1131,9 +1136,9 @@ PyObject* KiwiObject::makeHSDataset(PyObject* args, PyObject* kwargs)
 		{
 			tf = [&](const u16string& form, POSTag tag)
 			{
-				py::UniqueObj ret{ PyObject_CallObject(tokenFilter, py::buildPyTuple(form, tagToString(tag))) };
+				py::UniqueObj ret{ PyObject_CallObject(tokenFilter, py::buildPyTuple(form, tagToString(tag)).get()) };
 				if (!ret) throw py::ExcPropagation{};
-				auto truth = PyObject_IsTrue(ret);
+				auto truth = PyObject_IsTrue(ret.get());
 				if (truth < 0) throw py::ExcPropagation{};
 				return !!truth;
 			};
@@ -1155,7 +1160,7 @@ PyObject* KiwiObject::makeHSDataset(PyObject* args, PyObject* kwargs)
 			py::UniqueObj ret2{ PyObject_CallObject((PyObject*)py::Type<HSDatasetObject>, nullptr) };
 			((HSDatasetObject*)ret2.get())->hsd = move(anotherDataset);
 			auto ret = py::buildPyTuple(ret1, ret2);
-			return ret;
+			return ret.release();
 		}
 	});
 }

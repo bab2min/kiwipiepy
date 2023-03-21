@@ -77,7 +77,7 @@ namespace py
 			return !!obj;
 		}
 
-		operator Ty* () const
+		explicit operator Ty* () const
 		{
 			return obj;
 		}
@@ -155,6 +155,14 @@ namespace py
 
 	using UniqueObj = UniqueCObj<>;
 	using SharedObj = SharedCObj<>;
+
+	class ForeachFailed : public std::runtime_error
+	{
+	public:
+		ForeachFailed() : std::runtime_error{ "" }
+		{
+		}
+	};
 
 	class ExcPropagation : public std::runtime_error
 	{
@@ -419,7 +427,7 @@ namespace py
 	public:
 		using ValueError::ValueError;
 
-		template<typename _Ty, 
+		template<typename _Ty,
 			typename = typename std::enable_if<std::is_constructible<std::function<std::string()>, _Ty>::value>::type
 		>
 		ConversionFail(_Ty&& callable) : ValueError{ callable() }
@@ -431,7 +439,7 @@ namespace py
 	struct ValueBuilder;
 
 	template<typename _Ty>
-	inline PyObject* buildPyValue(_Ty&& v)
+	inline UniqueObj buildPyValue(_Ty&& v)
 	{
 		return ValueBuilder<
 			typename std::remove_const<typename std::remove_reference<_Ty>::type>::type
@@ -449,7 +457,7 @@ namespace py
 	{
 		UniqueObj r{ PyObject_Repr(o) };
 		if (!r) throw ExcPropagation{};
-		return toCpp<std::string>(r, "");
+		return toCpp<std::string>(r.get(), "");
 	}
 
 	inline std::string reprWithNestedError(PyObject* o)
@@ -460,32 +468,32 @@ namespace py
 		UniqueObj r{ PyObject_Repr(o) };
 		if (!r) throw ExcPropagation{};
 		PyErr_Restore(type, value, traceback);
-		return toCpp<std::string>(r, "");
+		return toCpp<std::string>(r.get(), "");
 	}
 
 	template<typename _Ty>
 	inline std::string reprFromCpp(_Ty&& o)
 	{
 		UniqueObj p{ py::buildPyValue(std::forward<_Ty>(o)) };
-		UniqueObj r{ PyObject_Repr(p) };
+		UniqueObj r{ PyObject_Repr(p.get()) };
 		if (!r) throw ExcPropagation{};
-		return toCpp<std::string>(r, "");
+		return toCpp<std::string>(r.get(), "");
 	}
 
 	template<typename _Ty>
 	inline _Ty toCpp(PyObject* obj)
 	{
 		if (!obj) throw ConversionFail{ "cannot convert null pointer into appropriate C++ type" };
-		return ValueBuilder<_Ty>{}._toCpp(obj, [=](){ return "cannot convert " + reprWithNestedError(obj) + " into appropriate C++ type"; });
+		return ValueBuilder<_Ty>{}._toCpp(obj, [=]() { return "cannot convert " + reprWithNestedError(obj) + " into appropriate C++ type"; });
 	}
 
 	template<typename _Ty>
-	struct ValueBuilder<_Ty, 
+	struct ValueBuilder<_Ty,
 		typename std::enable_if<std::is_integral<_Ty>::value>::type>
 	{
-		PyObject* operator()(_Ty v)
+		UniqueObj operator()(_Ty v)
 		{
-			return PyLong_FromLongLong(v);
+			return UniqueObj{ PyLong_FromLongLong(v) };
 		}
 
 		template<typename _FailMsg>
@@ -501,9 +509,9 @@ namespace py
 	struct ValueBuilder<_Ty,
 		typename std::enable_if<std::is_enum<_Ty>::value>::type>
 	{
-		PyObject* operator()(_Ty v)
+		UniqueObj operator()(_Ty v)
 		{
-			return PyLong_FromLongLong((long long)v);
+			return UniqueObj{ PyLong_FromLongLong((long long)v) };
 		}
 
 		template<typename _FailMsg>
@@ -519,9 +527,9 @@ namespace py
 	struct ValueBuilder<_Ty,
 		typename std::enable_if<std::is_floating_point<_Ty>::value>::type>
 	{
-		PyObject* operator()(_Ty v)
+		UniqueObj operator()(_Ty v)
 		{
-			return PyFloat_FromDouble(v);
+			return UniqueObj{ PyFloat_FromDouble(v) };
 		}
 
 		template<typename _FailMsg>
@@ -536,9 +544,9 @@ namespace py
 	template<>
 	struct ValueBuilder<std::string>
 	{
-		PyObject* operator()(const std::string& v)
+		UniqueObj operator()(const std::string& v)
 		{
-			return PyUnicode_FromStringAndSize(v.data(), v.size());
+			return UniqueObj{ PyUnicode_FromStringAndSize(v.data(), v.size()) };
 		}
 
 		template<typename _FailMsg>
@@ -553,9 +561,9 @@ namespace py
 	template<>
 	struct ValueBuilder<std::u16string>
 	{
-		PyObject* operator()(const std::u16string& v)
+		UniqueObj operator()(const std::u16string& v)
 		{
-			return PyUnicode_DecodeUTF16((const char*)v.data(), v.size() * 2, nullptr, nullptr);
+			return UniqueObj{ PyUnicode_DecodeUTF16((const char*)v.data(), v.size() * 2, nullptr, nullptr) };
 		}
 
 		template<typename _FailMsg>
@@ -567,41 +575,41 @@ namespace py
 			std::u16string ret;
 			switch (PyUnicode_KIND(uobj.get()))
 			{
-				case PyUnicode_1BYTE_KIND:
+			case PyUnicode_1BYTE_KIND:
+			{
+				auto* p = PyUnicode_1BYTE_DATA(uobj.get());
+				ret.resize(len);
+				std::copy(p, p + len, &ret[0]);
+				break;
+			}
+			case PyUnicode_2BYTE_KIND:
+			{
+				auto* p = PyUnicode_2BYTE_DATA(uobj.get());
+				ret.resize(len);
+				std::copy(p, p + len, &ret[0]);
+				break;
+			}
+			case PyUnicode_4BYTE_KIND:
+			{
+				auto* p = PyUnicode_4BYTE_DATA(uobj.get());
+				for (size_t i = 0; i < len; ++i)
 				{
-					auto* p = PyUnicode_1BYTE_DATA(uobj.get());
-					ret.resize(len);
-					std::copy(p, p + len, &ret[0]);
-					break;
-				}
-				case PyUnicode_2BYTE_KIND:
-				{
-					auto* p = PyUnicode_2BYTE_DATA(uobj.get());
-					ret.resize(len);
-					std::copy(p, p + len, &ret[0]);
-					break;
-				}
-				case PyUnicode_4BYTE_KIND:
-				{
-					auto* p = PyUnicode_4BYTE_DATA(uobj.get());
-					for (size_t i = 0; i < len; ++i)
+					auto c = p[i];
+					ret.reserve(len);
+					if (c < 0x10000)
 					{
-						auto c = p[i];
-						ret.reserve(len);
-						if (c < 0x10000)
-						{
-							ret.push_back(c);
-						}
-						else
-						{
-							ret.push_back(0xD800 - (0x10000 >> 10) + (c >> 10));
-							ret.push_back(0xDC00 + (c & 0x3FF));
-						}
+						ret.push_back(c);
 					}
-					break;
+					else
+					{
+						ret.push_back(0xD800 - (0x10000 >> 10) + (c >> 10));
+						ret.push_back(0xDC00 + (c & 0x3FF));
+					}
 				}
-				default:
-					throw ConversionFail{ std::forward<_FailMsg>(msg) };
+				break;
+			}
+			default:
+				throw ConversionFail{ std::forward<_FailMsg>(msg) };
 			}
 			return ret;
 		}
@@ -610,9 +618,9 @@ namespace py
 	template<>
 	struct ValueBuilder<const char*>
 	{
-		PyObject* operator()(const char* v)
+		UniqueObj operator()(const char* v)
 		{
-			return PyUnicode_FromString(v);
+			return UniqueObj{ PyUnicode_FromString(v) };
 		}
 
 		template<typename _FailMsg>
@@ -627,18 +635,18 @@ namespace py
 	template<size_t len>
 	struct ValueBuilder<char[len]>
 	{
-		PyObject* operator()(const char(&v)[len])
+		UniqueObj operator()(const char(&v)[len])
 		{
-			return PyUnicode_FromStringAndSize(v, len - 1);
+			return UniqueObj{ PyUnicode_FromStringAndSize(v, len - 1) };
 		}
 	};
 
 	template<>
 	struct ValueBuilder<bool>
 	{
-		PyObject* operator()(bool v)
+		UniqueObj operator()(bool v)
 		{
-			return PyBool_FromLong(v);
+			return UniqueObj{ PyBool_FromLong(v) };
 		}
 
 		template<typename _FailMsg>
@@ -651,28 +659,21 @@ namespace py
 	template<>
 	struct ValueBuilder<std::nullptr_t>
 	{
-		PyObject* operator()(std::nullptr_t)
+		UniqueObj operator()(std::nullptr_t)
 		{
 			Py_INCREF(Py_None);
-			return Py_None;
+			return UniqueObj{ Py_None };
 		}
 	};
 
 	template<>
 	struct ValueBuilder<PyObject*>
 	{
-		PyObject* operator()(PyObject* v)
+		UniqueObj operator()(PyObject* v)
 		{
-			if (v)
-			{
-				Py_INCREF(v);
-				return v;
-			}
-			else
-			{
-				Py_INCREF(Py_None);
-				return Py_None;
-			}
+			if (!v) v = Py_None;
+			Py_INCREF(v);
+			return UniqueObj{ v };
 		}
 
 		template<typename _FailMsg>
@@ -685,31 +686,31 @@ namespace py
 	template<typename Ty>
 	struct ValueBuilder<UniqueCObj<Ty>>
 	{
-		PyObject* operator()(UniqueCObj<Ty>&& v)
+		UniqueObj operator()(UniqueCObj<Ty>&& v)
 		{
 			if (v)
 			{
 				Py_INCREF(v);
-				return (PyObject*)v.get();
+				return UniqueObj{ (PyObject*)v.get() };
 			}
 			else
 			{
 				Py_INCREF(Py_None);
-				return Py_None;
+				return UniqueObj{ Py_None };
 			}
 		}
 
-		PyObject* operator()(const UniqueCObj<Ty>& v)
+		UniqueObj operator()(const UniqueCObj<Ty>& v)
 		{
 			if (v)
 			{
 				Py_INCREF(v);
-				return (PyObject*)v.get();
+				return UniqueObj{ (PyObject*)v.get() };
 			}
 			else
 			{
 				Py_INCREF(Py_None);
-				return Py_None;
+				return UniqueObj{ Py_None };
 			}
 		}
 	};
@@ -717,31 +718,31 @@ namespace py
 	template<typename Ty>
 	struct ValueBuilder<SharedCObj<Ty>>
 	{
-		PyObject* operator()(SharedCObj<Ty>&& v)
+		UniqueObj operator()(SharedCObj<Ty>&& v)
 		{
 			if (v)
 			{
 				Py_INCREF(v);
-				return (PyObject*)v.get();
+				return UniqueObj{ (PyObject*)v.get() };
 			}
 			else
 			{
 				Py_INCREF(Py_None);
-				return Py_None;
+				return UniqueObj{ Py_None };
 			}
 		}
 
-		PyObject* operator()(const SharedCObj<Ty>& v)
+		UniqueObj operator()(const SharedCObj<Ty>& v)
 		{
 			if (v)
 			{
 				Py_INCREF(v);
-				return (PyObject*)v.get();
+				return UniqueObj{ (PyObject*)v.get() };
 			}
 			else
 			{
 				Py_INCREF(Py_None);
-				return Py_None;
+				return UniqueObj{ Py_None };
 			}
 		}
 	};
@@ -749,12 +750,12 @@ namespace py
 	template<typename _Ty1, typename _Ty2>
 	struct ValueBuilder<std::pair<_Ty1, _Ty2>>
 	{
-		PyObject* operator()(const std::pair<_Ty1, _Ty2>& v)
+		UniqueObj operator()(const std::pair<_Ty1, _Ty2>& v)
 		{
-			PyObject* ret = PyTuple_New(2);
+			UniqueObj ret{ PyTuple_New(2) };
 			size_t id = 0;
-			PyTuple_SET_ITEM(ret, id++, buildPyValue(std::get<0>(v)));
-			PyTuple_SET_ITEM(ret, id++, buildPyValue(std::get<1>(v)));
+			PyTuple_SET_ITEM(ret.get(), id++, buildPyValue(std::get<0>(v)).release());
+			PyTuple_SET_ITEM(ret.get(), id++, buildPyValue(std::get<1>(v)).release());
 			return ret;
 		}
 
@@ -780,7 +781,7 @@ namespace py
 		template<size_t i, size_t ...rest>
 		void setValue(PyObject* o, const std::tuple<_Tys...>& v, std::integer_sequence<size_t, i, rest...>)
 		{
-			PyTuple_SET_ITEM(o, i, buildPyValue(std::get<i>(v)));
+			PyTuple_SET_ITEM(o, i, buildPyValue(std::get<i>(v)).release());
 			return setValue<rest...>(o, v, {});
 		}
 
@@ -793,9 +794,9 @@ namespace py
 		}
 
 	public:
-		PyObject* operator()(const std::tuple<_Tys...>& v)
+		UniqueObj operator()(const std::tuple<_Tys...>& v)
 		{
-			PyObject* ret = PyTuple_New(sizeof...(_Tys));
+			UniqueObj ret{ PyTuple_New(sizeof...(_Tys)) };
 			size_t id = 0;
 			setValue(ret, v, std::make_index_sequence<sizeof...(_Tys)>{});
 			return ret;
@@ -812,13 +813,12 @@ namespace py
 	template<typename _Ty1, typename _Ty2>
 	struct ValueBuilder<std::unordered_map<_Ty1, _Ty2>>
 	{
-		PyObject* operator()(const std::unordered_map<_Ty1, _Ty2>& v)
+		UniqueObj operator()(const std::unordered_map<_Ty1, _Ty2>& v)
 		{
-			PyObject* ret = PyDict_New();
+			UniqueObj ret{ PyDict_New() };
 			for (auto& p : v)
 			{
-				py::UniqueObj key{ buildPyValue(p.first) }, val{ buildPyValue(p.second) };
-				if(PyDict_SetItem(ret, key, val)) return nullptr;
+				if (PyDict_SetItem(ret.get(), buildPyValue(p.first).get(), buildPyValue(p.second).get())) return UniqueObj{ nullptr };
 			}
 			return ret;
 		}
@@ -851,7 +851,7 @@ namespace py
 		template<>
 		struct NpyType<int8_t>
 		{
-			enum { 
+			enum {
 				type = NPY_INT8,
 				signed_type = type,
 				npy_type = type,
@@ -861,7 +861,7 @@ namespace py
 		template<>
 		struct NpyType<uint8_t>
 		{
-			enum { 
+			enum {
 				type = NPY_UINT8,
 				signed_type = NPY_INT8,
 				npy_type = type,
@@ -871,7 +871,7 @@ namespace py
 		template<>
 		struct NpyType<int16_t>
 		{
-			enum { 
+			enum {
 				type = NPY_INT16,
 				signed_type = type,
 				npy_type = type,
@@ -881,7 +881,7 @@ namespace py
 		template<>
 		struct NpyType<uint16_t>
 		{
-			enum { 
+			enum {
 				type = NPY_UINT16,
 				signed_type = NPY_INT16,
 				npy_type = type,
@@ -891,7 +891,7 @@ namespace py
 		template<>
 		struct NpyType<int32_t>
 		{
-			enum { 
+			enum {
 				type = NPY_INT32,
 				signed_type = type,
 				npy_type = type,
@@ -901,7 +901,7 @@ namespace py
 		template<>
 		struct NpyType<uint32_t>
 		{
-			enum { 
+			enum {
 				type = NPY_UINT32,
 				signed_type = NPY_INT32,
 				npy_type = type,
@@ -911,7 +911,7 @@ namespace py
 		template<>
 		struct NpyType<int64_t>
 		{
-			enum { 
+			enum {
 				type = NPY_INT64,
 				signed_type = type,
 				npy_type = type,
@@ -921,8 +921,8 @@ namespace py
 		template<>
 		struct NpyType<uint64_t>
 		{
-			enum { 
-				type = NPY_UINT64, 
+			enum {
+				type = NPY_UINT64,
 				signed_type = NPY_INT64,
 				npy_type = type,
 			};
@@ -932,8 +932,8 @@ namespace py
 		template<>
 		struct NpyType<long>
 		{
-			enum { 
-				type = NPY_INT64, 
+			enum {
+				type = NPY_INT64,
 				signed_type = type,
 				npy_type = type,
 			};
@@ -942,8 +942,8 @@ namespace py
 		template<>
 		struct NpyType<unsigned long>
 		{
-			enum { 
-				type = NPY_UINT64, 
+			enum {
+				type = NPY_UINT64,
 				signed_type = NPY_INT64,
 				npy_type = type,
 			};
@@ -953,8 +953,8 @@ namespace py
 		template<>
 		struct NpyType<float>
 		{
-			enum { 
-				type = NPY_FLOAT, 
+			enum {
+				type = NPY_FLOAT,
 				signed_type = type,
 				npy_type = type,
 			};
@@ -963,8 +963,8 @@ namespace py
 		template<>
 		struct NpyType<double>
 		{
-			enum { 
-				type = NPY_DOUBLE, 
+			enum {
+				type = NPY_DOUBLE,
 				signed_type = type,
 				npy_type = type,
 			};
@@ -986,14 +986,14 @@ namespace py
 
 #ifdef USE_NUMPY
 	template<typename _Ty>
-	struct ValueBuilder<std::vector<_Ty>, 
+	struct ValueBuilder<std::vector<_Ty>,
 		typename std::enable_if<numpy_able<_Ty>::value>::type>
 	{
-		PyObject* operator()(const std::vector<_Ty>& v)
+		UniqueObj operator()(const std::vector<_Ty>& v)
 		{
 			npy_intp size = v.size();
-			PyObject* obj = PyArray_EMPTY(1, &size, detail::NpyType<_Ty>::type, 0);
-			std::memcpy(PyArray_DATA((PyArrayObject*)obj), v.data(), sizeof(_Ty) * size);
+			UniqueObj obj{ PyArray_EMPTY(1, &size, detail::NpyType<_Ty>::type, 0) };
+			std::memcpy(PyArray_DATA((PyArrayObject*)obj.get()), v.data(), sizeof(_Ty) * size);
 			return obj;
 		}
 
@@ -1010,7 +1010,7 @@ namespace py
 				UniqueObj iter{ PyObject_GetIter(obj) }, item;
 				if (!iter) throw ConversionFail{ std::forward<_FailMsg>(failMsg) };
 				std::vector<_Ty> v;
-				while ((item = UniqueObj{ PyIter_Next(iter) }))
+				while ((item = UniqueObj{ PyIter_Next(iter.get()) }))
 				{
 					v.emplace_back(toCpp<_Ty>(item));
 				}
@@ -1028,13 +1028,13 @@ namespace py
 	struct ValueBuilder<std::vector<_Ty>,
 		typename std::enable_if<!numpy_able<_Ty>::value>::type>
 	{
-		PyObject* operator()(const std::vector<_Ty>& v)
+		UniqueObj operator()(const std::vector<_Ty>& v)
 		{
-			PyObject* ret = PyList_New(v.size());
+			UniqueObj ret{ PyList_New(v.size()) };
 			size_t id = 0;
 			for (auto& e : v)
 			{
-				PyList_SetItem(ret, id++, buildPyValue(e));
+				PyList_SET_ITEM(ret.get(), id++, buildPyValue(e).release());
 			}
 			return ret;
 		}
@@ -1045,9 +1045,9 @@ namespace py
 			UniqueObj iter{ PyObject_GetIter(obj) }, item;
 			if (!iter) throw ConversionFail{ std::forward<_FailMsg>(failMsg) };
 			std::vector<_Ty> v;
-			while ((item = UniqueObj{ PyIter_Next(iter) }))
+			while ((item = UniqueObj{ PyIter_Next(iter.get()) }))
 			{
-				v.emplace_back(toCpp<_Ty>(item));
+				v.emplace_back(toCpp<_Ty>(item.get()));
 			}
 			if (PyErr_Occurred())
 			{
@@ -1063,7 +1063,7 @@ namespace py
 		if (!iterable) throw ConversionFail{ std::forward<Msg>(failMsg) };
 		UniqueObj iter{ PyObject_GetIter(iterable) }, item;
 		if (!iter) throw ConversionFail{ std::forward<Msg>(failMsg) };
-		while ((item = UniqueObj{ PyIter_Next(iter) }))
+		while ((item = UniqueObj{ PyIter_Next(iter.get()) }))
 		{
 			*out++ = toCpp<T>(item);
 		}
@@ -1079,13 +1079,21 @@ namespace py
 		if (!iterable) throw ConversionFail{ std::forward<Msg>(failMsg) };
 		UniqueObj iter{ PyObject_GetIter(iterable) }, item;
 		if (!iter) throw ConversionFail{ std::forward<Msg>(failMsg) };
-		while ((item = UniqueObj{ PyIter_Next(iter) }))
+		try
 		{
-			fn(toCpp<T>(item));
+			while ((item = UniqueObj{ PyIter_Next(iter.get()) }))
+			{
+				fn(toCpp<T>(item.get()));
+			}
 		}
-		if (PyErr_Occurred())
+		catch (const ForeachFailed&)
 		{
 			throw ConversionFail{ std::forward<Msg>(failMsg) };
+		}
+
+		if (PyErr_Occurred())
+		{
+			throw ExcPropagation{};
 		}
 	}
 
@@ -1095,10 +1103,18 @@ namespace py
 		if (!iterable) throw ConversionFail{ std::forward<Msg>(failMsg) };
 		UniqueObj iter{ PyObject_GetIter(iterable) }, item;
 		if (!iter) throw ConversionFail{ std::forward<Msg>(failMsg) };
-		while ((item = UniqueObj{ PyIter_Next(iter) }))
+		try
 		{
-			fn(toCpp<T>(item), item.get());
+			while ((item = UniqueObj{ PyIter_Next(iter.get()) }))
+			{
+				fn(toCpp<T>(item.get()), item.get());
+			}
 		}
+		catch (const ForeachFailed&)
+		{
+			throw ConversionFail{ std::forward<Msg>(failMsg) };
+		}
+
 		if (PyErr_Occurred())
 		{
 			throw ConversionFail{ std::forward<Msg>(failMsg) };
@@ -1107,11 +1123,11 @@ namespace py
 
 #ifdef USE_NUMPY
 	template<typename _Ty>
-	inline typename std::enable_if<numpy_able<_Ty>::value, PyObject*>::type
+	inline typename std::enable_if<numpy_able<_Ty>::value, UniqueObj>::type
 		buildPyValue(const std::vector<_Ty>& v, cast_to_signed_t)
 	{
 		npy_intp size = v.size();
-		PyObject* obj = PyArray_EMPTY(1, &size, detail::NpyType<_Ty>::signed_type, 0);
+		UniqueObj obj{ PyArray_EMPTY(1, &size, detail::NpyType<_Ty>::signed_type, 0) };
 		std::memcpy(PyArray_DATA((PyArrayObject*)obj), v.data(), sizeof(_Ty) * size);
 		return obj;
 	}
@@ -1120,25 +1136,25 @@ namespace py
 	template<typename _Ty>
 	inline typename std::enable_if<
 		!numpy_able<typename std::iterator_traits<_Ty>::value_type>::value,
-		PyObject*
+		UniqueObj
 	>::type buildPyValue(_Ty first, _Ty last)
 	{
-		PyObject* ret = PyList_New(std::distance(first, last));
+		UniqueObj ret{ PyList_New(std::distance(first, last)) };
 		size_t id = 0;
 		for (; first != last; ++first)
 		{
-			PyList_SetItem(ret, id++, buildPyValue(*first));
+			PyList_SET_ITEM(ret.get(), id++, buildPyValue(*first).release());
 		}
 		return ret;
 	}
 
 	template<typename _Ty>
-	inline PyObject* buildPyValue(const std::vector<_Ty>& v, force_list_t)
+	inline UniqueObj buildPyValue(const std::vector<_Ty>& v, force_list_t)
 	{
-		PyObject* ret = PyList_New(v.size());
+		UniqueObj ret{ PyList_New(v.size()) };
 		for (size_t i = 0; i < v.size(); ++i)
 		{
-			PyList_SetItem(ret, i, buildPyValue(v[i]));
+			PyList_SET_ITEM(ret.get(), i, buildPyValue(v[i]).release());
 		}
 		return ret;
 	}
@@ -1146,34 +1162,40 @@ namespace py
 	template<typename _Ty, typename _Tx>
 	inline typename std::enable_if<
 		!numpy_able<
-			typename std::result_of<_Tx(typename std::iterator_traits<_Ty>::value_type)>::type
+		typename std::result_of<_Tx(typename std::iterator_traits<_Ty>::value_type)>::type
 		>::value,
-		PyObject*
+		UniqueObj
 	>::type buildPyValueTransform(_Ty first, _Ty last, _Tx tx)
 	{
-		PyObject* ret = PyList_New(std::distance(first, last));
+		UniqueObj ret{ PyList_New(std::distance(first, last)) };
 		size_t id = 0;
 		for (; first != last; ++first)
 		{
-			PyList_SetItem(ret, id++, buildPyValue(tx(*first)));
+			PyList_SET_ITEM(ret.get(), id++, buildPyValue(tx(*first)).release());
 		}
 		return ret;
+	}
+
+	template<typename _Ty, typename _Tx>
+	inline UniqueObj buildPyValueTransform(_Ty&& container, _Tx tx)
+	{
+		return buildPyValueTransform(std::begin(container), std::end(container), tx);
 	}
 
 #ifdef USE_NUMPY
 	template<typename _Ty>
 	inline typename std::enable_if<
 		numpy_able<typename std::iterator_traits<_Ty>::value_type>::value,
-		PyObject*
+		UniqueObj
 	>::type buildPyValue(_Ty first, _Ty last)
 	{
 		using value_type = typename std::iterator_traits<_Ty>::value_type;
 		npy_intp size = std::distance(first, last);
-		PyObject* ret = PyArray_EMPTY(1, &size, detail::NpyType<value_type>::type, 0);
+		UniqueObj ret{ PyArray_EMPTY(1, &size, detail::NpyType<value_type>::type, 0) };
 		size_t id = 0;
 		for (; first != last; ++first, ++id)
 		{
-			*(value_type*)PyArray_GETPTR1((PyArrayObject*)ret, id) = *first;
+			*(value_type*)PyArray_GETPTR1((PyArrayObject*)ret.get(), id) = *first;
 		}
 		return ret;
 	}
@@ -1181,18 +1203,18 @@ namespace py
 	template<typename _Ty, typename _Tx>
 	inline typename std::enable_if<
 		numpy_able<
-			typename std::result_of<_Tx(typename std::iterator_traits<_Ty>::value_type)>::type
+		typename std::result_of<_Tx(typename std::iterator_traits<_Ty>::value_type)>::type
 		>::value,
-		PyObject*
+		UniqueObj
 	>::type buildPyValueTransform(_Ty first, _Ty last, _Tx tx)
 	{
 		using value_type = decltype(tx(*first));
 		npy_intp size = std::distance(first, last);
-		PyObject* ret = PyArray_EMPTY(1, &size, detail::NpyType<value_type>::type, 0);
+		UniqueObj ret{ PyArray_EMPTY(1, &size, detail::NpyType<value_type>::type, 0) };
 		size_t id = 0;
 		for (; first != last; ++first, ++id)
 		{
-			*(value_type*)PyArray_GETPTR1((PyArrayObject*)ret, id) = tx(*first);
+			*(value_type*)PyArray_GETPTR1((PyArrayObject*)ret.get(), id) = tx(*first);
 		}
 		return ret;
 	}
@@ -1210,21 +1232,57 @@ namespace py
 		{
 			{
 				UniqueObj v{ buildPyValue(std::forward<_Ty>(value)) };
-				PyDict_SetItemString(dict, keys[0], v);
+				PyDict_SetItemString(dict, keys[0], v.get());
+			}
+			return setDictItem(dict, keys + 1, std::forward<_Rest>(rest)...);
+		}
+
+		inline void setDictItem(PyObject* dict, const UniqueObj* keys)
+		{
+
+		}
+
+		template<typename _Ty, typename... _Rest>
+		inline void setDictItem(PyObject* dict, const UniqueObj* keys, _Ty&& value, _Rest&& ... rest)
+		{
+			{
+				UniqueObj v{ buildPyValue(std::forward<_Ty>(value)) };
+				PyDict_SetItem(dict, keys[0].get(), v.get());
 			}
 			return setDictItem(dict, keys + 1, std::forward<_Rest>(rest)...);
 		}
 
 		template<typename _Ty>
-		inline bool isNull(_Ty v)
+		struct IsNull
 		{
-			return false;
-		}
+			bool operator()(const _Ty& v)
+			{
+				return false;
+			}
+		};
+
+		template<typename _Ty>
+		struct IsNull<_Ty*>
+		{
+			bool operator()(_Ty* v)
+			{
+				return !v;
+			}
+		};
 
 		template<>
-		inline bool isNull<PyObject*>(PyObject* v)
+		struct IsNull<std::nullptr_t>
 		{
-			return !v;
+			bool operator()(std::nullptr_t v)
+			{
+				return true;
+			}
+		};
+
+		template<class _Ty>
+		inline bool isNull(_Ty&& v)
+		{
+			return IsNull<typename std::remove_reference<_Ty>::type>{}(std::forward<_Ty>(v));
 		}
 
 		inline void setDictItemSkipNull(PyObject* dict, const char** keys)
@@ -1235,10 +1293,26 @@ namespace py
 		template<typename _Ty, typename... _Rest>
 		inline void setDictItemSkipNull(PyObject* dict, const char** keys, _Ty&& value, _Rest&& ... rest)
 		{
-			if(!isNull(value))
+			if (!isNull(value))
 			{
 				UniqueObj v{ buildPyValue(value) };
-				PyDict_SetItemString(dict, keys[0], v);
+				PyDict_SetItemString(dict, keys[0], v.get());
+			}
+			return setDictItemSkipNull(dict, keys + 1, std::forward<_Rest>(rest)...);
+		}
+
+		inline void setDictItemSkipNull(PyObject* dict, const UniqueObj* keys)
+		{
+
+		}
+
+		template<typename _Ty, typename... _Rest>
+		inline void setDictItemSkipNull(PyObject* dict, const UniqueObj* keys, _Ty&& value, _Rest&& ... rest)
+		{
+			if (!isNull(value))
+			{
+				UniqueObj v{ buildPyValue(value) };
+				PyDict_SetItem(dict, keys[0].get(), v.get());
 			}
 			return setDictItemSkipNull(dict, keys + 1, std::forward<_Rest>(rest)...);
 		}
@@ -1251,24 +1325,40 @@ namespace py
 		template<size_t _n, typename _Ty, typename... _Rest>
 		inline void setTupleItem(PyObject* tuple, _Ty&& first, _Rest&&... rest)
 		{
-			PyTuple_SET_ITEM(tuple, _n, buildPyValue(std::forward<_Ty>(first)));
+			PyTuple_SET_ITEM(tuple, _n, buildPyValue(std::forward<_Ty>(first)).release());
 			return setTupleItem<_n + 1>(tuple, std::forward<_Rest>(rest)...);
 		}
 	}
 
 	template<typename... _Rest>
-	inline PyObject* buildPyDict(const char** keys, _Rest&&... rest)
+	inline UniqueObj buildPyDict(const char** keys, _Rest&&... rest)
 	{
-		PyObject* dict = PyDict_New();
+		UniqueObj dict{ PyDict_New() };
 		detail::setDictItem(dict, keys, std::forward<_Rest>(rest)...);
 		return dict;
 	}
 
 	template<typename... _Rest>
-	inline PyObject* buildPyDictSkipNull(const char** keys, _Rest&&... rest)
+	inline UniqueObj buildPyDictSkipNull(const char** keys, _Rest&&... rest)
 	{
-		PyObject* dict = PyDict_New();
+		UniqueObj dict{ PyDict_New() };
 		detail::setDictItemSkipNull(dict, keys, std::forward<_Rest>(rest)...);
+		return dict;
+	}
+
+	template<typename... _Rest>
+	inline UniqueObj buildPyDict(const UniqueObj* keys, _Rest&&... rest)
+	{
+		UniqueObj dict{ PyDict_New() };
+		detail::setDictItem(dict.get(), keys, std::forward<_Rest>(rest)...);
+		return dict;
+	}
+
+	template<typename... _Rest>
+	inline UniqueObj buildPyDictSkipNull(const UniqueObj* keys, _Rest&&... rest)
+	{
+		UniqueObj dict{ PyDict_New() };
+		detail::setDictItemSkipNull(dict.get(), keys, std::forward<_Rest>(rest)...);
 		return dict;
 	}
 
@@ -1276,14 +1366,14 @@ namespace py
 	inline void setPyDictItem(PyObject* dict, const char* key, _Ty&& value)
 	{
 		UniqueObj v{ buildPyValue(value) };
-		PyDict_SetItemString(dict, key, v);
+		PyDict_SetItemString(dict, key, v.get());
 	}
 
 	template<typename... _Rest>
-	inline PyObject* buildPyTuple(_Rest&&... rest)
+	inline UniqueObj buildPyTuple(_Rest&&... rest)
 	{
-		PyObject* tuple = PyTuple_New(sizeof...(_Rest));
-		detail::setTupleItem<0>(tuple, std::forward<_Rest>(rest)...);
+		UniqueObj tuple{ PyTuple_New(sizeof...(_Rest)) };
+		detail::setTupleItem<0>(tuple.get(), std::forward<_Rest>(rest)...);
 		return tuple;
 	}
 
@@ -1300,8 +1390,8 @@ namespace py
 			return handleExc([&]()
 			{
 				py::UniqueObj ret{ subtype->tp_alloc(subtype, 0) };
-				new ((Derived*)ret.get()) Derived;
-				return ret.release();
+			new ((Derived*)ret.get()) Derived;
+			return ret.release();
 			});
 		}
 
@@ -1362,24 +1452,24 @@ namespace py
 		{
 			return handleExc([&]() -> PyObject* {
 				if (!self->feed() && self->futures.empty()) return nullptr;
-				auto f = std::move(self->futures.front());
-				self->futures.pop_front();
-				if (self->echo)
-				{
-					auto input = std::move(self->inputItems.front());
-					self->inputItems.pop_front();
-					return buildPyTuple(UniqueObj{ self->buildPy(f.get()) }, input);
-				}
-				else
-				{
-					return self->buildPy(f.get());
-				}
+			auto f = std::move(self->futures.front());
+			self->futures.pop_front();
+			if (self->echo)
+			{
+				auto input = std::move(self->inputItems.front());
+				self->inputItems.pop_front();
+				return buildPyTuple(UniqueObj{ self->buildPy(f.get()) }, input).release();
+			}
+			else
+			{
+				return self->buildPy(f.get()).release();
+			}
 			});
 		}
 
 		bool feed()
 		{
-			SharedObj item{ PyIter_Next(inputIter) };
+			SharedObj item{ PyIter_Next(inputIter.get()) };
 			if (!item)
 			{
 				if (PyErr_Occurred()) throw ExcPropagation{};
@@ -1395,7 +1485,7 @@ namespace py
 			return {};
 		}
 
-		PyObject* buildPy(RetTy&& v)
+		UniqueObj buildPy(RetTy&& v)
 		{
 			return py::buildPyValue(std::move(v));
 		}
@@ -1489,9 +1579,7 @@ namespace py
 				Py_DECREF(exc);
 				PyObject* et = e.pytype();
 				val2 = PyObject_CallFunctionObjArgs(et, py::UniqueObj{ buildPyValue(e.what()) }.get(), nullptr);
-				Py_INCREF(val);
 				PyException_SetCause(val2, val);
-				PyException_SetContext(val2, val);
 				PyErr_SetObject(et, val2);
 				Py_DECREF(val2);
 			}
@@ -1506,6 +1594,49 @@ namespace py
 			PyErr_SetString(PyExc_RuntimeError, e.what());
 		}
 		return nullptr;
+	}
+
+	template<typename _Fn>
+	auto handleExc(_Fn&& fn)
+		-> typename std::enable_if<std::is_same<decltype(fn()), UniqueObj>::value, decltype(fn())>::type
+	{
+		try
+		{
+			return fn();
+		}
+		catch (const ExcPropagation&)
+		{
+		}
+		catch (const BaseException& e)
+		{
+			if (PyErr_Occurred())
+			{
+				PyObject* exc, * val, * tb, * val2;
+				PyErr_Fetch(&exc, &val, &tb);
+				PyErr_NormalizeException(&exc, &val, &tb);
+				if (tb)
+				{
+					PyException_SetTraceback(val, tb);
+					Py_DECREF(tb);
+				}
+				Py_DECREF(exc);
+				PyObject* et = e.pytype();
+				val2 = PyObject_CallFunctionObjArgs(et, py::UniqueObj{ buildPyValue(e.what()) }.get(), nullptr);
+				PyException_SetCause(val2, val);
+				PyErr_SetObject(et, val2);
+				Py_DECREF(val2);
+			}
+			else
+			{
+				PyErr_SetString(e.pytype(), e.what());
+			}
+		}
+		catch (const std::exception& e)
+		{
+			std::cerr << "Uncaughted c++ exception: " << e.what() << std::endl;
+			PyErr_SetString(PyExc_RuntimeError, e.what());
+		}
+		return UniqueObj{ nullptr };
 	}
 
 	template<typename _Fn>
@@ -1534,9 +1665,7 @@ namespace py
 				Py_DECREF(exc);
 				PyObject* et = e.pytype();
 				val2 = PyObject_CallFunctionObjArgs(et, py::UniqueObj{ buildPyValue(e.what()) }.get(), nullptr);
-				Py_INCREF(val);
 				PyException_SetCause(val2, val);
-				PyException_SetContext(val2, val);
 				PyErr_SetObject(et, val2);
 				Py_DECREF(val2);
 			}
@@ -1708,7 +1837,7 @@ namespace py
 	};
 
 	template <typename T>
-	struct TypeDecomposer<T, typename std::enable_if<IsFunctionObject<T>::value>::type> : 
+	struct TypeDecomposer<T, typename std::enable_if<IsFunctionObject<T>::value>::type> :
 		detail::TypeDecomposerImpl<decltype(&T::operator())>
 	{
 	};
@@ -1737,10 +1866,10 @@ namespace py
 		Arg memFnFirstArg(Ret(Class::* f)(Arg) const);
 
 		template<typename Class, typename Ty>
-		MemberTraits<Class, Ty> memPtrTrait(Ty Class::*f);
+		MemberTraits<Class, Ty> memPtrTrait(Ty Class::* f);
 	}
 
-	template<typename Ty, PyObject*(Ty::*memfn)(PyObject*, PyObject*)>
+	template<typename Ty, PyObject* (Ty::* memfn)(PyObject*, PyObject*)>
 	PyCFunction method()
 	{
 		return (PyCFunction)(PyCFunctionWithKeywords)[](PyObject* self, PyObject* args, PyObject* kwargs) -> PyObject*
@@ -1758,26 +1887,26 @@ namespace py
 		};
 	}
 
-	template<typename Ty, typename Val, Val Ty::*mem>
+	template<typename Ty, typename Val, Val Ty::* mem>
 	getter get_property()
 	{
 		return (getter)[](PyObject* self, void* closure) -> PyObject*
 		{
 			return handleExc([&]()
 			{
-				return buildPyValue(((Ty*)self)->*mem);
+				return buildPyValue(((Ty*)self)->*mem).release();
 			});
 		};
 	}
 
-	template<typename Ty, typename Val, Val (Ty::*memfn)()>
+	template<typename Ty, typename Val, Val(Ty::* memfn)()>
 	getter get_property()
 	{
 		return (getter)[](PyObject* self, void* closure) -> PyObject*
 		{
 			return handleExc([&]()
 			{
-				return buildPyValue((((Ty*)self)->*memfn)());
+				return buildPyValue((((Ty*)self)->*memfn)()).release();
 			});
 		};
 	}
@@ -1789,7 +1918,7 @@ namespace py
 		{
 			return handleExc([&]()
 			{
-				return buildPyValue((((Ty*)self)->*memfn)());
+				return buildPyValue((((Ty*)self)->*memfn)()).release();
 			});
 		};
 	}
@@ -1801,7 +1930,6 @@ namespace py
 		{
 			return handleExc([&]()
 			{
-				if (!val) return -1;
 				((Ty*)self)->*mem = toCpp<Val>(val);
 				return 0;
 			});
