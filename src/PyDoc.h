@@ -113,6 +113,13 @@ DOC_VARIABLE_EN_KO(Token_regularity__doc__,
 그 외의 품사에 대해서는 None을 반환합니다.)""
 );
 
+DOC_VARIABLE_EN_KO(Token_lemma__doc__,
+    u8R""()"",
+    u8R""(.. versionadded:: 0.15.0
+
+동/형용사의 경우 '-다'를 붙여서 형태소의 사전 표제형을 반환합니다.)""
+);
+
 DOC_VARIABLE_EN_KO(Token_typo_cost__doc__,
     u8R""()"",
     u8R""(.. versionadded:: 0.13.0
