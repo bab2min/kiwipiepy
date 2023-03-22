@@ -1128,7 +1128,7 @@ namespace py
 	{
 		npy_intp size = v.size();
 		UniqueObj obj{ PyArray_EMPTY(1, &size, detail::NpyType<_Ty>::signed_type, 0) };
-		std::memcpy(PyArray_DATA((PyArrayObject*)obj), v.data(), sizeof(_Ty) * size);
+		std::memcpy(PyArray_DATA((PyArrayObject*)obj.get()), v.data(), sizeof(_Ty) * size);
 		return obj;
 	}
 #endif
