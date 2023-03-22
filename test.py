@@ -12,6 +12,14 @@ class FileReader:
     def __iter__(self):
         yield from open(self.path, encoding='utf-8')
 
+def test_glue_empty():
+    kiwi = Kiwi()
+    kiwi.glue([])
+
+def test_repr():
+    kiwi = Kiwi()
+    print(repr(kiwi))
+
 def test_analyze_single():
     kiwi = Kiwi()
     for line in open(curpath + '/test_corpus/constitution.txt', encoding='utf-8'):
@@ -179,7 +187,6 @@ def test_space():
         "<Kiwipiepy>는 형태소 분석기이에요~ 0.11.0 버전이 나왔어요.",
     ]))
     assert res_a == [res0, res1, res2]
-
 
 def test_glue():
     chunks = """KorQuAD 2.0은 총 100,000+ 쌍으로 구성된 한국어 질의응답 데이터셋이다. 기존 질의응답 표준 데이
