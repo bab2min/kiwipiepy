@@ -774,7 +774,7 @@ struct MorphemeSetObject : py::CObject<MorphemeSetObject>
 	static constexpr int _flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
 
 	py::UniqueCObj<KiwiObject> kiwi;
-	std::unordered_set<const kiwi::Morpheme*> set;
+	std::unordered_set<const kiwi::Morpheme*> morphSet;
 
 	static int init(MorphemeSetObject* self, PyObject* args, PyObject* kwargs)
 	{
@@ -800,7 +800,7 @@ struct MorphemeSetObject : py::CObject<MorphemeSetObject>
 			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", (char**)kwlist,
 				&morphs
 			)) return nullptr;
-			set.clear();
+			morphSet.clear();
 
 			py::foreach<PyObject*>(morphs, [&](PyObject* item)
 			{
@@ -814,7 +814,7 @@ struct MorphemeSetObject : py::CObject<MorphemeSetObject>
 						tag = parseTag(stag.c_str());
 					}
 					auto m = kiwi->kiwi.findMorpheme(utf8To16(form), tag);
-					set.insert(m.begin(), m.end());
+					morphSet.insert(m.begin(), m.end());
 				}
 				else
 				{
@@ -865,7 +865,7 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
 	future<vector<TokenResult>> feedNext(py::SharedObj&& next)
 	{
 		if (!PyUnicode_Check(next)) throw py::ValueError{ "`analyze` requires an instance of `str` or an iterable of `str`." };
-		return kiwi->kiwi.asyncAnalyze(PyUnicode_AsUTF8(next), topN, matchOptions, blocklist ? &blocklist->set : nullptr);
+		return kiwi->kiwi.asyncAnalyze(PyUnicode_AsUTF8(next), topN, matchOptions, blocklist ? &blocklist->morphSet : nullptr);
 	}
 };
 
@@ -1083,7 +1083,7 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 		if (PyUnicode_Check(text))
 		{
 			const unordered_set<const Morpheme*>* morphs = nullptr;
-			if (blockList != Py_None) morphs = &((MorphemeSetObject*)blockList)->set;
+			if (blockList != Py_None) morphs = &((MorphemeSetObject*)blockList)->morphSet;
 			auto res = kiwi.analyze(PyUnicode_AsUTF8(text), max(topN, (size_t)10), (Match)matchOptions, morphs);
 			if (res.size() > topN) res.erase(res.begin() + topN, res.end());
 			return resToPyList(move(res), kiwi).release();
@@ -1100,7 +1100,11 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 			ret->topN = topN;
 			ret->matchOptions = (Match)matchOptions;
 			ret->echo = !!echo;
-			if (blockList != Py_None) ret->blocklist = py::UniqueCObj<MorphemeSetObject>{ (MorphemeSetObject*)blockList };
+			if (blockList != Py_None)
+			{
+				ret->blocklist = py::UniqueCObj<MorphemeSetObject>{ (MorphemeSetObject*)blockList };
+				Py_INCREF(blockList);
+			}
 			for (int i = 0; i < kiwi.getNumThreads() * 16; ++i)
 			{
 				if (!ret->feed()) break;
