@@ -163,17 +163,140 @@ next(result_iter) # 종료된 파일에서 분석해야할 다음 텍스트를 �
 ```
 
 **normalize_coda**
-0.10.2버전부터 normalize_coda 기능이 추가되었습니다. 이 기능은 웹이나 채팅 텍스트 데이터에서 자주 쓰이는 
+0.10.2버전부터 `normalize_coda` 기능이 추가되었습니다. 이 기능은 웹이나 채팅 텍스트 데이터에서 자주 쓰이는 
 ㅋㅋㅋ, ㅎㅎㅎ와 같은 초성체가 어절 뒤에 붙는 경우 분석에 실패하는 경우를 막아줍니다.
 
 ```python
 from kiwipiepy import Kiwi
 kiwi = Kiwi()
 kiwi.tokenize("안 먹었엌ㅋㅋ", normalize_coda=False)
-# [Token(form='안', tag='NNP', start=0, len=1), Token(form='먹었엌', tag='NNP', start=2, len=3), Token(form='ㅋㅋ', tag='SW', start=5, len=2)]
+# 출력
+ [Token(form='안', tag='NNP', start=0, len=1), 
+  Token(form='먹었엌', tag='NNP', start=2, len=3), 
+  Token(form='ㅋㅋ', tag='SW', start=5, len=2)]
+
 kiwi.tokenize("안 먹었엌ㅋㅋ", normalize_coda=True)
-# [Token(form='안', tag='MAG', start=0, len=1), Token(form='먹', tag='VV', start=2, len=1), Token(form='었', tag='EP', start=3, len=1), Token(form='어', tag='EF', start=4, len=1), Token(form='ㅋㅋㅋ', tag='SW', start=5, len=2)]
+# 출력
+ [Token(form='안', tag='MAG', start=0, len=1), 
+  Token(form='먹', tag='VV', start=2, len=1), 
+  Token(form='었', tag='EP', start=3, len=1), 
+  Token(form='어', tag='EF', start=4, len=1), 
+  Token(form='ㅋㅋㅋ', tag='SW', start=5, len=2)]
 ```
+
+**z_coda**
+0.15.0버전부터 `z_coda` 기능이 추가되었습니다. 이 기능은 조사 및 어미에 덧붙은 받침을 분리해줍니다. 
+기본적으로 True로 설정되어 있으며, 이 기능을 사용하지 않으려면 인자로 z_coda=False를 주어야 합니다.
+
+```python
+from kiwipiepy import Kiwi
+kiwi = Kiwi()
+kiwi.tokenize('우리집에성 먹었어욥', z_coda=False)
+# 출력
+ [Token(form='우리', tag='NP', start=0, len=2), 
+  Token(form='집', tag='NNG', start=2, len=1), 
+  Token(form='에', tag='JKB', start=3, len=1), 
+  Token(form='성', tag='NNG', start=4, len=1), 
+  Token(form='먹었어욥', tag='NNG', start=6, len=4)]
+
+kiwi.tokenize("우리집에성 먹었어욥", z_coda=True) # 기본값이 True므로 z_coda=True는 생략 가능
+# 출력
+ [Token(form='우리', tag='NP', start=0, len=2), 
+  Token(form='집', tag='NNG', start=2, len=1), 
+  Token(form='에서', tag='JKB', start=3, len=2), 
+  Token(form='ᆼ', tag='Z_CODA', start=4, len=1), 
+  Token(form='먹', tag='VV', start=6, len=1), 
+  Token(form='었', tag='EP', start=7, len=1), 
+  Token(form='어요', tag='EF', start=8, len=2), 
+  Token(form='ᆸ', tag='Z_CODA', start=9, len=1)]
+```
+
+**split_complex**
+0.15.0버전부터 `split_complex` 기능이 추가되었습니다. 이 기능은 더 잘게 분할 가능한 형태소들을 최대한 분할하도록 합니다.
+이런 형태소에는 '고마움(고맙 + 음)'과 같은 파생 명사, '건강히(건강 + 히)'와 같은 파생 부사, '반짝거리다(반짝 + 거리다)', '걸어다니다(걸어 + 다니다)'와 같은 파생 동/형용사 등이 포함됩니다.
+```python
+from kiwipiepy import Kiwi
+kiwi = Kiwi()
+kiwi.tokenize('고마움에 건강히 지내시라고 눈을 반짝거리며 인사했다', split_complex=False)
+# 출력
+ [Token(form='고마움', tag='NNG', start=0, len=3),
+  Token(form='에', tag='JKB', start=3, len=1), 
+  Token(form='건강히', tag='MAG', start=5, len=3), 
+  Token(form='지내', tag='VV', start=9, len=2), 
+  Token(form='시', tag='EP', start=11, len=1), 
+  Token(form='라고', tag='EC', start=12, len=2), 
+  Token(form='눈', tag='NNG', start=15, len=1), 
+  Token(form='을', tag='JKO', start=16, len=1), 
+  Token(form='반짝거리', tag='VV', start=18, len=4), 
+  Token(form='며', tag='EC', start=22, len=1), 
+  Token(form='인사', tag='NNG', start=24, len=2), 
+  Token(form='하', tag='XSV', start=26, len=1), 
+  Token(form='었', tag='EP', start=26, len=1), 
+  Token(form='다', tag='EF', start=27, len=1)]
+
+kiwi.tokenize('고마움에 건강히 지내시라고 눈을 반짝거리며 인사했다', split_complex=True)
+# 출력
+ [Token(form='고맙', tag='VA-I', start=0, len=3), 
+  Token(form='음', tag='ETN', start=2, len=1), 
+  Token(form='에', tag='JKB', start=3, len=1), 
+  Token(form='건강', tag='NNG', start=5, len=2), 
+  Token(form='히', tag='XSM', start=7, len=1), 
+  Token(form='지내', tag='VV', start=9, len=2), 
+  Token(form='시', tag='EP', start=11, len=1), 
+  Token(form='라고', tag='EC', start=12, len=2), 
+  Token(form='눈', tag='NNG', start=15, len=1), 
+  Token(form='을', tag='JKO', start=16, len=1), 
+  Token(form='반짝', tag='MAG', start=18, len=2), 
+  Token(form='거리', tag='XSV', start=20, len=2), 
+  Token(form='며', tag='EC', start=22, len=1), 
+  Token(form='인사', tag='NNG', start=24, len=2), 
+  Token(form='하', tag='XSV', start=26, len=1), 
+  Token(form='었', tag='EP', start=26, len=1), 
+  Token(form='다', tag='EF', start=27, len=1)]   
+
+```
+
+**blocklist**
+0.15.0부터 `split_complex` 와 더불어 `blocklist` 기능도 추가되었습니다. 이 기능은 `split_complex` 와는 다르게 세부적으로 분석 결과에 등장하면 안되는 형태소 목록을 지정할 수 있습니다.
+```python
+from kiwipiepy import Kiwi
+kiwi = Kiwi()
+kiwi.tokenize('고마움에 건강히 지내시라고 눈을 반짝거리며 인사했다')
+# 출력
+ [Token(form='고마움', tag='NNG', start=0, len=3),
+  Token(form='에', tag='JKB', start=3, len=1), 
+  Token(form='건강히', tag='MAG', start=5, len=3), 
+  Token(form='지내', tag='VV', start=9, len=2), 
+  Token(form='시', tag='EP', start=11, len=1), 
+  Token(form='라고', tag='EC', start=12, len=2), 
+  Token(form='눈', tag='NNG', start=15, len=1), 
+  Token(form='을', tag='JKO', start=16, len=1), 
+  Token(form='반짝거리', tag='VV', start=18, len=4), 
+  Token(form='며', tag='EC', start=22, len=1), 
+  Token(form='인사', tag='NNG', start=24, len=2), 
+  Token(form='하', tag='XSV', start=26, len=1), 
+  Token(form='었', tag='EP', start=26, len=1), 
+  Token(form='다', tag='EF', start=27, len=1)]
+
+kiwi.tokenize('고마움에 건강히 지내시라고 눈을 반짝거리며 인사했다', blocklist=['고마움/NNG'])
+# 출력
+ [Token(form='고맙', tag='VA-I', start=0, len=3), 
+  Token(form='음', tag='ETN', start=2, len=1), 
+  Token(form='에', tag='JKB', start=3, len=1), 
+  Token(form='건강히', tag='MAG', start=5, len=3), 
+  Token(form='지내', tag='VV', start=9, len=2), 
+  Token(form='시', tag='EP', start=11, len=1), 
+  Token(form='라고', tag='EC', start=12, len=2), 
+  Token(form='눈', tag='NNG', start=15, len=1), 
+  Token(form='을', tag='JKO', start=16, len=1), 
+  Token(form='반짝거리', tag='VV', start=18, len=4), 
+  Token(form='며', tag='EC', start=22, len=1), 
+  Token(form='인사', tag='NNG', start=24, len=2), 
+  Token(form='하', tag='XSV', start=26, len=1), 
+  Token(form='었', tag='EP', start=26, len=1), 
+  Token(form='다', tag='EF', start=27, len=1)]
+```
+
 0.10.0 버전 변경사항
 --------------------
 0.10.0 버전에서는 일부 불편한 메소드들이 좀 더 편한 형태로 개량되었습니다. 
@@ -435,6 +558,24 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.15.0 (2023-03-23)
+    * Kiwi 0.15.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.15.0 )이 반영되었습니다.
+        * 둘 이상의 형태소로 더 잘게 분리될 수 있는 형태소를 추가 분리하는 옵션인 `splitComplex` 도입
+        * 부사파생접사를 위한 `XSM` 태그 추가 및 이에 해당하는 형태소 `-이`, `-히`, `-로`, `-스레` 추가
+        * 조사/어미에 덧붙는 받침을 위한 `Z_CODA` 태그 추가 및 조사/어미에서 자동으로 Z_CODA를 분절해내는 기능 추가
+        * 형태 분석 및 언어 모델 탐색 속도 최적화
+        * 옛한글 문자를 특수 기호로 분리하지 않고 일반 한글과 동일하게 처리하도록 개선
+        * 형태소 분석 기반의 Subword Tokenizer 구현 (현재 실험적으로 지원 중)
+        * 문장 분리 성능 개선
+            * `2010. 01. 01.` 와 같이 공백이 포함된 serial 패턴 처리 보강
+            * `Dr., Mr.` 와 같이 약자 표현의 `.`이 마침표로 처리되지 않도록 보강
+            * '-음'으로 문장이 끝나는 경우를 판별하기 위해 `음/EF` 형태소 추가 및 모델 보강
+        * 한 문장 내에서 사전에 미등재된 형태가 256개 이상 등장할 때 형태소 분석 결과가 잘못 나오는 문제 해결
+        * bab2min/kiwipiepy#111
+        * 이모지 등 U+10000 이상의 유니코드 문자를 모두 한자로 분류하던 버그 수정
+    * `Kiwi.glue` 에 `insert_new_lines` 인자가 추가되었습니다.
+    * 형태소의 사전 표제형을 보여주는 `Token.lemma` 프로퍼티가 추가되었습니다.
+
 * 0.14.1 (2022-12-24)
     * Kiwi 0.14.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.14.1 )이 반영되었습니다.
         * 특정 텍스트에 대해 형태소 분할 없이 전체 결과를 그대로 반환하는 오류 해결
