@@ -749,12 +749,102 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 	return retList;
 }
 
+inline POSTag parseTag(const char* tag)
+{
+	auto u16 = utf8To16(tag);
+	transform(u16.begin(), u16.end(), u16.begin(), static_cast<int(*)(int)>(toupper));
+	auto pos = toPOSTag(u16);
+	if (clearIrregular(pos) >= POSTag::max) throw py::ValueError{ "Unknown tag value " + py::reprFromCpp(tag) };
+	return pos;
+}
+
+inline POSTag parseTag(const u16string& tag)
+{
+	auto u16 = tag;
+	transform(u16.begin(), u16.end(), u16.begin(), static_cast<int(*)(int)>(toupper));
+	auto pos = toPOSTag(u16);
+	if (clearIrregular(pos) >= POSTag::max) throw py::ValueError{ "Unknown tag value " + py::reprFromCpp(tag) };
+	return pos;
+}
+
+struct MorphemeSetObject : py::CObject<MorphemeSetObject>
+{
+	static constexpr const char* _name = "kiwipiepy._MorphemeSet";
+	static constexpr const char* _name_in_module = "_MorphemeSet";
+	static constexpr int _flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+
+	py::UniqueCObj<KiwiObject> kiwi;
+	std::unordered_set<const kiwi::Morpheme*> set;
+
+	static int init(MorphemeSetObject* self, PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]()
+		{
+			PyObject* kiwi;
+			static const char* kwlist[] = { "kiwi", nullptr };
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", (char**)kwlist,
+				&kiwi
+			)) return -1;
+			Py_INCREF(kiwi);
+			self->kiwi = py::UniqueCObj<KiwiObject>{ (KiwiObject*)kiwi };
+			return 0;
+		});
+	}
+
+	PyObject* update(PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]() -> PyObject*
+		{
+			PyObject* morphs;
+			static const char* kwlist[] = { "morphs", nullptr };
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", (char**)kwlist,
+				&morphs
+			)) return nullptr;
+			set.clear();
+
+			py::foreach<PyObject*>(morphs, [&](PyObject* item)
+			{
+				if (PyTuple_Check(item) && PyTuple_GET_SIZE(item) == 2)
+				{
+					auto form = py::toCpp<string>(PyTuple_GET_ITEM(item, 0));
+					auto stag = py::toCpp<string>(PyTuple_GET_ITEM(item, 1));
+					POSTag tag = POSTag::unknown;
+					if (!stag.empty())
+					{
+						tag = parseTag(stag.c_str());
+					}
+					auto m = kiwi->kiwi.findMorpheme(utf8To16(form), tag);
+					set.insert(m.begin(), m.end());
+				}
+				else
+				{
+					throw py::ForeachFailed{};
+				}
+			}, "`morphs` must be an iterable of `str`.");
+
+			Py_INCREF(Py_None);
+			return Py_None;
+		});
+	}
+};
+
+py::TypeWrapper<MorphemeSetObject> _MorphemeSetSetter{ [](PyTypeObject& obj)
+{
+	static PyMethodDef methods[] =
+	{
+		{ "_update", PY_METHOD_MEMFN(&MorphemeSetObject::update), METH_VARARGS | METH_KEYWORDS, ""},
+		{ nullptr }
+	};
+	obj.tp_methods = methods;
+} };
+
 struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
 {
 	static constexpr const char* _name = "kiwipiepy._ResIter";
 	static constexpr const char* _name_in_module = "_ResIter";
 
 	py::UniqueCObj<KiwiObject> kiwi;
+	py::UniqueCObj<MorphemeSetObject> blocklist;
 	size_t topN = 1;
 	Match matchOptions = Match::all;
 
@@ -775,31 +865,13 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
 	future<vector<TokenResult>> feedNext(py::SharedObj&& next)
 	{
 		if (!PyUnicode_Check(next)) throw py::ValueError{ "`analyze` requires an instance of `str` or an iterable of `str`." };
-		return kiwi->kiwi.asyncAnalyze(PyUnicode_AsUTF8(next), topN, matchOptions);
+		return kiwi->kiwi.asyncAnalyze(PyUnicode_AsUTF8(next), topN, matchOptions, blocklist ? &blocklist->set : nullptr);
 	}
 };
 
 py::TypeWrapper<KiwiResIter> _ResIterSetter{ [](PyTypeObject&)
 {
 } };
-
-inline POSTag parseTag(const char* tag)
-{
-	auto u16 = utf8To16(tag);
-	transform(u16.begin(), u16.end(), u16.begin(), static_cast<int(*)(int)>(toupper));
-	auto pos = toPOSTag(u16);
-	if (clearIrregular(pos) >= POSTag::max) throw py::ValueError{ "Unknown tag value " + py::reprFromCpp(tag) };
-	return pos;
-}
-
-inline POSTag parseTag(const u16string& tag)
-{
-	auto u16 = tag;
-	transform(u16.begin(), u16.end(), u16.begin(), static_cast<int(*)(int)>(toupper));
-	auto pos = toPOSTag(u16);
-	if (clearIrregular(pos) >= POSTag::max) throw py::ValueError{ "Unknown tag value " + py::reprFromCpp(tag) };
-	return pos;
-}
 
 PyObject* KiwiObject::addUserWord(PyObject* args, PyObject *kwargs)
 {	
@@ -1003,14 +1075,16 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 	return py::handleExc([&]() -> PyObject*
 	{
 		size_t topN = 1, matchOptions = (size_t)Match::all, echo = 0;
-		PyObject* text;
-		static const char* kwlist[] = { "text", "top_n", "match_options", "echo", nullptr};
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnp", (char**)kwlist, &text, &topN, &matchOptions, &echo)) return nullptr;
+		PyObject* text, *blockList = Py_None;
+		static const char* kwlist[] = { "text", "top_n", "match_options", "echo", "blocklist", nullptr};
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnpO", (char**)kwlist, &text, &topN, &matchOptions, &echo, &blockList)) return nullptr;
 
 		doPrepare();
 		if (PyUnicode_Check(text))
 		{
-			auto res = kiwi.analyze(PyUnicode_AsUTF8(text), max(topN, (size_t)10), (Match)matchOptions);
+			const unordered_set<const Morpheme*>* morphs = nullptr;
+			if (blockList != Py_None) morphs = &((MorphemeSetObject*)blockList)->set;
+			auto res = kiwi.analyze(PyUnicode_AsUTF8(text), max(topN, (size_t)10), (Match)matchOptions, morphs);
 			if (res.size() > topN) res.erase(res.begin() + topN, res.end());
 			return resToPyList(move(res), kiwi).release();
 		}
@@ -1026,6 +1100,7 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 			ret->topN = topN;
 			ret->matchOptions = (Match)matchOptions;
 			ret->echo = !!echo;
+			if (blockList != Py_None) ret->blocklist = py::UniqueCObj<MorphemeSetObject>{ (MorphemeSetObject*)blockList };
 			for (int i = 0; i < kiwi.getNumThreads() * 16; ++i)
 			{
 				if (!ret->feed()) break;

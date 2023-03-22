@@ -1,6 +1,6 @@
 import os
 
-from kiwipiepy import Kiwi, TypoTransformer, basic_typos
+from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet
 from kiwipiepy.utils import Stopwords
 
 curpath = os.path.dirname(os.path.abspath(__file__))
@@ -19,6 +19,20 @@ def test_glue_empty():
 def test_repr():
     kiwi = Kiwi()
     print(repr(kiwi))
+
+def test_morpheme_set():
+    kiwi = Kiwi()
+    ms = MorphemeSet(kiwi, ["먹/VV", "사람", ("고맙", "VA")])
+    print(repr(ms))
+    assert len(ms) == 3
+
+def test_blocklist():
+    kiwi = Kiwi()
+    tokens = kiwi.tokenize("고마움을")
+    assert tokens[0].form == "고마움"
+    
+    tokens = kiwi.tokenize("고마움을", blocklist=['고마움'])
+    assert tokens[0].form == "고맙"
 
 def test_analyze_single():
     kiwi = Kiwi()
