@@ -174,12 +174,14 @@ morphs: Iterable[Union[str, Tuple[str, str]]]
 Notes
 -----
 형태소는 다음과 같이 크게 3가지 방법으로 표현될 수 있습니다.
+
 ```python
 morphset = MorphemeSet([
     '고마움' # 형태만을 사용해 표현. 형태가 '고마움'인 모든 형태소가 이 집합에 포함됨
     '고마움/NNG' # 형태와 품사 태그를 이용해 표현. 형태가 '고마움'인 일반 명사가 이 집합에 포함됨
     ('고마움', 'NNG') # tuple로 분리해서 표현하는 것도 가능
 ])
+```
     '''
     def __init__(self, kiwi, morphs):
         if not isinstance(kiwi, Kiwi):
