@@ -1,6 +1,6 @@
 import os
 
-from kiwipiepy import Kiwi, TypoTransformer, basic_typos
+from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet
 from kiwipiepy.utils import Stopwords
 
 curpath = os.path.dirname(os.path.abspath(__file__))
@@ -11,6 +11,28 @@ class FileReader:
 
     def __iter__(self):
         yield from open(self.path, encoding='utf-8')
+
+def test_glue_empty():
+    kiwi = Kiwi()
+    kiwi.glue([])
+
+def test_repr():
+    kiwi = Kiwi()
+    print(repr(kiwi))
+
+def test_morpheme_set():
+    kiwi = Kiwi()
+    ms = MorphemeSet(kiwi, ["먹/VV", "사람", ("고맙", "VA")])
+    print(repr(ms))
+    assert len(ms) == 3
+
+def test_blocklist():
+    kiwi = Kiwi()
+    tokens = kiwi.tokenize("고마움을")
+    assert tokens[0].form == "고마움"
+    
+    tokens = kiwi.tokenize("고마움을", blocklist=['고마움'])
+    assert tokens[0].form == "고맙"
 
 def test_analyze_single():
     kiwi = Kiwi()
@@ -179,7 +201,6 @@ def test_space():
         "<Kiwipiepy>는 형태소 분석기이에요~ 0.11.0 버전이 나왔어요.",
     ]))
     assert res_a == [res0, res1, res2]
-
 
 def test_glue():
     chunks = """KorQuAD 2.0은 총 100,000+ 쌍으로 구성된 한국어 질의응답 데이터셋이다. 기존 질의응답 표준 데이

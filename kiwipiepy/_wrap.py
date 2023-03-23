@@ -4,7 +4,7 @@ from collections import namedtuple
 from dataclasses import dataclass
 import warnings
 
-from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset
+from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset, _MorphemeSet
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match, Option
@@ -159,6 +159,57 @@ errors: List[Tuple[str, float]]
 class HSDataset(_HSDataset):
     pass
 
+class MorphemeSet(_MorphemeSet):
+    '''.. versionadded:: 0.15.0
+
+    형태소 집합을 정의합니다. 정의된 형태소 집합은 `Kiwi.analyze`, `Kiwi.tokenize`에서 blocklist 인자로 사용될 수 있습니다.
+
+Parameters
+----------
+kiwi: Kiwi
+    형태소 집합을 정의할 Kiwi의 인스턴스입니다.
+morphs: Iterable[Union[str, Tuple[str, str]]]
+    집합에 포함될 형태소의 목록입니다. 형태소는 단일 `str`이나 `tuple`로 표기될 수 있습니다.
+
+Notes
+-----
+형태소는 다음과 같이 크게 3가지 방법으로 표현될 수 있습니다.
+```python
+morphset = MorphemeSet([
+    '고마움' # 형태만을 사용해 표현. 형태가 '고마움'인 모든 형태소가 이 집합에 포함됨
+    '고마움/NNG' # 형태와 품사 태그를 이용해 표현. 형태가 '고마움'인 일반 명사가 이 집합에 포함됨
+    ('고마움', 'NNG') # tuple로 분리해서 표현하는 것도 가능
+])
+    '''
+    def __init__(self, kiwi, morphs):
+        if not isinstance(kiwi, Kiwi):
+            raise ValueError("`kiwi` must be an instance of `Kiwi`.")
+        super().__init__(kiwi)
+        self.kiwi = kiwi
+        self.set = set(map(self._normalize, morphs))
+        self._updated = False
+    
+    def __repr__(self):
+        return f"MorphemeSet(kiwi, {repr(self.set)})"
+
+    def __len__(self):
+        return len(self.set)
+
+    def _normalize(self, tagged_form):
+        if isinstance(tagged_form, str):
+            form, *tag = tagged_form.split('/', 1)
+            tag = tag[0] if len(tag) else ''
+            return form, tag
+        elif isinstance(tagged_form, tuple):
+            if len(tagged_form) == 2: return tagged_form
+        
+        raise ValueError("Morpheme should has a `str` or `Tuple[str, str]` type.")
+    
+    def _update_self(self):
+        if self._updated: return
+        super()._update(self.set)
+        self._updated = True
+
 class Kiwi(_Kiwi):
     '''Kiwi 클래스는 실제 형태소 분석을 수행하는 kiwipiepy 모듈의 핵심 클래스입니다.
 
@@ -254,6 +305,23 @@ typo_cost_threshold: float
         self._ns_space_tolerance = 0
         self._ns_typo_cost_weight = 6.
         self._ns_model_type = model_type
+        self._model_path = model_path
+        self._load_default_dict = load_default_dict
+        self._load_typo_dict = load_typo_dict
+        self._typos = typos
+
+    def __repr__(self):
+        return (
+            f"Kiwi(num_workers={self.num_workers!r}, " 
+            f"model_path={self._model_path!r}, "
+            f"integrate_allomorph={self.integrate_allomorph!r}, "
+            f"load_default_dict={self._load_default_dict!r}, "
+            f"load_typo_dict={self._load_typo_dict!r}, "
+            f"model_type={self.model_type!r}, "
+            f"typos={self._typos!r}, "
+            f"typo_cost_threshold={self.typo_cost_threshold!r}"
+            f")"
+        )
 
     def add_user_word(self,
         word:str,
@@ -632,7 +700,10 @@ threshold: float
         text:Union[str, Iterable[str]],
         top_n:Optional[int] = 1,
         match_options:Optional[int] = Match.ALL,
-        normalize_coda:Optional[bool] = False
+        normalize_coda:Optional[bool] = False,
+        z_coda:Optional[bool] = True,
+        split_complex:Optional[bool] = False,
+        blocklist:Optional[Union[MorphemeSet, Iterable[str]]] = None,
     ):
         '''형태소 분석을 실시합니다.
 
@@ -648,15 +719,16 @@ text: Union[str, Iterable[str]]
 top_n: int
     분석 결과 후보를 상위 몇 개까지 생성할 지 설정합니다.
 match_options: kiwipiepy.const.Match
-    
-    .. versionadded:: 0.8.0
-    
-    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.const.Match`의 조합으로 설정할 수 있습니다.
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 normalize_coda: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+z_coda: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+split_complex: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+blocklist: Union[Iterable[str], MorphemeSet]
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 
-    .. versionadded:: 0.10.2
-
-    True인 경우 '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다.
 
 Returns
 -------
@@ -696,7 +768,20 @@ with open('result.txt', 'w', encoding='utf-8') as output:
         '''
         if normalize_coda:
             match_options |= Match.NORMALIZING_CODA
-        return super().analyze(text, top_n, match_options)
+        if z_coda:
+            match_options |= Match.Z_CODA
+        if split_complex:
+            match_options |= Match.SPLIT_COMPLEX
+        if isinstance(blocklist, MorphemeSet):
+            if blocklist.kiwi != self: 
+                warnings.warn("This `MorphemeSet` isn't based on current Kiwi object.")
+                blocklist = MorphemeSet(self, blocklist.set)
+        elif blocklist is not None:
+            blocklist = MorphemeSet(self, blocklist)
+        
+        if blocklist: blocklist._update_self()
+
+        return super().analyze(text, top_n, match_options, blocklist=blocklist)
     
     def get_option(self,
         option:int,
@@ -875,13 +960,29 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         '''
         return self._ns_model_type
 
+    @property
+    def typo_cost_threshold(self):
+        '''.. versionadded:: 0.15.0
+
+오타 교정시 고려할 최대 오타 비용입니다. 이 비용을 넘어서는 오타에 대해서는 탐색하지 않습니다. 기본값은 2.5입니다.
+        '''
+        return self._typo_cost_threshold
+    
+    @typo_cost_threshold.setter
+    def typo_cost_threshold(self, v:float):
+        if v <= 0: raise ValueError("`typo_cost_threshold` must greater than 0")
+        self._typo_cost_threshold = float(v)
+
     def _tokenize(self, 
         text:Union[str, Iterable[str]], 
         match_options:Optional[int] = Match.ALL,
         normalize_coda:Optional[bool] = False,
+        z_coda:Optional[bool] = True,
+        split_complex:Optional[bool] = False,
         split_sents:Optional[bool] = False,
         stopwords:Optional[Stopwords] = None,
         echo:Optional[bool] = False,
+        blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
     ):
         import itertools
 
@@ -899,20 +1000,36 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
 
         if normalize_coda:
             match_options |= Match.NORMALIZING_CODA
+        if z_coda:
+            match_options |= Match.Z_CODA
+        if split_complex:
+            match_options |= Match.SPLIT_COMPLEX
+
+        if isinstance(blocklist, MorphemeSet):
+            if blocklist.kiwi != self: 
+                warnings.warn("This `MorphemeSet` isn't based on current Kiwi object.")
+                blocklist = MorphemeSet(self, blocklist.set)
+        elif blocklist is not None:
+            blocklist = MorphemeSet(self, blocklist)
+        
+        if blocklist: blocklist._update_self()
 
         if isinstance(text, str):
             echo = False
-            return _refine_result(super().analyze(text, top_n=1, match_options=match_options))
-            
-        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, top_n=1, match_options=match_options, echo=echo))
+            return _refine_result(super().analyze(text, top_n=1, match_options=match_options, blocklist=blocklist))
+        
+        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, top_n=1, match_options=match_options, echo=echo, blocklist=blocklist))
 
     def tokenize(self, 
         text:Union[str, Iterable[str]], 
         match_options:Optional[int] = Match.ALL,
         normalize_coda:Optional[bool] = False,
+        z_coda:Optional[bool] = True,
+        split_complex:Optional[bool] = False,
         split_sents:Optional[bool] = False,
         stopwords:Optional[Stopwords] = None,
         echo:Optional[bool] = False,
+        blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
     ):
         '''.. versionadded:: 0.10.2
 
@@ -928,6 +1045,20 @@ match_options: kiwipiepy.const.Match
     추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.const.Match`의 조합으로 설정할 수 있습니다.
 normalize_coda: bool
     True인 경우 '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다.
+z_coda: bool
+
+    .. versionadded:: 0.15.0
+
+    기본값은 True로, True인 경우 '먹었어욥' => `먹었어요 + ㅂ`, '우리집에성' => `우리집에서 + ㅇ`과 같이 
+    조사 및 어미에 덧붙는 받침을 'z_coda'라는 태그로 분리합니다. 
+    False로 설정 시 덧붙는 받침 분리를 수행하지 않는 대신 분석 속도가 향상됩니다.
+split_complex: bool
+
+    .. versionadded:: 0.15.0
+
+    True인 경우 둘 이상의 형태소로 더 잘게 분할될 수 있는 경우 형태소를 최대한 분할합니다. 
+    예를 들어 '고마움을 전하다'의 경우 split_complex=False인 경우 `고마움/NNG 을/JKO 전하/VV 다/EF`와 같이 분석되지만,
+    split_complex=True인 경우 `고맙/VA-I 음/ETN 을/JKO 전하/VV 다/EF`처럼 `고마움/NNG`이 더 잘게 분석됩니다.
 split_sents: bool
     .. versionadded:: 0.10.3
 
@@ -940,6 +1071,15 @@ echo: bool
     .. versionadded:: 0.11.2
 
     이 값이 True이고 `text`를 str의 Iterable로 준 경우, 분석 결과뿐만 아니라 원본 입력을 함께 반환합니다. `text`가 단일 str인 경우 이 인자는 무시됩니다.
+blocklist: Union[MorphemeSet, Iterable[str]]
+
+    .. versionadded:: 0.15.0
+
+    분석 시 후보로 나타나는 걸 금지할 형태소 목록을 지정합니다. 
+    예를 들어, blocklist=['고마움']으로 지정하는 경우, 분석 결과에서 '고마움'이라는 형태소가 등장하는 것을 막아
+    split_complex의 예시에서처럼 '고마움을 전하다'가 `고맙/VA-I 음/ETN 을/JKO 전하/VV 다/EF`처럼 분석되도록 강요할 수 있습니다.
+    blocklist는 `MorphemeSet` 혹은 `set`으로 지정할 수 있으며, 
+    동일한 blocklist가 반복적으로 사용되는 경우 사전에 `MorphemeSet`을 만들고 이를 재사용하는게 효율적입니다.
 
 Returns
 -------
@@ -1011,12 +1151,15 @@ Notes
  Token(form='출력', tag='NNG', start=18, len=2)]
 ```
         '''
-        return self._tokenize(text, match_options, normalize_coda, split_sents, stopwords, echo)
+        return self._tokenize(text, match_options, normalize_coda, z_coda, split_complex, split_sents, stopwords, echo, blocklist=blocklist)
 
     def split_into_sents(self, 
         text:Union[str, Iterable[str]], 
         match_options:Optional[int] = Match.ALL, 
         normalize_coda:Optional[bool] = False,
+        z_coda:Optional[bool] = True,
+        split_complex:Optional[bool] = False,
+        blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
         return_tokens:Optional[bool] = False,
         return_sub_sents:Optional[bool] = True,
     ) -> Union[List[Sentence], Iterable[List[Sentence]]]:
@@ -1032,12 +1175,19 @@ text: Union[str, Iterable[str]]
     이 인자를 단일 str로 줄 경우, 싱글스레드에서 처리하며
     str의 Iterable로 줄 경우, 멀티스레드로 분배하여 처리합니다.
 match_options: kiwipiepy.const.Match
-    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.const.Match`의 조합으로 설정할 수 있습니다.
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 normalize_coda: bool
-    True인 경우 '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다.
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+z_coda: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+split_complex: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+blocklist: Union[Iterable[str], MorphemeSet]
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 return_tokens: bool
     True인 경우 문장별 형태소 분석 결과도 함께 반환합니다.
-return_sub_Sents: bool
+return_sub_sents: bool
+    
     ..versionadded:: 0.14.0
 
     True인 경우 문장 내 안긴 문장의 목록도 함께 반환합니다.
@@ -1124,12 +1274,13 @@ Notes
             return ret
 
         if isinstance(text, str):
-            return _make_result((self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, split_sents=True), text))
+            return _make_result((self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, z_coda=z_coda, split_complex=split_complex, blocklist=blocklist, split_sents=True), text))
 
-        return map(_make_result, self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, split_sents=True, echo=True))
+        return map(_make_result, self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, z_coda=z_coda, split_complex=split_complex, blocklist=blocklist, split_sents=True, echo=True))
 
     def glue(self,
         text_chunks:Iterable[str],
+        insert_new_lines:Iterable[bool] = None,
         return_space_insertions:Optional[bool] = False,
     ) -> Union[str, Tuple[str, List[bool]]]:
         '''..versionadded:: 0.11.1
@@ -1140,6 +1291,12 @@ Parameters
 ----------
 text_chunks: Iterable[str]
     합칠 텍스트 조각들의 목록입니다.
+insert_new_lines: Iterable[bool]
+
+    ..versionadded:: 0.15.0
+
+    합칠 때 공백 대신 줄바꿈을 사용할지 여부를 각 텍스트 조각별로 설정합니다. `insert_new_lines`의 길이는 `text_chunks`의 길이와 동일해야 합니다.
+    생략 시 줄바꿈을 사용하지 않고 공백만을 사용합니다.
 return_space_insertions: bool
     True인 경우, 각 조각별 공백 삽입 유무를 `List[bool]`로 반환합니다.
     기본값은 False입니다.
@@ -1174,7 +1331,11 @@ Notes
 
         all_chunks = []
         def _zip_consequences(it):
-            prev = next(it).strip()
+            try:
+                prev = next(it).strip()
+            except StopIteration:
+                return
+
             all_chunks.append(prev)
             for s in it:
                 s = s.strip()
@@ -1183,7 +1344,16 @@ Notes
                 prev = s
                 all_chunks.append(prev)
         
+        def _repeat_false():
+            while 1:
+                yield False
+
         riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL)
+            
+        if insert_new_lines is None: 
+            insert_new_lines = _repeat_false()
+        else:
+            insert_new_lines = iter(insert_new_lines)
         i = 0
         ret = []
         space_insertions = []
@@ -1191,15 +1361,17 @@ Notes
             while 1:
                 _, score_with_space = next(riter)[0]
                 _, score_without_space = next(riter)[0]
+                is_new_line = next(insert_new_lines)
                 ret.append(all_chunks[i])
                 if score_with_space >= score_without_space or re.search(r'[0-9A-Za-z]$', all_chunks[i]):
-                    ret.append(' ')
+                    ret.append('\n' if is_new_line else ' ')
                     space_insertions.append(True)
                 else:
                     space_insertions.append(False)
                 i += 1
         except StopIteration:
-            ret.append(all_chunks[i])
+            if i < len(all_chunks):
+                ret.append(all_chunks[i])
         
         if return_space_insertions:
             return ''.join(ret), space_insertions
@@ -1297,10 +1469,10 @@ Notes
 
         if isinstance(text, str):
             if reset_whitespace: text = _reset(text)
-            return _space((super().analyze(text, 1, Match.ALL), text))
+            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA), text))
         else:
             if reset_whitespace: text = map(_reset, text)
-            return map(_space, super().analyze(text, 1, Match.ALL, echo=True))
+            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, echo=True))
 
     def join(self, 
         morphs:Iterable[Tuple[str, str]],
