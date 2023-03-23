@@ -180,6 +180,48 @@ jobs:
         $env:USE_MIMALLOC = 1; python setup.py bdist_wheel
         twine upload dist/*
 
+  build_other_arch_old:
+    name: Build for manylinux (other arch, old)
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        arch: [aarch64, ppc64le]
+
+    steps:        
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        lfs: true
+    - uses: bab2min/run-on-arch-action@use-custom-image
+      name: Deploy
+      id: runcmd
+      with:
+        image: quay.io/pypa/manylinux2014_${{ matrix.arch }}
+        githubToken: ${{ github.token }}
+        setup: |
+          mkdir -p "${PWD}/artifacts"
+        dockerRunArgs: |
+          --volume "${PWD}/artifacts:/artifacts"
+        env: |
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |          
+          for cp in cp36-cp36m cp37-cp37m cp38-cp38
+          do
+            /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
+            USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
+            auditwheel repair dist/*-${cp}-*.whl
+          done
+          mv wheelhouse/*.whl /artifacts/
+    - name: Upload wheels
+      env:
+        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: |
+        python3 -m pip install --upgrade pip setuptools
+        python3 -m pip install twine wheel
+        python3 -m twine upload artifacts/*.whl
+
   build_other_arch:
     name: Build for manylinux (other arch)
     runs-on: ubuntu-18.04
@@ -206,7 +248,7 @@ jobs:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |          
-          for cp in cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311
+          for cp in cp39-cp39 cp310-cp310 cp311-cp311
           do
             /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
             USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
