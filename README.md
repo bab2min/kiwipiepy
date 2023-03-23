@@ -540,10 +540,10 @@ kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완�
 형태소 분석, 문장 분리, 띄어쓰기 교정, 문장 복원 등의 작업을 수행할 수 있습니다.
 
 ```python
-Kiwi.tokenize(text, match_option, normalize_coda)
-Kiwi.analyze(text, top_n, match_option, normalize_coda)
-Kiwi.split_into_sents(text, match_options=Match.ALL, normalize_coda=False, return_tokens=False)
-Kiwi.glue(text_chunks, return_space_insertions=False)
+Kiwi.tokenize(text, match_option, normalize_coda=False, z_coda=True, split_complex=False, blocklist=None)
+Kiwi.analyze(text, top_n, match_option, normalize_coda=False, z_coda=True, split_complex=False, blocklist=None)
+Kiwi.split_into_sents(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, blocklist=None, return_tokens=False)
+Kiwi.glue(text_chunks, insert_new_lines=None, return_space_insertions=False)
 Kiwi.space(text, reset_whitespace=False)
 Kiwi.join(morphs, lm_search=True)
 ``` 
@@ -810,15 +810,16 @@ Token(form='결과', tag='NNG', start=4, len=2)
 <tr><td>ETN</td><td>명사형 전성 어미</td></tr>
 <tr><td>ETM</td><td>관형형 전성 어미</td></tr>
 <tr><th rowspan='1'>접두사</th><td>XPN</td><td>체언 접두사</td></tr>
-<tr><th rowspan='3'>접미사(XS)</th><td>XSN</td><td>명사 파생 접미사</td></tr>
+<tr><th rowspan='4'>접미사(XS)</th><td>XSN</td><td>명사 파생 접미사</td></tr>
 <tr><td>XSV</td><td>동사 파생 접미사</td></tr>
 <tr><td>XSA</td><td>형용사 파생 접미사</td></tr>
+<tr><td>XSM</td><td>부사 파생 접미사<sup>*</sup></td></tr>
 <tr><th rowspan='1'>어근</th><td>XR</td><td>어근</td></tr>
 <tr><th rowspan='11'>부호, 외국어, 특수문자(S)</th><td>SF</td><td>종결 부호(. ! ?)</td></tr>
 <tr><td>SP</td><td>구분 부호(, / : ;)</td></tr>
 <tr><td>SS</td><td>인용 부호 및 괄호(' " ( ) [ ] < > { } ― ‘ ’ “ ” ≪ ≫ 등)</td></tr>
-<tr><td>SSO</td><td>SS 중 여는 부호</td></tr>
-<tr><td>SSC</td><td>SS 중 닫는 부호</td></tr>
+<tr><td>SSO</td><td>SS 중 여는 부호<sup>*</sup></td></tr>
+<tr><td>SSC</td><td>SS 중 닫는 부호<sup>*</sup></td></tr>
 <tr><td>SE</td><td>줄임표(…)</td></tr>
 <tr><td>SO</td><td>붙임표(- ~)</td></tr>
 <tr><td>SW</td><td>기타 특수 문자</td></tr>
@@ -826,10 +827,12 @@ Token(form='결과', tag='NNG', start=4, len=2)
 <tr><td>SH</td><td>한자</td></tr>
 <tr><td>SN</td><td>숫자(0-9)</td></tr>
 <tr><th rowspan='1'>분석 불능</th><td>UN</td><td>분석 불능<sup>*</sup></td></tr>
-<tr><th rowspan='4'>웹(W)</th><td>W_URL</td><td>URL 주소<sup>*</sup></td></tr>
+<tr><th rowspan='5'>웹(W)</th><td>W_URL</td><td>URL 주소<sup>*</sup></td></tr>
 <tr><td>W_EMAIL</td><td>이메일 주소<sup>*</sup></td></tr>
 <tr><td>W_HASHTAG</td><td>해시태그(#abcd)<sup>*</sup></td></tr>
 <tr><td>W_MENTION</td><td>멘션(@abcd)<sup>*</sup></td></tr>
+<tr><td>W_SERIAL</td><td>일련번호(전화번호, 통장번호, IP주소 등)<sup>*</sup></td></tr>
+<tr><th rowspan='1'>기타</th><td>Z_CODA</td><td>덧붙은 받침<sup>*</sup></td></tr>
 </table>
 
 <sup>*</sup> 세종 품사 태그와 다른 독자적인 태그입니다.

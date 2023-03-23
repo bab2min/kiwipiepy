@@ -528,15 +528,16 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 <tr><td>ETN</td><td>명사형 전성 어미</td></tr>
 <tr><td>ETM</td><td>관형형 전성 어미</td></tr>
 <tr><th rowspan='1'>접두사</th><td>XPN</td><td>체언 접두사</td></tr>
-<tr><th rowspan='3'>접미사(XS)</th><td>XSN</td><td>명사 파생 접미사</td></tr>
+<tr><th rowspan='4'>접미사(XS)</th><td>XSN</td><td>명사 파생 접미사</td></tr>
 <tr><td>XSV</td><td>동사 파생 접미사</td></tr>
 <tr><td>XSA</td><td>형용사 파생 접미사</td></tr>
+<tr><td>XSM</td><td>부사 파생 접미사<sup>*</sup></td></tr>
 <tr><th rowspan='1'>어근</th><td>XR</td><td>어근</td></tr>
 <tr><th rowspan='11'>부호, 외국어, 특수문자(S)</th><td>SF</td><td>종결 부호(. ! ?)</td></tr>
 <tr><td>SP</td><td>구분 부호(, / : ;)</td></tr>
 <tr><td>SS</td><td>인용 부호 및 괄호(' " ( ) [ ] < > { } ― ‘ ’ “ ” ≪ ≫ 등)</td></tr>
-<tr><td>SSO</td><td>SS 중 여는 부호</td></tr>
-<tr><td>SSC</td><td>SS 중 닫는 부호</td></tr>
+<tr><td>SSO</td><td>SS 중 여는 부호<sup>*</sup></td></tr>
+<tr><td>SSC</td><td>SS 중 닫는 부호<sup>*</sup></td></tr>
 <tr><td>SE</td><td>줄임표(…)</td></tr>
 <tr><td>SO</td><td>붙임표(- ~)</td></tr>
 <tr><td>SW</td><td>기타 특수 문자</td></tr>
@@ -549,6 +550,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 <tr><td>W_HASHTAG</td><td>해시태그(#abcd)<sup>*</sup></td></tr>
 <tr><td>W_MENTION</td><td>멘션(@abcd)<sup>*</sup></td></tr>
 <tr><td>W_SERIAL</td><td>일련번호(전화번호, 통장번호, IP주소 등)<sup>*</sup></td></tr>
+<tr><th rowspan='1'>기타</th><td>Z_CODA</td><td>덧붙은 받침<sup>*</sup></td></tr>
 </table>
 
 <sup>*</sup> 세종 품사 태그와 다른 독자적인 태그입니다.
