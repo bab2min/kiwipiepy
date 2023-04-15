@@ -85,12 +85,15 @@ num_processed_lines: int
 인자는 `begin_tokenization`과 동일합니다.
         '''
 
-    def begin_reduction(self, iteration:int, cur_vocab_size:int, unigram_loss:float):
+    def begin_reduction(self, n_tkn:int, iteration:int, cur_vocab_size:int, unigram_loss:float):
         '''
 이 메소드는 형태소 분석 작업 완료 후 토큰 후보를 추리는 작업이 시작됐을 때 호출됩니다.
 
 Parameters
 ----------
+n_tkn: int
+    현재 학습 중인 토크나이저의 순번
+
 iteration: int
     현재 완료된 반복 횟수
 
@@ -101,13 +104,13 @@ unigram_loss: float
     손실함수의 현재 값
         '''
 
-    def proc_reduction(self, iteration:int, cur_vocab_size:int, unigram_loss:float):
+    def proc_reduction(self, n_tkn:int, iteration:int, cur_vocab_size:int, unigram_loss:float):
         '''
 이 메소드는 토큰 후보를 추리는 작업이 진행 중일 때 호출됩니다.
 인자는 `begin_reduction`과 동일합니다.
         '''
 
-    def end_reduction(self, iteration:int, cur_vocab_size:int, unigram_loss:float):
+    def end_reduction(self, n_tkn:int, iteration:int, cur_vocab_size:int, unigram_loss:float):
         '''
 이 메소드는 토큰 후보를 추리는 작업이 완료되었을 때 호출됩니다.
 인자는 `begin_reduction`과 동일합니다.
@@ -139,19 +142,19 @@ class _ProgressShower(TrainerCallback):
         self._bar.close()
         self._bar = None
     
-    def begin_reduction(self, iteration: int, cur_vocab_size: int, unigram_loss: float):
-        self._bar = tqdm.tqdm(itertools.repeat(None), desc="Reducing", file=self._file, total=self._iterations)
+    def begin_reduction(self, n_tkn:int, iteration: int, cur_vocab_size: int, unigram_loss: float):
+        self._bar = tqdm.tqdm(itertools.repeat(None), desc=f"Reducing #{n_tkn+1}", file=self._file, total=self._iterations)
         self._bar.write(f"Iteration: {iteration} VocabSize: {cur_vocab_size} Loss: {unigram_loss:.4f}")
         self._bar.set_postfix(dict(vocab_size=cur_vocab_size, loss=unigram_loss))
         self._last_iteration = iteration
     
-    def proc_reduction(self, iteration: int, cur_vocab_size: int, unigram_loss: float):
+    def proc_reduction(self, n_tkn:int, iteration: int, cur_vocab_size: int, unigram_loss: float):
         self._bar.write(f"Iteration: {iteration} VocabSize: {cur_vocab_size} Loss: {unigram_loss:.4f}")
         self._bar.update(iteration - self._last_iteration)
         self._bar.set_postfix(dict(vocab_size=cur_vocab_size, loss=unigram_loss))
         self._last_iteration = iteration
 
-    def end_reduction(self, iteration: int, cur_vocab_size: int, unigram_loss: float):
+    def end_reduction(self, n_tkn:int, iteration: int, cur_vocab_size: int, unigram_loss: float):
         self._bar.close()
         self._bar = None
         print(f"Finished. Iteration: {iteration} VocabSize: {cur_vocab_size} Loss: {unigram_loss:.4f}", file=self._file)
@@ -323,10 +326,10 @@ Notes
 
     @staticmethod
     def train(
-        save_path: str,
+        save_path: Union[str, Iterable[str]],
         texts: Iterable[str],
         config: SwTokenizerConfig,
-        vocab_size: int,
+        vocab_size: Union[int, Iterable[int]],
         chr_coverage: float = 0.9995,
         prefix_min_cnt: int = 5,
         prefix_max_length: int = 15,
@@ -343,9 +346,12 @@ Notes
         '''
 주어진 텍스트로부터 유니그램 언어모델과 형태소 분석을 통합한 알고리즘을 통해 서브워드 토크나이저를 학습합니다. 
 
+또한 목표하는 `vocab_size`가 서로 다른 여러 벌의 토크나이저를 한 번에 학습하는 것도 가능합니다.
+이 경우 `save_path`를 str의 리스트로, `vocab_size`를 int의 리스트로 입력해야 합니다.
+
 Parameters
 ----------
-save_path: str
+save_path: Union[str, Iterable[str]]
     학습된 토크나이저가 저장될 파일 이름을 지정합니다.
 
 texts: Iterable[str]
@@ -354,7 +360,7 @@ texts: Iterable[str]
 config: SwTokenizerConfig
     토크나이저 설정을 지정합니다.
 
-vocab_size: int
+vocab_size: Union[int, Iterable[int]]
     토크나이저의 어휘 집합의 상한치를 지정합니다.
 
 chr_coverage: float
@@ -447,6 +453,14 @@ Notes
                 except: pass
             callback.insert(0, _ProgressShower(None if show_progress is True else show_progress, total_texts, iterations))
 
+        single_target = False
+        if isinstance(save_path, str):
+            if not isinstance(vocab_size, int):
+                raise ValueError("`save_path` should have the same number of elements to `vocab_size`.")
+            single_target = True
+            save_path = [save_path]
+            vocab_size = [vocab_size]
+        
         _SwTokenizer._train(
             save_path, texts, config, 
             vocab_size=vocab_size, 
@@ -460,5 +474,8 @@ Notes
             kiwi=kiwi, 
             callback=callback,
         )
-        return SwTokenizer(save_path, kiwi)
+        if single_target:
+            return SwTokenizer(save_path[0], kiwi)
+        else:
+            return [SwTokenizer(s, kiwi) for s in save_path]
 

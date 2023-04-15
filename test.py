@@ -117,6 +117,20 @@ def test_swtokenizer_trainer():
         4000,
     )
 
+def test_swtokenizer_trainer_multiple_vocab_sizes():
+    import itertools
+
+    config = sw_tokenizer.SwTokenizerConfig()
+    sw_tokenizer.SwTokenizer.train(
+        ['test.json', 'test2.json', 'test3.json'], 
+        itertools.chain.from_iterable(open(f, encoding='utf-8') for f in (
+            'kiwipiepy/documentation.md', 
+            'kiwipiepy/_wrap.py', 
+        )), 
+        config,
+        [4000, 2000, 1000],
+    )
+
 def test_analyze_single():
     kiwi = Kiwi()
     for line in open(curpath + '/test_corpus/constitution.txt', encoding='utf-8'):

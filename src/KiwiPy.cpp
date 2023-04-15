@@ -968,10 +968,11 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 	{
 		return py::handleExc([&]() -> PyObject*
 		{
-			const char* save_path;
+			PyObject* savePath;
 			PyObject* texts;
 			PyObject* config;
-			size_t vocabSize, strictReduction, removeRepetitive, iterations, prefixMinCnt, prefixMaxLength;
+			PyObject* vocabSize;
+			size_t strictReduction, removeRepetitive, iterations, prefixMinCnt, prefixMaxLength;
 			float chrCoverage, reductionRatio;
 			PyObject* kiwi;
 			PyObject* callback;
@@ -982,8 +983,8 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 				"kiwi", "callback",
 				nullptr
 			};
-			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "sOOnfppnfnnOO", (char**)kwlist, 
-				&save_path, &texts, &config,
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOOfppnfnnOO", (char**)kwlist, 
+				&savePath, &texts, &config,
 				&vocabSize, &chrCoverage, &strictReduction, &removeRepetitive,
 				&iterations, &reductionRatio, 
 				&prefixMinCnt, &prefixMaxLength,
@@ -991,8 +992,14 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 			)) return nullptr;
 
 			auto cfg = convertToConfig(config);
+			auto savePathes = py::toCpp<vector<string>>(savePath);
+			auto vocabSizes = py::toCpp<vector<size_t>>(vocabSize);
+			if (savePathes.size() != vocabSizes.size())
+			{
+				throw py::ValueError{ "`save_path` should have the same number of elements to `vocab_size`." };
+			}
+
 			UnigramSwTrainerConfig trainCfg;
-			trainCfg.vocabSize = vocabSize;
 			trainCfg.chrCoverage = chrCoverage;
 			trainCfg.reduceStrict = strictReduction;
 			trainCfg.removeRepetitive = removeRepetitive;
@@ -1064,62 +1071,69 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 				if (!r) throw py::ExcPropagation{};
 			}
 
-			float loss = trainer.buildSubwordVocabs(prefixMinCnt, prefixMaxLength);
-
-			for (auto ci : callbackItems)
+			for (size_t tn = 0; tn < savePathes.size(); ++tn)
 			{
-				py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[3].get(),
-					py::buildPyValue(0).get(),
-					py::buildPyValue(trainer.getCurrentVocabSize()).get(),
-					py::buildPyValue(loss).get(),
-					nullptr
-				) };
-				if (!r) throw py::ExcPropagation{};
-			}
-			
-			size_t iter = 0;
-			for (; iter < iterations; ++iter)
-			{
-				trainer.updateTokenization();
-				trainer.updateProb();
-				trainer.reduceVocab(reductionRatio);
-				trainer.updateTokenization();
-				float curLoss = trainer.updateProb();
-				size_t curVocabSize = trainer.getCurrentVocabSize();
+				trainer.getTrainConfig().vocabSize = vocabSizes[tn];
+				float loss = trainer.buildSubwordVocabs(prefixMinCnt, prefixMaxLength);
 
 				for (auto ci : callbackItems)
 				{
-					py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[4].get(),
-						py::buildPyValue(iter + 1).get(),
-						py::buildPyValue(curVocabSize).get(),
+					py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[3].get(),
+						py::buildPyValue(tn).get(),
+						py::buildPyValue(0).get(),
+						py::buildPyValue(trainer.getCurrentVocabSize()).get(),
 						py::buildPyValue(loss).get(),
 						nullptr
 					) };
 					if (!r) throw py::ExcPropagation{};
 				}
-				
-				if (curVocabSize <= trainCfg.vocabSize)
+
+				size_t iter = 0;
+				for (; iter < iterations; ++iter)
 				{
-					++iter;
-					break;
+					trainer.updateTokenization();
+					trainer.updateProb();
+					trainer.reduceVocab(reductionRatio);
+					trainer.updateTokenization();
+					loss = trainer.updateProb();
+					size_t curVocabSize = trainer.getCurrentVocabSize();
+
+					for (auto ci : callbackItems)
+					{
+						py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[4].get(),
+							py::buildPyValue(tn).get(),
+							py::buildPyValue(iter + 1).get(),
+							py::buildPyValue(curVocabSize).get(),
+							py::buildPyValue(loss).get(),
+							nullptr
+						) };
+						if (!r) throw py::ExcPropagation{};
+					}
+
+					if (curVocabSize <= vocabSizes[tn])
+					{
+						++iter;
+						break;
+					}
 				}
-			}
 
-			for (auto ci : callbackItems)
-			{
-				py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[5].get(),
-					py::buildPyValue(iter).get(),
-					py::buildPyValue(trainer.getCurrentVocabSize()).get(),
-					py::buildPyValue(loss).get(),
-					nullptr
-				) };
-				if (!r) throw py::ExcPropagation{};
-			}
+				for (auto ci : callbackItems)
+				{
+					py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[5].get(),
+						py::buildPyValue(tn).get(),
+						py::buildPyValue(iter).get(),
+						py::buildPyValue(trainer.getCurrentVocabSize()).get(),
+						py::buildPyValue(loss).get(),
+						nullptr
+					) };
+					if (!r) throw py::ExcPropagation{};
+				}
 
-			auto tokenizer = trainer.build();
-			{
-				ofstream ofs;
-				tokenizer.save(openFile(ofs, save_path));
+				auto tokenizer = trainer.build();
+				{
+					ofstream ofs;
+					tokenizer.save(openFile(ofs, savePathes[tn]));
+				}
 			}
 			
 			Py_INCREF(Py_None);

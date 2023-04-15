@@ -82,7 +82,6 @@ if __name__ == '__main__':
         'python -m kiwpiepy.sw_trainer', 
         description='Kiwi SwTokenizer Trainer'
     )
-    parser.add_argument('save_path')
     parser.add_argument('input_files', nargs='+')
     parser.add_argument('--lowercase', default=False, type=_bool)
     parser.add_argument('--split_chinese', default=True, type=_bool)
@@ -102,7 +101,8 @@ if __name__ == '__main__':
     parser.add_argument('--bos_token')
     parser.add_argument('--eos_token')
     
-    parser.add_argument('--vocab_size', required=True, type=int)
+    parser.add_argument('--save_path', required=True, nargs='+')
+    parser.add_argument('--vocab_size', required=True, type=int, nargs='+')
     parser.add_argument('--chr_coverage', default=0.9995, type=float)
     parser.add_argument('--prefix_min_cnt', default=5, type=int)
     parser.add_argument('--prefix_max_length', default=15, type=int)
