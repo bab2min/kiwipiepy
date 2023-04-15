@@ -14,6 +14,11 @@
 #include <deque>
 #include <future>
 
+#if __cplusplus >= 201700L
+	#include <optional>
+	#define HAS_OPTIONAL
+#endif
+
 #ifdef _DEBUG
 #undef _DEBUG
 #include <Python.h>
@@ -453,6 +458,13 @@ namespace py
 		return ValueBuilder<_Ty>{}._toCpp(obj, std::forward<_FailMsg>(fail));
 	}
 
+	template<typename _Ty>
+	inline _Ty getAttr(PyObject* obj, const char* attr)
+	{
+		py::UniqueObj item{ PyObject_GetAttrString(obj, attr) };
+		return toCpp<_Ty>(item.get(), [&]() { return std::string{ "Failed to get attribute " } + attr; });
+	}
+
 	inline std::string repr(PyObject* o)
 	{
 		UniqueObj r{ PyObject_Repr(o) };
@@ -552,9 +564,10 @@ namespace py
 		template<typename _FailMsg>
 		std::string _toCpp(PyObject* obj, _FailMsg&& msg)
 		{
-			const char* str = PyUnicode_AsUTF8(obj);
+			Py_ssize_t size;
+			const char* str = PyUnicode_AsUTF8AndSize(obj, &size);
 			if (!str) throw ConversionFail{ std::forward<_FailMsg>(msg) };
-			return str;
+			return { str, str + size };
 		}
 	};
 
@@ -837,6 +850,25 @@ namespace py
 		}
 	};
 
+#ifdef HAS_OPTIONAL
+	template<typename _Ty>
+	struct ValueBuilder<std::optional<_Ty>>
+	{
+		UniqueObj operator()(const std::optional<_Ty>& v)
+		{
+			if (v) return buildPyValue(*v);
+			return buildPyValue(nullptr);
+		}
+
+		template<typename _FailMsg>
+		std::optional<_Ty> _toCpp(PyObject* obj, _FailMsg&&)
+		{
+			if (obj != Py_None) return toCpp<_Ty>(obj);
+			return {};
+		}
+	};
+#endif
+
 #ifdef USE_NUMPY
 	namespace detail
 	{
@@ -981,6 +1013,13 @@ namespace py
 	template<typename _Ty>
 	struct numpy_able : std::false_type {};
 #endif
+
+	template<class _Ty>
+	struct numpy_pair_test : std::false_type {};
+
+	template<class _Ty>
+	struct numpy_pair_test<std::pair<_Ty, _Ty>> : numpy_able<_Ty> {};
+
 	struct force_list_t {};
 	static constexpr force_list_t force_list{};
 
@@ -1012,7 +1051,7 @@ namespace py
 				std::vector<_Ty> v;
 				while ((item = UniqueObj{ PyIter_Next(iter.get()) }))
 				{
-					v.emplace_back(toCpp<_Ty>(item));
+					v.emplace_back(toCpp<_Ty>(item.get()));
 				}
 				if (PyErr_Occurred())
 				{
@@ -1022,11 +1061,24 @@ namespace py
 			}
 		}
 	};
+
+	template<typename _Ty>
+	struct ValueBuilder<std::vector<std::pair<_Ty, _Ty>>,
+		typename std::enable_if<numpy_able<_Ty>::value>::type>
+	{
+		UniqueObj operator()(const std::vector<std::pair<_Ty, _Ty>>& v)
+		{
+			npy_intp size[2] = { (npy_intp)v.size(), 2 };
+			UniqueObj obj{ PyArray_EMPTY(2, size, detail::NpyType<_Ty>::type, 0) };
+			std::memcpy(PyArray_DATA((PyArrayObject*)obj.get()), v.data(), sizeof(_Ty) * v.size() * 2);
+			return obj;
+		}
+	};
 #endif
 
 	template<typename _Ty>
 	struct ValueBuilder<std::vector<_Ty>,
-		typename std::enable_if<!numpy_able<_Ty>::value>::type>
+		typename std::enable_if<!numpy_able<_Ty>::value && !numpy_pair_test<_Ty>::value>::type>
 	{
 		UniqueObj operator()(const std::vector<_Ty>& v)
 		{
@@ -1390,8 +1442,8 @@ namespace py
 			return handleExc([&]()
 			{
 				py::UniqueObj ret{ subtype->tp_alloc(subtype, 0) };
-			new ((Derived*)ret.get()) Derived;
-			return ret.release();
+				new ((Derived*)ret.get()) Derived;
+				return ret.release();
 			});
 		}
 
@@ -1552,6 +1604,14 @@ namespace py
 	template<typename Ty> PyTypeObject TypeWrapper<Ty>::obj = {
 		PyVarObject_HEAD_INIT(nullptr, 0)
 	};
+
+	template<class Ty>
+	inline UniqueCObj<Ty> makeNewObject()
+	{
+		UniqueCObj<Ty> ret{ PyObject_New(Ty, Type<Ty>) };
+		new (ret.get()) Ty;
+		return ret;
+	}
 
 	template<typename _Fn>
 	auto handleExc(_Fn&& fn)
