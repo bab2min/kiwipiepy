@@ -1,6 +1,6 @@
 import os
 
-from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet
+from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer
 from kiwipiepy.utils import Stopwords
 
 curpath = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +33,70 @@ def test_blocklist():
     
     tokens = kiwi.tokenize("고마움을", blocklist=['고마움'])
     assert tokens[0].form == "고맙"
+
+def test_swtokenizer():
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    print(tokenizer.vocab)
+    print(tokenizer.config)
+    strs = [
+        "",
+        "한국어에 특화된 토크나이저입니다.", 
+        "감사히 먹겠습니당!",
+        "노래진 손톱을 봤던걸요.",
+        "제임스웹우주천체망원경",
+        "그만해여~",
+    ]
+    for s in strs:
+        token_ids = tokenizer.encode(s)
+        token_ids, offset = tokenizer.encode(s, return_offsets=True)
+        decoded = tokenizer.decode(token_ids)
+        assert s == decoded
+
+def test_swtokenizer_batch():
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    strs = [
+        "",
+        "한국어에 특화된 토크나이저입니다.", 
+        "감사히 먹겠습니당!",
+        "노래진 손톱을 봤던걸요.",
+        "제임스웹우주천체망원경",
+        "그만해여~",
+    ]
+    for token_ids, s in zip(tokenizer.encode(strs), strs):
+        decoded = tokenizer.decode(token_ids)
+        assert s == decoded
+
+def test_swtokenizer_trainer_empty():
+    config = sw_tokenizer.SwTokenizerConfig()
+    sw_tokenizer.SwTokenizer.train(
+        'test.json', 
+        [], 
+        config,
+        4000,
+    )
+
+def test_swtokenizer_trainer_small():
+    config = sw_tokenizer.SwTokenizerConfig()
+    sw_tokenizer.SwTokenizer.train(
+        'test.json', 
+        ["이런 저런 문장", "이렇게 저렇게 처리해서", "이렇고 저렇고", "이런 저런 결과를", "얻었다"], 
+        config,
+        4000,
+    )
+
+def test_swtokenizer_trainer():
+    import itertools
+
+    config = sw_tokenizer.SwTokenizerConfig()
+    sw_tokenizer.SwTokenizer.train(
+        'test.json', 
+        itertools.chain.from_iterable(open(f, encoding='utf-8') for f in (
+            'kiwipiepy/documentation.md', 
+            'kiwipiepy/_wrap.py', 
+        )), 
+        config,
+        4000,
+    )
 
 def test_analyze_single():
     kiwi = Kiwi()
