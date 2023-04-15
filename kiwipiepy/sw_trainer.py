@@ -34,6 +34,14 @@ def main(args):
         use_glue_token=args.use_glue_token,
         fallback_hangul=args.fallback_hangul,
         fallback_byte=args.fallback_byte,
+
+        unk_token=args.unk_token,
+        cls_token=args.cls_token,
+        sep_token=args.sep_token,
+        pad_token=args.pad_token,
+        mask_token=args.mask_token,
+        bos_token=args.bos_token,
+        eos_token=args.eos_token,
     )
     print("Building SwTokenizer...")
     p = dict(
