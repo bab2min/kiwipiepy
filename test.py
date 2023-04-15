@@ -66,6 +66,25 @@ def test_swtokenizer_batch():
         decoded = tokenizer.decode(token_ids)
         assert s == decoded
 
+def test_swtokenizer_morph():
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    
+    token_ids = tokenizer.encode("한국어에 특화된 토크나이저입니다.")
+
+    token_ids_from_morphs = tokenizer.encode_from_morphs([
+        ('한국어', 'NNP', False), 
+        ('에', 'JKB',), 
+        ('특화', 'NNG', True), 
+        ('되', 'XSV',), 
+        ('ᆫ', 'ETM', False), 
+        ('토크나이저', 'NNG', True), 
+        ('이', 'VCP', False), 
+        ('ᆸ니다', 'EF',), 
+        ('.', 'SF', False),
+    ])
+
+    assert (token_ids == token_ids_from_morphs).all()
+
 def test_swtokenizer_trainer_empty():
     config = sw_tokenizer.SwTokenizerConfig()
     sw_tokenizer.SwTokenizer.train(
