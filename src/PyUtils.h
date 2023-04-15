@@ -16,7 +16,7 @@
 
 #if __cplusplus >= 201700L
 	#include <optional>
-	#define HAS_OPTIONAL
+	#include <variant>
 #endif
 
 #ifdef _DEBUG
@@ -850,7 +850,7 @@ namespace py
 		}
 	};
 
-#ifdef HAS_OPTIONAL
+#if __cplusplus >= 201700L
 	template<typename _Ty>
 	struct ValueBuilder<std::optional<_Ty>>
 	{
@@ -867,6 +867,42 @@ namespace py
 			return {};
 		}
 	};
+
+	template<typename Ty, typename... Ts>
+	struct ValueBuilder<std::variant<Ty, Ts...>>
+	{
+		UniqueObj operator()(const std::variant<Ty, Ts...>& v)
+		{
+			return std::visit([](auto&& t)
+			{
+				return py::buildPyValue(std::forward<decltype(t)>(t));
+			}, v);
+		}
+
+		template<typename _FailMsg>
+		std::variant<Ty, Ts...> _toCpp(PyObject* obj, _FailMsg&&)
+		{
+			try
+			{
+				return toCpp<Ty>(obj);
+			}
+			catch (const ConversionFail&)
+			{
+				if constexpr (sizeof...(Ts))
+				{
+					return std::visit([](auto&& t) -> std::variant<Ty, Ts...>
+					{
+						return std::forward<decltype(t)>(t);
+					}, toCpp<std::variant<Ts...>>(obj));
+				}
+				else
+				{
+					throw;
+				}
+			}
+		}
+	};
+
 #endif
 
 #ifdef USE_NUMPY
@@ -1148,6 +1184,32 @@ namespace py
 			throw ExcPropagation{};
 		}
 	}
+
+#if __cplusplus >= 201701L
+	template<typename T, typename Fn, typename Msg>
+	inline void foreachVisit(PyObject* iterable, Fn&& fn, Msg&& failMsg)
+	{
+		if (!iterable) throw ConversionFail{ std::forward<Msg>(failMsg) };
+		UniqueObj iter{ PyObject_GetIter(iterable) }, item;
+		if (!iter) throw ConversionFail{ std::forward<Msg>(failMsg) };
+		try
+		{
+			while ((item = UniqueObj{ PyIter_Next(iter.get()) }))
+			{
+				std::visit(fn, toCpp<T>(item.get()));
+			}
+		}
+		catch (const ForeachFailed&)
+		{
+			throw ConversionFail{ std::forward<Msg>(failMsg) };
+		}
+
+		if (PyErr_Occurred())
+		{
+			throw ExcPropagation{};
+		}
+	}
+#endif
 
 	template<typename T, typename Fn, typename Msg>
 	inline void foreachWithPy(PyObject* iterable, Fn&& fn, Msg&& failMsg)
