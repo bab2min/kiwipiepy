@@ -181,7 +181,7 @@ jobs:
 
   build_other_arch_old:
     name: Build for manylinux (other arch, old)
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         arch: [aarch64, ppc64le]
@@ -224,7 +224,7 @@ jobs:
 
   build_other_arch:
     name: Build for manylinux (other arch)
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         arch: [aarch64, ppc64le]

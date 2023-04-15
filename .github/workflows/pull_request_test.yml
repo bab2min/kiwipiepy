@@ -235,7 +235,7 @@ jobs:
 
   build_other_arch:
     name: Build for manylinux (other arch)
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       max-parallel: 4
       matrix:
