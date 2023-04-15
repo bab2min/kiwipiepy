@@ -299,7 +299,7 @@ Notes
         return super().decode(ids)
     
     @property
-    @lru_cache
+    @lru_cache(maxsize=None)
     def vocab(self) -> Dict[str, int]:
         '''
 토크나이저에 속한 어휘 집합을 dict로 반환합니다. (읽기 전용)
@@ -307,7 +307,7 @@ Notes
         return super()._vocab
 
     @property
-    @lru_cache
+    @lru_cache(maxsize=None)
     def config(self) -> SwTokenizerConfig:
         '''
 토크나이저의 설정값을 담은 `SwTokenizerConfig` 데이터 클래스를 반환합니다. (읽기 전용)
