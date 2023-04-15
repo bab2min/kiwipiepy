@@ -6,8 +6,6 @@
 #define USE_NUMPY
 #define MAIN_MODULE
 
-#include <optional>
-
 #include "PyUtils.h"
 #include "PyDoc.h"
 
@@ -955,6 +953,12 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 		});
 	}
 
+	PyObject* _kiwi()
+	{
+		Py_INCREF(kiwi.get());
+		return (PyObject*)kiwi.get();
+	}
+
 	static Py_ssize_t len(SwTokenizerObject* self)
 	{
 		return self->tokenizer.size();
@@ -1139,6 +1143,7 @@ py::TypeWrapper<SwTokenizerObject> _SwTokenizerSetter{ [](PyTypeObject& obj)
 	{
 		{ (char*)"_config", PY_GETTER_MEMFN(&SwTokenizerObject::config), nullptr, "", nullptr},
 		{ (char*)"_vocab", PY_GETTER_MEMFN(&SwTokenizerObject::vocab), nullptr, "", nullptr},
+		{ (char*)"_kiwi", PY_GETTER_MEMFN(&SwTokenizerObject::_kiwi), nullptr, "", nullptr},
 		{ nullptr },
 	};
 
@@ -1272,12 +1277,26 @@ PyObject* SwTokenizerObject::encodeFromMorphs(PyObject* args, PyObject* kwargs)
 		py::UniqueObj iter{ PyObject_GetIter(morphs) };
 		if (!iter) throw py::ValueError{ "`encodeFromMorphs` requires an iterable of `Tuple[str, str, bool]` parameters." };
 		vector<tuple<u16string, POSTag, bool>> tokens;
-		py::foreach<tuple<string, string, bool>>(iter.get(), [&](tuple<string, string, bool>&& item)
+		py::foreachVisit<variant<
+			tuple<string, string, bool>,
+			tuple<string, string>
+		>>(iter.get(), [&](auto&& item)
 		{
-			auto form = utf8To16(get<0>(item));
-			auto pos = parseTag(get<1>(item).c_str());
-			auto spaceness = get<2>(item);
-			tokens.emplace_back(form, pos, spaceness);
+			using T = std::decay_t<decltype(item)>;
+			if constexpr (is_same_v<T, tuple<string, string, bool>>)
+			{
+				auto form = utf8To16(get<0>(item));
+				auto pos = parseTag(get<1>(item).c_str());
+				auto spaceness = get<2>(item);
+				tokens.emplace_back(form, pos, spaceness);
+			}
+			else if constexpr (is_same_v<T, tuple<string, string>>)
+			{
+				auto form = utf8To16(get<0>(item));
+				auto pos = parseTag(get<1>(item).c_str());
+				auto spaceness = false;
+				tokens.emplace_back(form, pos, spaceness);
+			}
 		}, "`encodeFromMorphs` requires an iterable of `Tuple[str, str, bool]` parameters.");
 		
 		return py::buildPyValue(tokenizer.encode(tokens)).release();
