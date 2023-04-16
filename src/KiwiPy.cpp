@@ -1074,7 +1074,8 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 			for (size_t tn = 0; tn < savePathes.size(); ++tn)
 			{
 				trainer.getTrainConfig().vocabSize = vocabSizes[tn];
-				float loss = trainer.buildSubwordVocabs(prefixMinCnt, prefixMaxLength);
+				float loss = trainer.buildSubwordVocabs(prefixMinCnt, prefixMaxLength), lastLoss = 0;
+				size_t lastVocabSize = 0;
 
 				for (auto ci : callbackItems)
 				{
@@ -1110,11 +1111,13 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 						if (!r) throw py::ExcPropagation{};
 					}
 
-					if (curVocabSize <= vocabSizes[tn])
+					if (curVocabSize <= vocabSizes[tn] || (curVocabSize == lastVocabSize && loss == lastLoss))
 					{
 						++iter;
 						break;
 					}
+					lastVocabSize = curVocabSize;
+					lastLoss = loss;
 				}
 
 				for (auto ci : callbackItems)
