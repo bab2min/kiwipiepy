@@ -337,6 +337,7 @@ Notes
         prefix_max_length: int = 15,
         strict_reduction: bool = False,
         remove_repetitive: bool = True,
+        prevent_mixed_digit_tokens: bool = True,
         iterations: int = 1000,
         reduction_ratio: float = 0.1,
         kiwi: Optional[Kiwi] = None,
@@ -377,6 +378,10 @@ prefix_min_cnt: int
 prefix_max_length: int
     어휘 집합의 후보를 구성할 때 포함되는 접두어의 최대 길이를 지정합니다.
     기본값은 15로, 이 경우 최대 15글자로 구성되는 접두어까지 어휘 집합의 후보로 들어갈 수 있습니다.
+
+prevent_mixed_digit_tokens: bool
+    어휘 집합의 후보를 구성할 때 숫자와 다른 문자가 섞인 토큰을 배제합니다.
+    기본값은 True로, 이 경우 "1분", "10시" 등의 표현은 항상 `1` `분`, `10` `시`처럼 분할됩니다.
 
 strict_reduction: bool
     어휘 집합을 줄여나갈 때 한 번 배제된 후보가 다시는 사용되지 못하도록 엄격하게 설정합니다. 
@@ -480,6 +485,7 @@ Notes
             reduction_ratio=reduction_ratio, 
             prefix_min_cnt=prefix_min_cnt,
             prefix_max_length=prefix_max_length,
+            prevent_mixed_digit_tokens=prevent_mixed_digit_tokens,
             kiwi=kiwi, 
             callback=callback,
         )

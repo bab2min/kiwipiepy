@@ -49,6 +49,7 @@ def main(args):
         chr_coverage=args.chr_coverage,
         prefix_min_cnt=args.prefix_min_cnt,
         prefix_max_length=args.prefix_max_length,
+        prevent_mixed_digit_tokens=args.prevent_mixed_digit_tokens,
         strict_reduction=args.strict_reduction,
         remove_repetitive=args.remove_repetitive,
         iterations=args.iterations,
@@ -67,6 +68,7 @@ def main(args):
         chr_coverage=args.chr_coverage,
         prefix_min_cnt=args.prefix_min_cnt,
         prefix_max_length=args.prefix_max_length,
+        prevent_mixed_digit_tokens=args.prevent_mixed_digit_tokens,
         strict_reduction=args.strict_reduction,
         remove_repetitive=args.remove_repetitive,
         iterations=args.iterations,
@@ -115,6 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('--chr_coverage', default=0.9995, type=float)
     parser.add_argument('--prefix_min_cnt', default=5, type=int)
     parser.add_argument('--prefix_max_length', default=15, type=int)
+    parser.add_argument('--prevent_mixed_digit_tokens', default=True, type=_bool)
     parser.add_argument('--strict_reduction', default=False, type=_bool)
     parser.add_argument('--remove_repetitive', default=True, type=_bool)
     parser.add_argument('--iterations', default=1000, type=int)

@@ -180,7 +180,8 @@ struct HSDatasetObject : py::CObject<HSDatasetObject>
 	{
 		return py::handleExc([&]() -> PyObject*
 		{
-			size_t index, augment = 0;
+			size_t index;
+			int augment = 0;
 			static const char* kwlist[] = { "index", "augment", nullptr};
 			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n|p", (char**)kwlist,
 				&index, &augment
@@ -972,22 +973,23 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 			PyObject* texts;
 			PyObject* config;
 			PyObject* vocabSize;
-			size_t strictReduction, removeRepetitive, iterations, prefixMinCnt, prefixMaxLength;
+			size_t iterations, prefixMinCnt, prefixMaxLength;
+			int strictReduction, removeRepetitive, preventMixedDigitTokens;
 			float chrCoverage, reductionRatio;
 			PyObject* kiwi;
 			PyObject* callback;
 			static const char* kwlist[] = { "save_path", "texts", "config", 
 				"vocab_size", "chr_coverage", "strict_reduction", "remove_repetitive",
 				"iterations", "reduction_ratio", 
-				"prefix_min_cnt", "prefix_max_length",
+				"prefix_min_cnt", "prefix_max_length", "prevent_mixed_digit_tokens",
 				"kiwi", "callback",
 				nullptr
 			};
-			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOOfppnfnnOO", (char**)kwlist, 
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOOfppnfnnpOO", (char**)kwlist, 
 				&savePath, &texts, &config,
 				&vocabSize, &chrCoverage, &strictReduction, &removeRepetitive,
 				&iterations, &reductionRatio, 
-				&prefixMinCnt, &prefixMaxLength,
+				&prefixMinCnt, &prefixMaxLength, &preventMixedDigitTokens,
 				&kiwi, &callback
 			)) return nullptr;
 
@@ -1003,6 +1005,7 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 			trainCfg.chrCoverage = chrCoverage;
 			trainCfg.reduceStrict = strictReduction;
 			trainCfg.removeRepetitive = removeRepetitive;
+			trainCfg.preventMixedDigitTokens = !!preventMixedDigitTokens;
 			auto kkiwi = (KiwiObject*)kiwi;
 			kkiwi->doPrepare();
 			
@@ -1248,7 +1251,7 @@ PyObject* SwTokenizerObject::encode(PyObject* args, PyObject* kwargs)
 	return py::handleExc([&]() -> PyObject*
 	{
 		PyObject* text;
-		size_t returnOffsets = 0;
+		int returnOffsets = 0;
 		static const char* kwlist[] = { "text", "return_offsets", nullptr };
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|p", (char**)kwlist, &text, &returnOffsets)) return nullptr;
 
@@ -1485,7 +1488,7 @@ PyObject* KiwiObject::extractWords(PyObject* args, PyObject *kwargs)
 		PyObject* sentences;
 		size_t minCnt = 10, maxWordLen = 10;
 		float minScore = 0.25f, posScore = -3;
-		size_t lmFilter = 1;
+		int lmFilter = 1;
 		static const char* kwlist[] = { "texts", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnffp", (char**)kwlist, &sentences, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
 
@@ -1510,7 +1513,7 @@ PyObject* KiwiObject::extractAddWords(PyObject* args, PyObject *kwargs)
 		PyObject* sentences;
 		size_t minCnt = 10, maxWordLen = 10;
 		float minScore = 0.25f, posScore = -3;
-		size_t lmFilter = 1;
+		int lmFilter = 1;
 		static const char* kwlist[] = { "texts", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnffp", (char**)kwlist, &sentences, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
 
@@ -1533,7 +1536,8 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 {
 	return py::handleExc([&]() -> PyObject*
 	{
-		size_t topN = 1, matchOptions = (size_t)Match::all, echo = 0;
+		size_t topN = 1, matchOptions = (size_t)Match::all;
+		int echo = 0;
 		PyObject* text, *blockList = Py_None;
 		static const char* kwlist[] = { "text", "top_n", "match_options", "echo", "blocklist", nullptr};
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnpO", (char**)kwlist, &text, &topN, &matchOptions, &echo, &blockList)) return nullptr;
@@ -1581,7 +1585,7 @@ PyObject* KiwiObject::perform(PyObject* args, PyObject *kwargs)
 		PyObject* sentences;
 		size_t minCnt = 10, maxWordLen = 10;
 		float minScore = 0.25f, posScore = -3;
-		size_t lmFilter = 1;
+		int lmFilter = 1;
 		static const char* kwlist[] = { "texts", "top_n", "match_options", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnnnffp", (char**)kwlist,
 			&sentences, &topN, &matchOptions, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
@@ -1622,7 +1626,7 @@ PyObject* KiwiObject::getMorpheme(PyObject* args, PyObject* kwargs)
 PyObject* KiwiObject::join(PyObject* args, PyObject* kwargs)
 {
 	PyObject* morphs;
-	size_t lm_search = 1;
+	int lm_search = 1;
 	static const char* kwlist[] = { "morphs", "lm_search", nullptr};
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|p", (char**)kwlist, &morphs, &lm_search)) return nullptr;
 	return py::handleExc([&]()

@@ -1,4 +1,5 @@
 import os
+import re
 
 from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer
 from kiwipiepy.utils import Stopwords
@@ -102,6 +103,32 @@ def test_swtokenizer_trainer_small():
         config,
         4000,
     )
+
+def test_swtokenizer_trainer_digits():
+    kiwi = Kiwi(num_workers=1)
+    config = sw_tokenizer.SwTokenizerConfig()
+
+    tokenizer = sw_tokenizer.SwTokenizer.train(
+        'test.json', 
+        [f"드디어 제{i}회 평가" for i in range(1, 1000)], 
+        config,
+        4000,
+        kiwi=kiwi,
+        prevent_mixed_digit_tokens=False,
+    )
+    mixed_digit = [k for k in tokenizer.vocab if re.search(r'제[0-9]|[0-9]회', k)]
+    assert len(mixed_digit) > 0
+
+    tokenizer = sw_tokenizer.SwTokenizer.train(
+        'test.json', 
+        [f"드디어 제{i}회 평가" for i in range(1, 1000)], 
+        config,
+        4000,
+        kiwi=kiwi,
+        prevent_mixed_digit_tokens=True,
+    )
+    mixed_digit = [k for k in tokenizer.vocab if re.search(r'제[0-9]|[0-9]회', k)]
+    assert len(mixed_digit) == 0
 
 def test_swtokenizer_trainer():
     import itertools
