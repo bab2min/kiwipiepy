@@ -58,7 +58,7 @@ def main(args):
     )
     for k, v in p.items():
         print(f"|  {k}: {v!r}")
-    print()
+    print(flush=True)
     SwTokenizer.train(
         args.save_path,
         MultipleFileLoader(args.input_files),
@@ -101,6 +101,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_glue_token', default=True, type=_bool)
     parser.add_argument('--fallback_hangul', default=True, type=_bool)
     parser.add_argument('--fallback_byte', default=False, type=_bool)
+    parser.add_argument('--use_newline_token', default=False, type=_bool)
     parser.add_argument('--unk_token', default="[UNK]")
     parser.add_argument('--cls_token')
     parser.add_argument('--sep_token')
@@ -116,7 +117,8 @@ if __name__ == '__main__':
     parser.add_argument('--prefix_max_length', default=15, type=int)
     parser.add_argument('--strict_reduction', default=False, type=_bool)
     parser.add_argument('--remove_repetitive', default=True, type=_bool)
-    parser.add_argument('--iterations', default=100, type=int)
+    parser.add_argument('--iterations', default=1000, type=int)
     parser.add_argument('--reduction_ratio', default=0.1, type=float)
     parser.add_argument('--num_workers', default=0, type=int)
+    
     main(parser.parse_args())

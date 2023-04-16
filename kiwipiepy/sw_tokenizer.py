@@ -42,7 +42,9 @@ class SwTokenizerConfig:
     use_glue_token:bool = True
     '''단어를 이어붙이는 특수 토큰인 Glue토큰을 사용합니다.'''
     use_newline_token:bool = False
-    '''줄바꿈 문자를 토큰으로 사용합니다. False일 경우 공백으로 취급하여 무시합니다. (아직 미지원)'''
+    '''줄바꿈 문자를 토큰으로 사용합니다. False일 경우 공백으로 취급하여 무시합니다.
+    줄바꿈 문자로는 fallback_byte 토큰의 10번째 바이트 토큰(\n)을 사용합니다.
+    '''
     strict:bool = False
     '''토큰화 수행시 원문을 완벽하게 복원하도록 합니다. (아직 미지원)'''
     fallback_hangul:bool = True
@@ -335,7 +337,7 @@ Notes
         prefix_max_length: int = 15,
         strict_reduction: bool = False,
         remove_repetitive: bool = True,
-        iterations: int = 100,
+        iterations: int = 1000,
         reduction_ratio: float = 0.1,
         kiwi: Optional[Kiwi] = None,
         num_workers: Optional[int] = None,
@@ -385,7 +387,7 @@ strict_reduction: bool
 
 iteration: int
     어휘 집합을 줄여나가는 과정을 최대 몇 번 반복할지 설정합니다.
-    기본값은 100이지만, 대체로 100회보다 더 작은 횟수 안에 학습이 완료됩니다.
+    기본값은 1000이지만, 대체로 1000회보다 더 작은 횟수 안에 학습이 완료됩니다.
 
 reduction_ratio: float 
     어휘 집합을 줄여나갈 비율을 설정합니다.
@@ -417,9 +419,16 @@ callback: Union[TrainerCallback, List[TrainerCallback]]
 Returns
 -------
 tokenizer: SwTokenizer
+    `save_path`와 `vocab_size`가 각각 `str`, `int`로 주어진 경우.
     학습이 완료된 후 얻어진 토크나이저를 반환합니다.
     또한 토크나이저는 `save_path`로 지정된 경로에 저장되어 있으니
     `SwTokenizer(save_path)`를 통해 새로 읽어들이는 것도 가능합니다.
+
+tokenizers: List[SwTokenizer]
+    `save_path`와 `vocab_size`가 각각 `Iterable[str]`, `Iterable[int]`로 주어진 경우.
+    학습이 완료된 후 얻어진 토크나이저의 리스트를 반환합니다.
+    또한 토크나이저는 `save_path`로 지정된 경로 각각에 저장되어 있으니
+    `SwTokenizer(save_path[i])`를 통해 새로 읽어들이는 것도 가능합니다.
 
 Notes
 -----
