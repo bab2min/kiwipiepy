@@ -192,7 +192,7 @@ jobs:
     name: Build for Windows
     runs-on: windows-2019
     strategy:
-      max-parallel: 4
+      max-parallel: 5
       matrix:
         python-version: [3.7, 3.8, 3.9, "3.10", 3.11]
         architecture: [x86, x64]
@@ -237,7 +237,7 @@ jobs:
     name: Build for manylinux (other arch)
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 4
+      max-parallel: 8
       matrix:
         cp: [cp37-cp37m, cp38-cp38, cp39-cp39, cp310-cp310, cp311-cp311]
         arch: [aarch64, ppc64le]
