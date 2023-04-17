@@ -454,8 +454,9 @@ namespace py
 	template<typename _Ty, typename _FailMsg>
 	inline _Ty toCpp(PyObject* obj, _FailMsg&& fail)
 	{
-		if (!obj) throw ConversionFail{ std::forward<_FailMsg>(fail) };
-		return ValueBuilder<_Ty>{}._toCpp(obj, std::forward<_FailMsg>(fail));
+		_Ty ret;
+		if (!obj || !ValueBuilder<_Ty>{}._toCpp(obj, ret)) throw std::forward<_FailMsg>(fail);
+		return ret;
 	}
 
 	template<typename _Ty>
@@ -496,42 +497,33 @@ namespace py
 	inline _Ty toCpp(PyObject* obj)
 	{
 		if (!obj) throw ConversionFail{ "cannot convert null pointer into appropriate C++ type" };
-		return ValueBuilder<_Ty>{}._toCpp(obj, [=]() { return "cannot convert " + reprWithNestedError(obj) + " into appropriate C++ type"; });
+		_Ty v;
+		if (!ValueBuilder<_Ty>{}._toCpp(obj, v)) throw ConversionFail{ "cannot convert " + reprWithNestedError(obj) + " into appropriate C++ type" };
+		return v;
+	}
+
+	template<typename _Ty>
+	inline bool toCpp(PyObject* obj, _Ty& out)
+	{
+		if (!obj) return false;
+		return ValueBuilder<_Ty>{}._toCpp(obj, out);
 	}
 
 	template<typename _Ty>
 	struct ValueBuilder<_Ty,
-		typename std::enable_if<std::is_integral<_Ty>::value>::type>
+		typename std::enable_if<std::is_integral<_Ty>::value || std::is_enum<_Ty>::value>::type>
 	{
 		UniqueObj operator()(_Ty v)
 		{
 			return UniqueObj{ PyLong_FromLongLong(v) };
 		}
 
-		template<typename _FailMsg>
-		_Ty _toCpp(PyObject* obj, _FailMsg&& msg)
+		bool _toCpp(PyObject* obj, _Ty& out)
 		{
 			long long v = PyLong_AsLongLong(obj);
-			if (v == -1 && PyErr_Occurred()) throw ConversionFail{ std::forward<_FailMsg>(msg) };
-			return (_Ty)v;
-		}
-	};
-
-	template<typename _Ty>
-	struct ValueBuilder<_Ty,
-		typename std::enable_if<std::is_enum<_Ty>::value>::type>
-	{
-		UniqueObj operator()(_Ty v)
-		{
-			return UniqueObj{ PyLong_FromLongLong((long long)v) };
-		}
-
-		template<typename _FailMsg>
-		_Ty _toCpp(PyObject* obj, _FailMsg&& msg)
-		{
-			long long v = PyLong_AsLongLong(obj);
-			if (v == -1 && PyErr_Occurred()) throw ConversionFail{ std::forward<_FailMsg>(msg) };
-			return (_Ty)v;
+			if (v == -1 && PyErr_Occurred()) return false;
+			out = (_Ty)v;
+			return true;
 		}
 	};
 
@@ -544,12 +536,12 @@ namespace py
 			return UniqueObj{ PyFloat_FromDouble(v) };
 		}
 
-		template<typename _FailMsg>
-		_Ty _toCpp(PyObject* obj, _FailMsg&& msg)
+		bool _toCpp(PyObject* obj, _Ty& out)
 		{
 			double v = PyFloat_AsDouble(obj);
-			if (v == -1 && PyErr_Occurred()) throw ConversionFail{ std::forward<_FailMsg>(msg) };
-			return (_Ty)v;
+			if (v == -1 && PyErr_Occurred()) return false;
+			out = (_Ty)v;
+			return true;
 		}
 	};
 
@@ -561,13 +553,13 @@ namespace py
 			return UniqueObj{ PyUnicode_FromStringAndSize(v.data(), v.size()) };
 		}
 
-		template<typename _FailMsg>
-		std::string _toCpp(PyObject* obj, _FailMsg&& msg)
+		bool _toCpp(PyObject* obj, std::string& out)
 		{
 			Py_ssize_t size;
 			const char* str = PyUnicode_AsUTF8AndSize(obj, &size);
-			if (!str) throw ConversionFail{ std::forward<_FailMsg>(msg) };
-			return { str, str + size };
+			if (!str) return false;
+			out = { str, str + size };
+			return true;
 		}
 	};
 
@@ -579,27 +571,26 @@ namespace py
 			return UniqueObj{ PyUnicode_DecodeUTF16((const char*)v.data(), v.size() * 2, nullptr, nullptr) };
 		}
 
-		template<typename _FailMsg>
-		std::u16string _toCpp(PyObject* obj, _FailMsg&& msg)
+		bool _toCpp(PyObject* obj, std::u16string& out)
 		{
 			UniqueObj uobj{ PyUnicode_FromObject(obj) };
-			if (!uobj) throw ConversionFail{ std::forward<_FailMsg>(msg) };
+			if (!uobj) return false;
 			size_t len = PyUnicode_GET_LENGTH(uobj.get());
-			std::u16string ret;
+
 			switch (PyUnicode_KIND(uobj.get()))
 			{
 			case PyUnicode_1BYTE_KIND:
 			{
 				auto* p = PyUnicode_1BYTE_DATA(uobj.get());
-				ret.resize(len);
-				std::copy(p, p + len, &ret[0]);
+				out.resize(len);
+				std::copy(p, p + len, &out[0]);
 				break;
 			}
 			case PyUnicode_2BYTE_KIND:
 			{
 				auto* p = PyUnicode_2BYTE_DATA(uobj.get());
-				ret.resize(len);
-				std::copy(p, p + len, &ret[0]);
+				out.resize(len);
+				std::copy(p, p + len, &out[0]);
 				break;
 			}
 			case PyUnicode_4BYTE_KIND:
@@ -608,23 +599,23 @@ namespace py
 				for (size_t i = 0; i < len; ++i)
 				{
 					auto c = p[i];
-					ret.reserve(len);
+					out.reserve(len);
 					if (c < 0x10000)
 					{
-						ret.push_back(c);
+						out.push_back(c);
 					}
 					else
 					{
-						ret.push_back(0xD800 - (0x10000 >> 10) + (c >> 10));
-						ret.push_back(0xDC00 + (c & 0x3FF));
+						out.push_back(0xD800 - (0x10000 >> 10) + (c >> 10));
+						out.push_back(0xDC00 + (c & 0x3FF));
 					}
 				}
 				break;
 			}
 			default:
-				throw ConversionFail{ std::forward<_FailMsg>(msg) };
+				return false;
 			}
-			return ret;
+			return true;
 		}
 	};
 
@@ -636,12 +627,12 @@ namespace py
 			return UniqueObj{ PyUnicode_FromString(v) };
 		}
 
-		template<typename _FailMsg>
-		const char* _toCpp(PyObject* obj, _FailMsg&& msg)
+		bool _toCpp(PyObject* obj, const char*& out)
 		{
 			const char* p = PyUnicode_AsUTF8(obj);
-			if (!p) throw ConversionFail{ std::forward<_FailMsg>(msg) };
-			return p;
+			if (!p) return false;
+			out = p;
+			return true;
 		}
 	};
 
@@ -662,10 +653,11 @@ namespace py
 			return UniqueObj{ PyBool_FromLong(v) };
 		}
 
-		template<typename _FailMsg>
-		bool _toCpp(PyObject* obj, _FailMsg&&)
+		bool _toCpp(PyObject* obj, bool& out)
 		{
-			return !!PyObject_IsTrue(obj);
+			if (!obj) return false;
+			out = !!PyObject_IsTrue(obj);
+			return true;
 		}
 	};
 
@@ -689,10 +681,10 @@ namespace py
 			return UniqueObj{ v };
 		}
 
-		template<typename _FailMsg>
-		PyObject* _toCpp(PyObject* obj, _FailMsg&&)
+		bool _toCpp(PyObject* obj, PyObject*& out)
 		{
-			return obj;
+			out = obj;
+			return true;
 		}
 	};
 
@@ -772,14 +764,12 @@ namespace py
 			return ret;
 		}
 
-		template<typename _FailMsg>
-		std::pair<_Ty1, _Ty2> _toCpp(PyObject* obj, _FailMsg&&)
+		bool _toCpp(PyObject* obj, std::pair<_Ty1, _Ty2>& out)
 		{
 			if (Py_SIZE(obj) != 2) throw ConversionFail{ "input is not tuple with len=2" };
-			return std::make_pair(
-				toCpp<_Ty1>(PySequence_ITEM(obj, 0)),
-				toCpp<_Ty2>(PySequence_ITEM(obj, 1))
-			);
+			if (!toCpp<_Ty1>(UniqueObj{ PySequence_ITEM(obj, 0) }.get(), out.first)) return false;
+			if (!toCpp<_Ty2>(UniqueObj{ PySequence_ITEM(obj, 1) }.get(), out.second)) return false;
+			return true;
 		}
 	};
 
@@ -798,12 +788,16 @@ namespace py
 			return setValue<rest...>(o, v, {});
 		}
 
-		template<size_t ...idx>
-		std::tuple<_Tys...> getValue(PyObject* o, std::integer_sequence<size_t, idx...>)
+		template<size_t n, size_t ...idx>
+		bool getValue(PyObject* o, std::tuple<_Tys...>& out, std::integer_sequence<size_t, n, idx...>)
 		{
-			return std::make_tuple(
-				toCpp<typename std::tuple_element<idx, std::tuple<_Tys...>>::type>(PySequence_ITEM(o, idx))...
-			);
+			if (!toCpp<typename std::tuple_element<n, std::tuple<_Tys...>>::type>(UniqueObj{ PySequence_ITEM(o, n) }.get(), std::get<n>(out))) return false;
+			return getValue(o, out, std::integer_sequence<size_t, idx...>{});
+		}
+
+		bool getValue(PyObject* o, std::tuple<_Tys...>& out, std::integer_sequence<size_t>)
+		{
+			return true;
 		}
 
 	public:
@@ -815,11 +809,11 @@ namespace py
 			return ret;
 		}
 
-		template<typename _FailMsg>
-		std::tuple<_Tys...> _toCpp(PyObject* obj, _FailMsg&&)
+		bool _toCpp(PyObject* obj, std::tuple<_Tys...>& out)
 		{
-			if (Py_SIZE(obj) != sizeof...(_Tys)) throw ConversionFail{ "input is not tuple with len=2" };
-			return getValue(obj, std::make_index_sequence<sizeof...(_Tys)>{});
+			if (Py_SIZE(obj) != sizeof...(_Tys)) return false;
+			getValue(obj, out, std::make_index_sequence<sizeof...(_Tys)>{});
+			return true;
 		}
 	};
 
@@ -836,17 +830,20 @@ namespace py
 			return ret;
 		}
 
-		template<typename _FailMsg>
-		std::unordered_map<_Ty1, _Ty2> _toCpp(PyObject* obj, _FailMsg&& failMsg)
+		bool _toCpp(PyObject* obj, std::unordered_map<_Ty1, _Ty2>& out)
 		{
-			std::unordered_map<_Ty1, _Ty2> ret;
 			PyObject* key, * value;
 			Py_ssize_t pos = 0;
-			while (PyDict_Next(obj, &pos, &key, &value)) {
-				ret.emplace(toCpp<_Ty1>(key), toCpp<_Ty2>(value));
+			while (PyDict_Next(obj, &pos, &key, &value)) 
+			{
+				_Ty1 k;
+				_Ty2 v;
+				if (!toCpp<_Ty1>(key, k)) return false;
+				if (!toCpp<_Ty2>(value, v)) return false;
+				out.emplace(std::move(k), std::move(v));
 			}
-			if (PyErr_Occurred()) throw ConversionFail{ failMsg };
-			return ret;
+			if (PyErr_Occurred()) return false;
+			return true;
 		}
 	};
 
@@ -860,11 +857,17 @@ namespace py
 			return buildPyValue(nullptr);
 		}
 
-		template<typename _FailMsg>
-		std::optional<_Ty> _toCpp(PyObject* obj, _FailMsg&&)
+		bool _toCpp(PyObject* obj, std::optional<_Ty>& out)
 		{
-			if (obj != Py_None) return toCpp<_Ty>(obj);
-			return {};
+			if (obj != Py_None)
+			{
+				_Ty v;
+				if (!toCpp<_Ty>(obj, v)) return false;
+				out = std::move(v);
+				return true;
+			}
+			out = {};
+			return true;
 		}
 	};
 
@@ -879,26 +882,30 @@ namespace py
 			}, v);
 		}
 
-		template<typename _FailMsg>
-		std::variant<Ty, Ts...> _toCpp(PyObject* obj, _FailMsg&&)
+		bool _toCpp(PyObject* obj, std::variant<Ty, Ts...>& out)
 		{
-			try
+			Ty v;
+			if (toCpp<Ty>(obj, v))
 			{
-				return toCpp<Ty>(obj);
+				out = std::move(v);
+				return true;
 			}
-			catch (const ConversionFail&)
+
+			if constexpr (sizeof...(Ts))
 			{
-				if constexpr (sizeof...(Ts))
+				std::variant<Ts...> v2;
+				if (toCpp<std::variant<Ts...>>(obj, v2))
 				{
-					return std::visit([](auto&& t) -> std::variant<Ty, Ts...>
+					out = std::visit([](auto&& t) -> std::variant<Ty, Ts...>
 					{
 						return std::forward<decltype(t)>(t);
-					}, toCpp<std::variant<Ts...>>(obj));
+					}, std::move(v2));
+					return true;
 				}
-				else
-				{
-					throw;
-				}
+			}
+			else
+			{
+				return false;
 			}
 		}
 	};
@@ -1072,28 +1079,31 @@ namespace py
 			return obj;
 		}
 
-		template<typename _FailMsg>
-		std::vector<_Ty> _toCpp(PyObject* obj, _FailMsg&& failMsg)
+		bool _toCpp(PyObject* obj, std::vector<_Ty>& out)
 		{
 			if (detail::NpyType<_Ty>::npy_type >= 0 && PyArray_Check(obj) && PyArray_TYPE((PyArrayObject*)obj) == detail::NpyType<_Ty>::npy_type)
 			{
 				_Ty* ptr = (_Ty*)PyArray_GETPTR1((PyArrayObject*)obj, 0);
-				return std::vector<_Ty>{ ptr, ptr + PyArray_Size(obj) };
+				out = std::vector<_Ty>{ ptr, ptr + PyArray_Size(obj) };
+				return true;
 			}
 			else
 			{
 				UniqueObj iter{ PyObject_GetIter(obj) }, item;
-				if (!iter) throw ConversionFail{ std::forward<_FailMsg>(failMsg) };
+				if (!iter) return false;
 				std::vector<_Ty> v;
 				while ((item = UniqueObj{ PyIter_Next(iter.get()) }))
 				{
-					v.emplace_back(toCpp<_Ty>(item.get()));
+					_Ty i;
+					if (!toCpp<_Ty>(item.get(), i)) return false;
+					v.emplace_back(std::move(i));
 				}
 				if (PyErr_Occurred())
 				{
-					throw ConversionFail{ std::forward<_FailMsg>(failMsg) };
+					return false;
 				}
-				return v;
+				out = std::move(v);
+				return true;
 			}
 		}
 	};
@@ -1127,21 +1137,23 @@ namespace py
 			return ret;
 		}
 
-		template<typename _FailMsg>
-		std::vector<_Ty> _toCpp(PyObject* obj, _FailMsg&& failMsg)
+		bool _toCpp(PyObject* obj, std::vector<_Ty>& out)
 		{
 			UniqueObj iter{ PyObject_GetIter(obj) }, item;
-			if (!iter) throw ConversionFail{ std::forward<_FailMsg>(failMsg) };
+			if (!iter) return false;
 			std::vector<_Ty> v;
 			while ((item = UniqueObj{ PyIter_Next(iter.get()) }))
 			{
-				v.emplace_back(toCpp<_Ty>(item.get()));
+				_Ty i;
+				if (!toCpp<_Ty>(item.get(), i)) return false;
+				v.emplace_back(std::move(i));
 			}
 			if (PyErr_Occurred())
 			{
-				throw ConversionFail{ std::forward<_FailMsg>(failMsg) };
+				return false;
 			}
-			return v;
+			out = std::move(v);
+			return true;
 		}
 	};
 
