@@ -161,6 +161,8 @@ class _ProgressShower(TrainerCallback):
         self._bar = None
         print(f"Finished. Iteration: {iteration} VocabSize: {cur_vocab_size} Loss: {unigram_loss:.4f}", file=self._file)
 
+SPECIAL_TOKEN_NAMES = ['unk', 'cls', 'sep', 'mask', 'pad', 'bos', 'eos']
+
 class SwTokenizer(_SwTokenizer):
     '''
 형태소 분석기 Kiwi를 기반으로 한 서브워드 토크나이저(Subword Tokenizer)를 제공하는 클래스입니다.
@@ -325,6 +327,94 @@ Notes
 
     def __repr__(self) -> str:
         return super().__repr__()
+
+    @property
+    def unk_token(self) -> Optional[str]:
+        return self.config.unk_token
+    
+    @property
+    def pad_token(self) -> Optional[str]:
+        return self.config.pad_token
+
+    @property
+    def mask_token(self) -> Optional[str]:
+        return self.config.mask_token
+
+    @property
+    def cls_token(self) -> Optional[str]:
+        return self.config.cls_token
+    
+    @property
+    def sep_token(self) -> Optional[str]:
+        return self.config.sep_token
+    
+    @property
+    def bos_token(self) -> Optional[str]:
+        return self.config.bos_token
+    
+    @property
+    def eos_token(self) -> Optional[str]:
+        return self.config.eos_token
+
+    @property
+    def unk_token_id(self) -> Optional[int]:
+        t = self.config.unk_token
+        if t is None: return None
+        return self.vocab[t]
+    
+    @property
+    def pad_token_id(self) -> Optional[int]:
+        t = self.config.pad_token
+        if t is None: return None
+        return self.vocab[t]
+
+    @property
+    def mask_token_id(self) -> Optional[int]:
+        t = self.config.mask_token
+        if t is None: return None
+        return self.vocab[t]
+
+    @property
+    def cls_token_id(self) -> Optional[int]:
+        t = self.config.cls_token
+        if t is None: return None
+        return self.vocab[t]
+    
+    @property
+    def sep_token_id(self) -> Optional[int]:
+        t = self.config.sep_token
+        if t is None: return None
+        return self.vocab[t]
+    
+    @property
+    def bos_token_id(self) -> Optional[int]:
+        t = self.config.bos_token
+        if t is None: return None
+        return self.vocab[t]
+    
+    @property
+    def eos_token_id(self) -> Optional[int]:
+        t = self.config.eos_token
+        if t is None: return None
+        return self.vocab[t]
+
+    @property
+    def all_special_tokens(self):
+        ret = []
+        for t in SPECIAL_TOKEN_NAMES:
+            v = getattr(self, t + '_token')
+            if v is not None:
+                ret.append(v)
+        return ret
+
+    @property
+    def all_special_ids(self):
+        ret = []
+        for t in SPECIAL_TOKEN_NAMES:
+            v = getattr(self, t + '_token_id')
+            if v is not None:
+                ret.append(v)
+        return ret
 
     @staticmethod
     def train(
