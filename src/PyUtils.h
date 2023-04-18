@@ -452,10 +452,10 @@ namespace py
 	}
 
 	template<typename _Ty, typename _FailMsg>
-	inline _Ty toCpp(PyObject* obj, _FailMsg&& fail)
+	inline _Ty toCppWithException(PyObject* obj, _FailMsg&& fail)
 	{
 		_Ty ret;
-		if (!obj || !ValueBuilder<_Ty>{}._toCpp(obj, ret)) throw std::forward<_FailMsg>(fail);
+		if (!obj || !ValueBuilder<_Ty>{}._toCpp(obj, ret)) throw ConversionFail{ std::forward<_FailMsg>(fail) };
 		return ret;
 	}
 
@@ -463,14 +463,14 @@ namespace py
 	inline _Ty getAttr(PyObject* obj, const char* attr)
 	{
 		py::UniqueObj item{ PyObject_GetAttrString(obj, attr) };
-		return toCpp<_Ty>(item.get(), [&]() { return std::string{ "Failed to get attribute " } + attr; });
+		return toCppWithException<_Ty>(item.get(), [&]() { return std::string{ "Failed to get attribute " } + attr; });
 	}
 
 	inline std::string repr(PyObject* o)
 	{
 		UniqueObj r{ PyObject_Repr(o) };
 		if (!r) throw ExcPropagation{};
-		return toCpp<std::string>(r.get(), "");
+		return toCppWithException<std::string>(r.get(), "");
 	}
 
 	inline std::string reprWithNestedError(PyObject* o)
@@ -481,7 +481,7 @@ namespace py
 		UniqueObj r{ PyObject_Repr(o) };
 		if (!r) throw ExcPropagation{};
 		PyErr_Restore(type, value, traceback);
-		return toCpp<std::string>(r.get(), "");
+		return toCppWithException<std::string>(r.get(), "");
 	}
 
 	template<typename _Ty>
@@ -490,7 +490,7 @@ namespace py
 		UniqueObj p{ py::buildPyValue(std::forward<_Ty>(o)) };
 		UniqueObj r{ PyObject_Repr(p.get()) };
 		if (!r) throw ExcPropagation{};
-		return toCpp<std::string>(r.get(), "");
+		return toCppWithException<std::string>(r.get(), "");
 	}
 
 	template<typename _Ty>
