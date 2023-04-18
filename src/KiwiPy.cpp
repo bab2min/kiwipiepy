@@ -7,7 +7,6 @@
 #define MAIN_MODULE
 
 #include "PyUtils.h"
-#include "PyDoc.h"
 
 #include <kiwi/Kiwi.h>
 #include <kiwi/HSDataset.h>
@@ -532,11 +531,11 @@ struct TokenObject : py::CObject<TokenObject>
 {
 	static constexpr const char* _name = "kiwipiepy.Token";
 	static constexpr const char* _name_in_module = "Token";
-	static constexpr const char* _doc = Token__doc__;
 
 	u16string _form, _raw_form;
 	const char* _tag = nullptr;
 	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _subSentPosition = 0, _lineNumber = 0;
+	int32_t _pairedToken = -1;
 	float _score = 0, _typoCost = 0;
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
@@ -625,24 +624,25 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 {
 	static PyGetSetDef getsets[] =
 	{
-		{ (char*)"form", PY_GETTER_MEMPTR(&TokenObject::_form), nullptr, Token_form__doc__, nullptr },
-		{ (char*)"tag", PY_GETTER_MEMPTR(&TokenObject::_tag), nullptr, Token_tag__doc__, nullptr },
-		{ (char*)"start", PY_GETTER_MEMPTR(&TokenObject::_pos), nullptr, Token_start__doc__, nullptr },
-		{ (char*)"len", PY_GETTER_MEMPTR(&TokenObject::_len), nullptr, Token_len__doc__, nullptr },
-		{ (char*)"end", PY_GETTER_MEMFN(&TokenObject::end), nullptr, Token_end__doc__, nullptr },
-		{ (char*)"id", PY_GETTER_MEMPTR(&TokenObject::_morphId), nullptr, Token_id__doc__, nullptr },
-		{ (char*)"word_position", PY_GETTER_MEMPTR(&TokenObject::_wordPosition), nullptr, Token_word_position__doc__, nullptr },
-		{ (char*)"sent_position", PY_GETTER_MEMPTR(&TokenObject::_sentPosition), nullptr, Token_sent_position__doc__, nullptr },
-		{ (char*)"sub_sent_position", PY_GETTER_MEMPTR(&TokenObject::_subSentPosition), nullptr, Token_sub_sent_position__doc__, nullptr },
-		{ (char*)"line_number", PY_GETTER_MEMPTR(&TokenObject::_lineNumber), nullptr, Token_line_number__doc__, nullptr },
-		{ (char*)"base_form", PY_GETTER_MEMFN(&TokenObject::baseForm), nullptr, Token_base_form__doc__, nullptr },
-		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, Token_base_id__doc__, nullptr },
-		{ (char*)"tagged_form", PY_GETTER_MEMFN(&TokenObject::taggedForm), nullptr, Token_tagged_form__doc__, nullptr },
-		{ (char*)"score", PY_GETTER_MEMPTR(&TokenObject::_score), nullptr, Token_score__doc__, nullptr },
-		{ (char*)"typo_cost", PY_GETTER_MEMPTR(&TokenObject::_typoCost), nullptr, Token_typo_cost__doc__, nullptr },
-		{ (char*)"raw_form", PY_GETTER_MEMPTR(&TokenObject::_raw_form), nullptr, Token_raw_form__doc__, nullptr },
-		{ (char*)"regularity", PY_GETTER_MEMFN(&TokenObject::regularity), nullptr, Token_regularity__doc__, nullptr },
-		{ (char*)"lemma", PY_GETTER_MEMFN(&TokenObject::lemma), nullptr, Token_lemma__doc__, nullptr },
+		{ (char*)"form", PY_GETTER_MEMPTR(&TokenObject::_form), nullptr, "", nullptr },
+		{ (char*)"tag", PY_GETTER_MEMPTR(&TokenObject::_tag), nullptr, "", nullptr},
+		{ (char*)"start", PY_GETTER_MEMPTR(&TokenObject::_pos), nullptr, "", nullptr},
+		{ (char*)"len", PY_GETTER_MEMPTR(&TokenObject::_len), nullptr, "", nullptr},
+		{ (char*)"end", PY_GETTER_MEMFN(&TokenObject::end), nullptr, "", nullptr},
+		{ (char*)"id", PY_GETTER_MEMPTR(&TokenObject::_morphId), nullptr, "", nullptr},
+		{ (char*)"word_position", PY_GETTER_MEMPTR(&TokenObject::_wordPosition), nullptr, "", nullptr},
+		{ (char*)"sent_position", PY_GETTER_MEMPTR(&TokenObject::_sentPosition), nullptr, "", nullptr},
+		{ (char*)"sub_sent_position", PY_GETTER_MEMPTR(&TokenObject::_subSentPosition), nullptr, "", nullptr},
+		{ (char*)"line_number", PY_GETTER_MEMPTR(&TokenObject::_lineNumber), nullptr, "", nullptr},
+		{ (char*)"base_form", PY_GETTER_MEMFN(&TokenObject::baseForm), nullptr, "", nullptr},
+		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, "", nullptr},
+		{ (char*)"tagged_form", PY_GETTER_MEMFN(&TokenObject::taggedForm), nullptr, "", nullptr},
+		{ (char*)"score", PY_GETTER_MEMPTR(&TokenObject::_score), nullptr, "", nullptr},
+		{ (char*)"typo_cost", PY_GETTER_MEMPTR(&TokenObject::_typoCost), nullptr, "", nullptr},
+		{ (char*)"raw_form", PY_GETTER_MEMPTR(&TokenObject::_raw_form), nullptr, "", nullptr},
+		{ (char*)"regularity", PY_GETTER_MEMFN(&TokenObject::regularity), nullptr, "", nullptr},
+		{ (char*)"lemma", PY_GETTER_MEMFN(&TokenObject::lemma), nullptr, "", nullptr},
+		{ (char*)"paired_token", PY_GETTER_MEMPTR(&TokenObject::_pairedToken), nullptr, "", nullptr},
 		{ nullptr },
 	};
 
@@ -729,6 +729,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_morphId = kiwi.morphToId(q.morph);
 			tItem->_baseMorph = kiwi.idToMorph(q.morph->lmMorphemeId);
 			tItem->_raw_form = q.typoCost ? kiwi.getTypoForm(q.typoFormId) : tItem->_form;
+			tItem->_pairedToken = q.pairedToken;
 
 			PyList_SET_ITEM(rList.get(), jdx++, (PyObject*)tItem.release());
 			u32offset += u32chrs;

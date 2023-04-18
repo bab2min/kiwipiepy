@@ -1,15 +1,15 @@
 import re
-from typing import Callable, List, Optional, Tuple, Union, Iterable
-from collections import namedtuple
+from typing import Callable, List, Optional, Tuple, Union, Iterable, NamedTuple
 from dataclasses import dataclass
 import warnings
 
 from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset, _MorphemeSet
+from kiwipiepy._c_api import Token
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match, Option
 
-Sentence = namedtuple('Sentence', ['text', 'start', 'end', 'tokens', 'subs'])
+Sentence = NamedTuple('Sentence', [('text', str), ('start', int), ('end', int), ('tokens', Optional[List[Token]]), ('subs', Optional[List['Sentence']])])
 Sentence.__doc__ = '문장 분할 결과를 담기 위한 `namedtuple`입니다.'
 Sentence.text.__doc__ = '분할된 문장의 텍스트'
 Sentence.start.__doc__ = '전체 텍스트 내에서 분할된 문장이 시작하는 위치 (문자 단위)'
@@ -706,7 +706,7 @@ threshold: float
         z_coda:Optional[bool] = True,
         split_complex:Optional[bool] = False,
         blocklist:Optional[Union[MorphemeSet, Iterable[str]]] = None,
-    ):
+    ) -> List[Tuple[List[Token], float]]:
         '''형태소 분석을 실시합니다.
 
 .. versionchanged:: 0.10.0
@@ -734,12 +734,12 @@ blocklist: Union[Iterable[str], MorphemeSet]
 
 Returns
 -------
-result: List[Tuple[List[kiwipiepy.Token], float]]
+result: List[Tuple[List[Token], float]]
     text를 str으로 준 경우.
     분석 결과는 최대 `top_n`개 길이의 리스트로 반환됩니다. 리스트의 각 항목은 `(분석 결과, 분석 점수)`로 구성된 튜플입니다. 
-    `분석 결과`는 `kiwipiepy.Token`의 리스트로 구성됩니다.
+    `분석 결과`는 `Token`의 리스트로 구성됩니다.
 
-results: Iterable[List[Tuple[List[kiwipiepy.Token], float]]]
+results: Iterable[List[Tuple[List[Token], float]]]
     text를 Iterable[str]으로 준 경우.
     반환값은 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 
@@ -1032,7 +1032,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         stopwords:Optional[Stopwords] = None,
         echo:Optional[bool] = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
-    ):
+    ) -> List[Token]:
         '''.. versionadded:: 0.10.2
 
 `analyze`와는 다르게 형태소 분석결과만 간단하게 반환합니다.
@@ -1085,28 +1085,28 @@ blocklist: Union[MorphemeSet, Iterable[str]]
 
 Returns
 -------
-result: List[kiwipiepy.Token]
+result: List[Token]
     split_sents == False일때 text를 str으로 준 경우.
-    `kiwipiepy.Token`의 리스트를 반환합니다.
+    `Token`의 리스트를 반환합니다.
 
-results: Iterable[List[kiwipiepy.Token]]
+results: Iterable[List[Token]]
     split_sents == False일때 text를 Iterable[str]으로 준 경우.
     반환값은 `result`의 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 
-results_with_echo: Iterable[Tuple[List[kiwipiepy.Token], str]]
+results_with_echo: Iterable[Tuple[List[Token], str]]
     split_sents == False이고 echo=True일때 text를 Iterable[str]으로 준 경우.
     반환값은 (`result`의 iterator, `raw_input`)으로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 
-result_by_sent: List[List[kiwipiepy.Token]]
+result_by_sent: List[List[Token]]
     split_sents == True일때 text를 str으로 준 경우.
     형태소 분석 결과가 문장별로 묶여서 반환됩니다.
     즉, 전체 문장이 n개라고 할 때, `result_by_sent[0] ~ result_by_sent[n-1]`에는 각 문장별 분석 결과가 들어갑니다.
 
-results_by_sent: Iterable[List[List[kiwipiepy.Token]]]
+results_by_sent: Iterable[List[List[Token]]]
     split_sents == True일때 text를 Iterable[str]으로 준 경우.
     반환값은 `result_by_sent`의 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 
-results_by_sent_with_echo: Iterable[Tuple[List[List[kiwipiepy.Token]], str]]
+results_by_sent_with_echo: Iterable[Tuple[List[List[Token]], str]]
     split_sents == True이고 echo=True일때 text를 Iterable[str]으로 준 경우.
     반환값은 (`result_by_sent`의 iterator, `raw_input`)으로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 

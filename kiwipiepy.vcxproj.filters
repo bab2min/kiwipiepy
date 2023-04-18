@@ -46,9 +46,6 @@
     <None Include="kiwipiepy\_wrap.py" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\PyDoc.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\PyUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
