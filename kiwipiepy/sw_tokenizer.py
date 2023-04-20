@@ -281,6 +281,7 @@ token_ids: List[int]
 
     def decode(self,
         ids: Iterable[int],
+        ignore_errors: bool = True,
     ) -> str:
         '''
 token id의 리스트를 다시 조합하여 텍스트로 변환합니다.
@@ -289,7 +290,11 @@ Parameters
 ----------
 ids: Iterable[int]
     token id의 리스트
-
+ignore_errors: bool
+    token을 유니코드 텍스트로 복원할 때 발생하는 오류를 무시할지 설정합니다.
+    기본값은 True, 이 경우 오류가 난 부분은 대체문자로 대체됩니다.
+    False인 경우 오류가 났을 때 예외를 발생시킵니다.
+    
 Returns
 -------
 decoded: str
@@ -300,7 +305,7 @@ Notes
 `encode`시 정규화 과정에서 공백 문자나 구두점, 한자 등의 띄어쓰기 변경이 발생하므로
 `encode`한 결과를 `decode`한다고 해서 항상 동일한 결과가 나오지는 않습니다.
         '''
-        return super().decode(ids)
+        return super().decode(ids, ignore_errors)
     
     @property
     @lru_cache(maxsize=None)
