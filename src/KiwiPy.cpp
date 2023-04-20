@@ -1329,10 +1329,11 @@ PyObject* SwTokenizerObject::decode(PyObject* args, PyObject* kwargs)
 	return py::handleExc([&]() -> PyObject*
 	{
 		PyObject* ids;
-		static const char* kwlist[] = { "ids", nullptr };
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", (char**)kwlist, &ids)) return nullptr;
+		int ignoreErrors = 1;
+		static const char* kwlist[] = { "ids", "ignore_errors", nullptr};
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|p", (char**)kwlist, &ids, &ignoreErrors)) return nullptr;
 
-		return py::buildPyValue(tokenizer.decode(py::toCpp<vector<uint32_t>>(ids))).release();
+		return py::buildPyValue(tokenizer.decode(py::toCpp<vector<uint32_t>>(ids), !!ignoreErrors)).release();
 	});
 }
 
