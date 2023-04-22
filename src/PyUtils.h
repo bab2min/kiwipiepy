@@ -718,6 +718,13 @@ namespace py
 				return UniqueObj{ Py_None };
 			}
 		}
+
+		bool _toCpp(PyObject* obj, UniqueCObj<Ty>& out)
+		{
+			out = UniqueCObj<Ty>{ (Ty*)obj };
+			Py_INCREF(obj);
+			return true;
+		}
 	};
 
 	template<typename Ty>

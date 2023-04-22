@@ -6,7 +6,7 @@
 
 import re
 import itertools
-from typing import Callable, List, Optional, Tuple, Union, Iterable, Dict
+from typing import Callable, List, Optional, Tuple, Union, Iterable, Dict, Any
 from dataclasses import dataclass
 from functools import lru_cache
 import warnings
@@ -59,6 +59,8 @@ class SwTokenizerConfig:
     mask_token:str = None
     bos_token:str = None
     eos_token:str = None
+
+    additional: Any = None
 
 class TrainerCallback:
     '''
@@ -307,6 +309,17 @@ Notes
         '''
         return super().decode(ids, ignore_errors)
     
+    def save(self, path:str):
+        '''
+현재 토크나이저를 json 파일로 저장합니다.
+Parameters
+----------
+path: str
+    저장할 파일의 경로
+
+        '''
+        return super().save(path)
+
     @property
     @lru_cache(maxsize=None)
     def vocab(self) -> Dict[str, int]:

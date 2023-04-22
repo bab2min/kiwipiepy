@@ -844,6 +844,14 @@ inline SwTokenizerConfig convertToConfig(PyObject* obj)
 	cfg.fallbackHangul = py::getAttr<bool>(obj, "fallback_hangul");
 	cfg.fallbackByte = py::getAttr<bool>(obj, "fallback_byte");
 
+	py::UniqueObj jsonMod{ PyImport_ImportModule("json") };
+	if (!jsonMod) throw py::ExcPropagation{};
+	py::UniqueObj additional{
+		PyObject_CallOneArg(py::getAttr<py::UniqueObj>(jsonMod.get(), "dumps").get(), py::getAttr<py::UniqueObj>(obj, "additional").get())
+	};
+	if (!additional) throw py::ExcPropagation{};
+	cfg.additionalJson = py::toCpp<string>(additional.get());
+
 	static const char* sptoken_names[] = {
 		"unk_token", "cls_token", "sep_token", "pad_token", "mask_token", "bos_token", "eos_token",
 	};
@@ -881,6 +889,20 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 		});
 	}
 
+	PyObject* save(PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]() -> PyObject*
+		{
+			const char* path;
+			static const char* kwlist[] = { "path", nullptr };
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s", (char**)kwlist, &path)) return nullptr;
+			std::ofstream ofs;
+			tokenizer.save(openFile(ofs, path));
+			Py_INCREF(Py_None);
+			return Py_None;
+		});
+	}
+
 	PyObject* encode(PyObject* args, PyObject* kwargs);
 
 	PyObject* encodeFromMorphs(PyObject* args, PyObject* kwargs);
@@ -905,6 +927,22 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 			PyDict_SetItemString(ret.get(), "strict", py::buildPyValue(cfg.strict).get());
 			PyDict_SetItemString(ret.get(), "fallback_hangul", py::buildPyValue(cfg.fallbackHangul).get());
 			PyDict_SetItemString(ret.get(), "fallback_byte", py::buildPyValue(cfg.fallbackByte).get());
+
+			py::UniqueObj jsonMod{ PyImport_ImportModule("json") };
+			if (!jsonMod) return nullptr;
+			py::UniqueObj additional;
+			if (cfg.additionalJson.empty())
+			{
+				additional = py::buildPyValue(nullptr);
+			}
+			else
+			{
+				additional = py::UniqueObj{
+					PyObject_CallOneArg(py::getAttr<py::UniqueObj>(jsonMod.get(), "loads").get(), py::buildPyValue(cfg.additionalJson).get())
+				};
+			}
+			if (!additional) return nullptr;
+			PyDict_SetItemString(ret.get(), "additional", additional.get());
 			
 			static const char* sptoken_names[] = {
 				"unk_token", "cls_token", "sep_token", "pad_token", "mask_token", "bos_token", "eos_token",
@@ -1157,6 +1195,7 @@ py::TypeWrapper<SwTokenizerObject> _SwTokenizerSetter{ [](PyTypeObject& obj)
 		{ "encode_from_morphs", PY_METHOD_MEMFN(&SwTokenizerObject::encodeFromMorphs), METH_VARARGS | METH_KEYWORDS, ""},
 		{ "decode", PY_METHOD_MEMFN(&SwTokenizerObject::decode), METH_VARARGS | METH_KEYWORDS, ""},
 		{ "_train", (PyCFunction)&SwTokenizerObject::train, METH_VARARGS | METH_KEYWORDS | METH_STATIC, ""},
+		{ "save", PY_METHOD_MEMFN(&SwTokenizerObject::save), METH_VARARGS | METH_KEYWORDS, ""},
 		{ nullptr }
 	};
 
