@@ -847,7 +847,7 @@ inline SwTokenizerConfig convertToConfig(PyObject* obj)
 	py::UniqueObj jsonMod{ PyImport_ImportModule("json") };
 	if (!jsonMod) throw py::ExcPropagation{};
 	py::UniqueObj additional{
-		PyObject_CallOneArg(py::getAttr<py::UniqueObj>(jsonMod.get(), "dumps").get(), py::getAttr<py::UniqueObj>(obj, "additional").get())
+		PyObject_CallFunctionObjArgs(py::getAttr<py::UniqueObj>(jsonMod.get(), "dumps").get(), py::getAttr<py::UniqueObj>(obj, "additional").get(), nullptr)
 	};
 	if (!additional) throw py::ExcPropagation{};
 	cfg.additionalJson = py::toCpp<string>(additional.get());
@@ -938,7 +938,7 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 			else
 			{
 				additional = py::UniqueObj{
-					PyObject_CallOneArg(py::getAttr<py::UniqueObj>(jsonMod.get(), "loads").get(), py::buildPyValue(cfg.additionalJson).get())
+					PyObject_CallFunctionObjArgs(py::getAttr<py::UniqueObj>(jsonMod.get(), "loads").get(), py::buildPyValue(cfg.additionalJson).get(), nullptr)
 				};
 			}
 			if (!additional) return nullptr;
