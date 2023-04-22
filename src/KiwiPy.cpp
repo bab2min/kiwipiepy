@@ -1278,7 +1278,7 @@ struct SwTokenizerResIter : public py::ResultIter<SwTokenizerResIter, EncodeResu
 	future<EncodeResult> feedNext(py::SharedObj&& next)
 	{
 		if (!PyUnicode_Check(next)) throw py::ValueError{ "`encode` requires an instance of `str` or an iterable of `str`." };
-		return tokenizer->tokenizer.asyncEncodeOffset(py::toCpp<string>(next));
+		return tokenizer->tokenizer.asyncEncodeOffset(py::toCpp<string>(next), true);
 	}
 };
 
@@ -1298,7 +1298,7 @@ PyObject* SwTokenizerObject::encode(PyObject* args, PyObject* kwargs)
 		if (PyUnicode_Check(text))
 		{
 			vector<pair<uint32_t, uint32_t>> offsets;
-			auto tokenIds = tokenizer.encode(py::toCpp<string>(text), returnOffsets ? &offsets : nullptr);
+			auto tokenIds = tokenizer.encode(py::toCpp<string>(text), returnOffsets ? &offsets : nullptr, true);
 			if (returnOffsets)
 			{
 				return py::buildPyTuple(tokenIds, offsets).release();
