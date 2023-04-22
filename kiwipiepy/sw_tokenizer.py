@@ -199,6 +199,8 @@ num_workers: int
             raise ValueError("`kiwi` must be an instance of `Kiwi`.")
 
         super().__init__(kiwi, path)
+
+        self._space_tolerance = (self.config.additional.get('space_tolerance') if isinstance(self.config.additional, dict) else None) or 0
     
     def encode(self, 
         text: Union[str, Iterable[str]],
@@ -259,6 +261,7 @@ tokenizer.encode(...)
 # 위와 동일하게 8개 스레드 사용
 ```
         '''
+        self.kiwi.space_tolerance = self._space_tolerance
         return super().encode(text, return_offsets=return_offsets)
     
     def encode_from_morphs(self, 
@@ -279,6 +282,7 @@ token_ids: List[int]
     token id의 목록을 list로 반환합니다.
 
         '''
+        self.kiwi.space_tolerance = self._space_tolerance
         return super().encode_from_morphs(morphs)
 
     def decode(self,

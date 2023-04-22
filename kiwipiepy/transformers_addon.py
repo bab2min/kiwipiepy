@@ -1,4 +1,5 @@
 import os
+import itertools
 from typing import Union, List, Optional, Dict, Tuple
 
 import numpy as np
@@ -21,6 +22,15 @@ from transformers.tokenization_utils_base import (
 
 from kiwipiepy.sw_tokenizer import SwTokenizer, SwTokenizerConfig
 
+def _group_by_two(iterator):
+    try:
+        while True:
+            a = next(iterator)
+            b = next(iterator)
+            yield a, b
+    except StopIteration:
+        pass
+
 class KiwiTokenizer(PreTrainedTokenizerBase):
 
     vocab_files_names = {"tokenizer_file": "tokenizer.json"}
@@ -31,7 +41,17 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
             raise ValueError(f"Cannot instantiate tokenizer from {tokenizer_file!r}")
         
         self._tokenizer = SwTokenizer(tokenizer_file)
-        self._post_processor = self._tokenizer.config.additional.get('post_processor') if self._tokenizer.config.additional else None
+        self._post_processor = self._tokenizer.config.additional.get('post_processor') if isinstance(self._tokenizer.config.additional, dict) else None
+        if self._post_processor not in (None, 'bert'):
+            raise ValueError(f"Unknown post_processor `{self._post_processor!r}`")
+
+        self._bos_token = self._tokenizer.bos_token
+        self._eos_token = self._tokenizer.eos_token
+        self._unk_token = self._tokenizer.unk_token
+        self._sep_token = self._tokenizer.sep_token
+        self._pad_token = self._tokenizer.pad_token
+        self._cls_token = self._tokenizer.cls_token
+        self._mask_token = self._tokenizer.mask_token
     
     @property
     def unk_token(self) -> str:
@@ -116,28 +136,221 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
         verbose: bool = True,
     ) -> BatchEncoding:
         
-        if not isinstance(batch_text_or_text_pairs, list):
+        if return_token_type_ids is None:
+            return_token_type_ids = "token_type_ids" in self.model_input_names
+        if return_attention_mask is None:
+            return_attention_mask = "attention_mask" in self.model_input_names
+
+        if not isinstance(batch_text_or_text_pairs, (list, tuple)):
             raise TypeError(f"batch_text_or_text_pairs has to be a list (got {type(batch_text_or_text_pairs)})")
 
-        input_ids = []
-        attention_mask = []
-        token_type_ids = []
-        for i in self._tokenizer.encode(batch_text_or_text_pairs):
-            if add_special_tokens:
-                i = np.pad(i, (1, 1))
-                i[0] = self._tokenizer.cls_token_id
-                i[-1] = self._tokenizer.sep_token_id
-            input_ids.append(i)
-            if return_attention_mask: attention_mask.append(np.ones_like(i))
-            if return_token_type_ids: token_type_ids.append(np.zeros_like(i))
-        
+        input_ids, attention_mask, token_type_ids, offset_mapping = self._make_encoded(
+            batch_text_or_text_pairs, add_special_tokens, 
+            return_token_type_ids, return_attention_mask, return_offsets_mapping,
+            return_as_list=(return_tensors is None),
+            padding_strategy=padding_strategy, 
+            truncation_strategy=truncation_strategy, 
+            max_length=max_length,
+            pad_to_multiple_of=pad_to_multiple_of,
+        )
         data = dict(input_ids=input_ids)
         if return_attention_mask: data['attention_mask'] = attention_mask
         if return_token_type_ids: data['token_type_ids'] = token_type_ids
+        if return_offsets_mapping: data['offset_mapping'] = offset_mapping
 
         for i in input_ids:
-            self._eventual_warn_about_too_long_sequence(input_ids, max_length, verbose)
+            self._eventual_warn_about_too_long_sequence(i, max_length, verbose)
         return BatchEncoding(data, tensor_type=return_tensors)
+
+    def _encode_plus(
+        self,
+        text: Union[TextInput, PreTokenizedInput, EncodedInput],
+        text_pair: Optional[Union[TextInput, PreTokenizedInput, EncodedInput]] = None,
+        add_special_tokens: bool = True,
+        padding_strategy: PaddingStrategy = PaddingStrategy.DO_NOT_PAD,
+        truncation_strategy: TruncationStrategy = TruncationStrategy.DO_NOT_TRUNCATE,
+        max_length: Optional[int] = None,
+        stride: int = 0,
+        is_split_into_words: bool = False,
+        pad_to_multiple_of: Optional[int] = None,
+        return_tensors: Optional[Union[str, TensorType]] = None,
+        return_token_type_ids: Optional[bool] = None,
+        return_attention_mask: Optional[bool] = None,
+        return_overflowing_tokens: bool = False,
+        return_special_tokens_mask: bool = False,
+        return_offsets_mapping: bool = False,
+        return_length: bool = False,
+        verbose: bool = True,
+    ) -> BatchEncoding:
+        
+        if return_token_type_ids is None:
+            return_token_type_ids = "token_type_ids" in self.model_input_names
+        if return_attention_mask is None:
+            return_attention_mask = "attention_mask" in self.model_input_names
+
+        text = text if text_pair is None else (text, text_pair)
+        input_ids, attention_mask, token_type_ids, offset_mapping = self._make_encoded(
+            [text], add_special_tokens, 
+            return_token_type_ids, return_attention_mask, return_offsets_mapping,
+            return_as_list=(return_tensors is None),
+            padding_strategy=padding_strategy, 
+            truncation_strategy=truncation_strategy, 
+            max_length=max_length,
+            pad_to_multiple_of=pad_to_multiple_of,
+        )
+
+        if return_tensors is None and not return_overflowing_tokens:
+            input_ids = input_ids[0]
+            if return_attention_mask: attention_mask = attention_mask[0]
+            if return_token_type_ids: token_type_ids = token_type_ids[0]
+            if return_offsets_mapping: offset_mapping = offset_mapping[0]
+            self._eventual_warn_about_too_long_sequence(input_ids, max_length, verbose)
+        else:
+            self._eventual_warn_about_too_long_sequence(input_ids[0], max_length, verbose)
+
+        data = dict(input_ids=input_ids)
+        if return_attention_mask: data['attention_mask'] = attention_mask
+        if return_token_type_ids: data['token_type_ids'] = token_type_ids
+        if return_offsets_mapping: data['offset_mapping'] = offset_mapping
+            
+        return BatchEncoding(data, tensor_type=return_tensors)
+
+    def _make_encoded(
+        self, 
+        batch_text_or_text_pairs, 
+        add_special_tokens, 
+        return_token_type_ids, 
+        return_attention_mask,
+        return_offsets_mapping,
+        return_as_list = False,
+        padding_strategy: PaddingStrategy = PaddingStrategy.DO_NOT_PAD,
+        truncation_strategy: TruncationStrategy = TruncationStrategy.DO_NOT_TRUNCATE,
+        max_length: Optional[int] = None,
+        pad_to_multiple_of: Optional[int] = None,
+    ):
+        input_ids = []
+        attention_mask = []
+        token_type_ids = []
+        offset_mapping = []
+        if isinstance(batch_text_or_text_pairs[0], str): # single
+            special_token_size = self.num_special_tokens_to_add(False) if add_special_tokens else 0
+
+            for i in self._tokenizer.encode(batch_text_or_text_pairs, return_offsets=return_offsets_mapping):
+                if return_offsets_mapping:
+                    i, i_offset = i
+                    i_offset = i_offset.astype(np.int64)
+                i = i.astype(np.int64)
+                if (truncation_strategy in (TruncationStrategy.LONGEST_FIRST, TruncationStrategy.ONLY_FIRST) 
+                    and len(i) > max_length - special_token_size):
+                    i = i[:max_length - special_token_size]
+                    if return_offsets_mapping:
+                        i_offset = i_offset[:max_length - special_token_size]
+
+                if add_special_tokens and self._post_processor == 'bert':
+                    i = np.pad(i.astype(np.int64), (1, 1))
+                    i[0] = self._tokenizer.cls_token_id
+                    i[-1] = self._tokenizer.sep_token_id
+                    if return_offsets_mapping:
+                        i_offset = np.pad(i_offset, ((1, 1), (0, 0)))
+                input_ids.append(i)
+                if return_attention_mask: attention_mask.append(np.ones_like(i))
+                if return_token_type_ids: token_type_ids.append(np.zeros_like(i))
+                if return_offsets_mapping: offset_mapping.append(i_offset)
+        
+        else: # pair
+            special_token_size = self.num_special_tokens_to_add(True) if add_special_tokens else 0
+
+            for i, j in _group_by_two(self._tokenizer.encode(itertools.chain.from_iterable(batch_text_or_text_pairs), return_offsets=return_offsets_mapping)):
+                if return_offsets_mapping:
+                    i, i_offset = i
+                    j, j_offset = j
+                    i_offset = i_offset.astype(np.int64)
+                    j_offset = j_offset.astype(np.int64)
+                if (truncation_strategy != TruncationStrategy.DO_NOT_TRUNCATE
+                    and len(i) + len(j) > max_length - special_token_size):
+                    if truncation_strategy == TruncationStrategy.LONGEST_FIRST:
+                        t = len(i) + len(j) - (max_length - special_token_size)
+                        d = abs(len(i) - len(j))
+                        trunc_size = min(d, t)
+                        if len(i) > len(j):
+                            i = i[:-trunc_size]
+                            if return_offsets_mapping:
+                                i_offset = i_offset[:-trunc_size]
+                        else:
+                            j = j[:-trunc_size]
+                            if return_offsets_mapping:
+                                j_offset = j_offset[:-trunc_size]
+                        
+                        if t > d:
+                            i = i[:-((t - d + 1) // 2)]
+                            j = j[:-((t - d) // 2)]
+                            if return_offsets_mapping:
+                                i_offset = i_offset[:-((t - d + 1) // 2)]
+                                j_offset = j_offset[:-((t - d) // 2)]
+                    elif truncation_strategy == TruncationStrategy.ONLY_FIRST:
+                        i = i[:max(max_length - special_token_size - len(j), 0)]
+                        if return_offsets_mapping:
+                            i_offset = i_offset[:max(max_length - special_token_size - len(j), 0)]
+                    elif truncation_strategy == TruncationStrategy.ONLY_SECOND:
+                        j = j[:max(max_length - special_token_size - len(i), 0)]
+                        if return_offsets_mapping:
+                            j_offset = j_offset[:max(max_length - special_token_size - len(i), 0)]
+
+                if add_special_tokens and self._post_processor == 'bert':
+                    c = np.concatenate([[self._tokenizer.cls_token_id], i, [self._tokenizer.sep_token_id], j, [self._tokenizer.sep_token_id]])
+                    t = (np.arange(len(c)) >= len(i) + 2).astype(np.int64)
+                    if return_offsets_mapping:
+                        c_offset = np.concatenate([np.pad(i_offset, ((1, 1), (0, 0))), np.pad(j_offset, ((0, 1), (0, 0)))], axis=0)
+                else:
+                    c = np.concatenate([i, j])
+                    t = (np.arange(len(c)) >= len(i)).astype(np.int64)
+                    if return_offsets_mapping:
+                        c_offset = np.concatenate([i_offset, j_offset], axis=0)
+                input_ids.append(c)
+                if return_attention_mask: attention_mask.append(np.ones_like(c))
+                if return_token_type_ids: token_type_ids.append(t)
+                if return_offsets_mapping: offset_mapping.append(c_offset)
+
+        if padding_strategy == PaddingStrategy.LONGEST:
+            final_length = max(map(len, input_ids))
+            if pad_to_multiple_of: final_length = ((final_length + pad_to_multiple_of - 1) // pad_to_multiple_of) * pad_to_multiple_of
+        elif padding_strategy == PaddingStrategy.MAX_LENGTH:
+            final_length = max(max(map(len, input_ids)), max_length or 0)
+            if pad_to_multiple_of: final_length = ((final_length + pad_to_multiple_of - 1) // pad_to_multiple_of) * pad_to_multiple_of
+        else:
+            final_length = None
+        
+        if final_length:
+            for i in range(len(input_ids)):
+                input_ids[i] = np.pad(input_ids[i], (0, final_length - len(input_ids[i])), constant_values=self._tokenizer.pad_token_id)
+                
+                try: attention_mask[i] = np.pad(attention_mask[i], (0, final_length - len(attention_mask[i])))
+                except IndexError: pass
+                
+                try: token_type_ids[i] = np.pad(token_type_ids[i], (0, final_length - len(token_type_ids[i])))
+                except IndexError: pass
+                
+                try: offset_mapping[i] = np.pad(offset_mapping[i], ((0, final_length - len(offset_mapping[i])), (0, 0)))
+                except IndexError: pass
+
+        if return_as_list:
+            input_ids = list(map(np.ndarray.tolist, input_ids))
+            attention_mask = list(map(np.ndarray.tolist, attention_mask))
+            token_type_ids = list(map(np.ndarray.tolist, token_type_ids))
+            offset_mapping = list(map(lambda x:list(map(tuple, x)), (map(np.ndarray.tolist, offset_mapping))))
+
+        return input_ids, attention_mask, token_type_ids, offset_mapping
+
+    def _decode(
+        self, 
+        token_ids, 
+        skip_special_tokens = False, 
+        clean_up_tokenization_spaces = True,
+    ):
+        if isinstance(token_ids, int): token_ids = [token_ids]
+        if skip_special_tokens:
+            token_ids = [i for i in token_ids if i not in self.all_special_ids]
+        return self._tokenizer.decode(token_ids)
 
     def get_added_vocab(self) -> Dict[str, int]:
         return {}
@@ -159,8 +372,10 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
 
     def num_special_tokens_to_add(self, pair: bool = False) -> int:
         if self._post_processor == 'bert':
-            return 2 if pair else 1
-        
+            return 3 if pair else 2
+        return 0
+
+    def _add_tokens(self, new_tokens, special_tokens = False) -> int:
         return 0
 
     def _save_pretrained(
@@ -179,7 +394,7 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
             )
 
         tokenizer_file = os.path.join(
-            save_directory, (filename_prefix + "-" if filename_prefix else "") + "kiwi_tokenizer.json"
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + "tokenizer.json"
         )
         self._tokenizer.save(tokenizer_file)
         file_names = file_names + (tokenizer_file,)
