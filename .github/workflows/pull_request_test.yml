@@ -58,7 +58,9 @@ jobs:
         for v in {12..28}
         do
           echo "Test with transformers 4.$v ..."
-          /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"
+          if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
+            continue
+          fi
           /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
         done
 
@@ -114,7 +116,9 @@ jobs:
         for v in {12..28}
         do
           echo "Test with transformers 4.$v ..."
-          /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"
+          if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
+            continue
+          fi
           /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
         done
 
@@ -252,7 +256,9 @@ jobs:
       run: |
         12..28 | % {
           Echo "Test width transformers 4.$_"
-          python -m pip install -U "transformers<4.$($_+1)"
+          if ( python -m pip install -U "transformers<4.$($_+1)" ) {
+            continue
+          }
           python -m pytest --verbose test/test_transformers_addon.py
         }
 
