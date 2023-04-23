@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 
 from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer
@@ -365,6 +366,9 @@ def test_typo_transformer():
     print(basic_typos.generate("안돼"))
 
 def test_typo_correction():
+    if sys.maxsize <= 2**32:
+        print("[skipped this test in 32bit OS.]", file=sys.stderr)
+        return
     kiwi = Kiwi(typos='basic')
     ret = kiwi.tokenize("외않됀대?")
     assert ret[0].form == '왜'
@@ -380,6 +384,9 @@ def test_sbg():
     print(kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.'))
 
 def test_issue_92():
+    if sys.maxsize <= 2**32:
+        print("[skipped this test in 32bit OS.]", file=sys.stderr)
+        return
     kiwi = Kiwi(typos='basic')
     try:
         kiwi.join(kiwi.analyze('쁘'))

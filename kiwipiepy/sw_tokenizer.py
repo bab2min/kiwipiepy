@@ -8,7 +8,6 @@ import re
 import itertools
 from typing import Callable, List, Optional, Tuple, Union, Iterable, Dict, Any
 from dataclasses import dataclass
-from functools import lru_cache
 import warnings
 
 import tqdm
@@ -325,28 +324,37 @@ path: str
         return super().save(path)
 
     @property
-    @lru_cache(maxsize=None)
     def vocab(self) -> Dict[str, int]:
         '''
 토크나이저에 속한 어휘 집합을 dict로 반환합니다. (읽기 전용)
         '''
-        return super()._vocab
+        try:
+            return self._cached_vocab
+        except AttributeError:
+            self._cached_vocab = super()._vocab
+            return self._cached_vocab
 
     @property
-    @lru_cache(maxsize=None)
     def id2vocab(self) -> List[str]:
-        ret = [None] * len(self)
-        for k, v in self.vocab.items():
-            ret[v] = k
-        return ret
+        try:
+            return self._cached_id2vocab
+        except AttributeError:
+            ret = [None] * len(self)
+            for k, v in self.vocab.items():
+                ret[v] = k
+            self._cached_id2vocab = ret
+            return self._cached_id2vocab
 
     @property
-    @lru_cache(maxsize=None)
     def config(self) -> SwTokenizerConfig:
         '''
 토크나이저의 설정값을 담은 `SwTokenizerConfig` 데이터 클래스를 반환합니다. (읽기 전용)
         '''
-        return SwTokenizerConfig(**super()._config)
+        try:
+            return self._cached_config
+        except:
+            self._cached_config = SwTokenizerConfig(**super()._config)
+            return self._cached_config
 
     @property
     def kiwi(self) -> Kiwi:
