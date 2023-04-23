@@ -59,9 +59,8 @@ jobs:
         do
           echo "Test with transformers 4.$v ..."
           if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
-            continue
+            /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
           fi
-          /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
         done
 
   build_manylinux2014:
@@ -117,9 +116,8 @@ jobs:
         do
           echo "Test with transformers 4.$v ..."
           if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
-            continue
+            /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
           fi
-          /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
         done
 
   build_macos_10_15:
