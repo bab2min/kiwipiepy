@@ -1331,8 +1331,9 @@ PyObject* SwTokenizerObject::encodeFromMorphs(PyObject* args, PyObject* kwargs)
 	return py::handleExc([&]() -> PyObject*
 	{
 		PyObject* morphs;
-		static const char* kwlist[] = { "morphs", nullptr };
-		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", (char**)kwlist, &morphs)) return nullptr;
+		int returnOffsets = 0;
+		static const char* kwlist[] = { "morphs", "return_offsets", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|p", (char**)kwlist, &morphs, &returnOffsets)) return nullptr;
 
 		py::UniqueObj iter{ PyObject_GetIter(morphs) };
 		if (!iter) throw py::ValueError{ "`encodeFromMorphs` requires an iterable of `Tuple[str, str, bool]` parameters." };
@@ -1358,8 +1359,16 @@ PyObject* SwTokenizerObject::encodeFromMorphs(PyObject* args, PyObject* kwargs)
 				tokens.emplace_back(form, pos, spaceness);
 			}
 		}, "`encodeFromMorphs` requires an iterable of `Tuple[str, str, bool]` parameters.");
-		
-		return py::buildPyValue(tokenizer.encode(tokens)).release();
+		vector<pair<uint32_t, uint32_t>> offsets;
+		auto tokenIds = tokenizer.encode(tokens, returnOffsets ? &offsets : nullptr);
+		if (returnOffsets)
+		{
+			return py::buildPyTuple(tokenIds, offsets).release();
+		}
+		else
+		{
+			return py::buildPyValue(tokenIds).release();
+		}
 	});
 }
 

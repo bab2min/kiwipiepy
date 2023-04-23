@@ -203,7 +203,7 @@ num_workers: int
     
     def encode(self, 
         text: Union[str, Iterable[str]],
-        return_offsets: Optional[bool] = False,
+        return_offsets: bool = False,
     ) -> Union[Iterable[int], Tuple[Iterable[int], Iterable[Tuple[int, int]]]]:
         '''
 주어진 텍스트를 토큰화하여 token id의 리스트로 반환합니다.
@@ -230,7 +230,7 @@ iterable_of_token_ids: Iterable[List[int]]
 
 token_ids_and_offsets: Tuple[List[int], List[Tuple[int, int]]]
     `text`를 단일 `str`으로 주고 `return_offsets = True`인 경우.
-    token id의 리스트와 각 토큰들의 시작지점과 끝지점을 나타내는 tuple의 리스트를 반환합니다.
+    token id의 리스트와 각 토큰들의 시작지점과 끝지점(문자 단위)을 나타내는 tuple의 리스트를 반환합니다.
 
 iterable_of_token_ids_and_offsets: Iterable[Tuple[List[int], List[Tuple[int, int]]]]
     `text`를 `Iterable[str]`으로 주고 `return_offsets = True`인 경우.
@@ -265,6 +265,7 @@ tokenizer.encode(...)
     
     def encode_from_morphs(self, 
         morphs: Iterable[Union[Tuple[str, str, bool], Tuple[str, str]]],
+        return_offsets: bool = False,
     ) -> Iterable[int]:
         '''
 이미 형태소 분석이 완료된 결과를 토큰화하여 token id의 리스트로 변환합니다.
@@ -275,14 +276,22 @@ morphs: Iterable[Union[Tuple[str, str, bool], Tuple[str, str]]]
     `(형태, 품사태그, 왼쪽의 공백 여부)` 혹은 `(형태, 품사태그)`로 구성된 tuple의 리스트
     `왼쪽의 공백 여부`는 생략 가능하며 이 경우 `False`로 처리됩니다.
 
+return_offsets: bool
+    True일 경우 각 토큰들의 형태소 상의 시작지점 및 끝지점이 함께 반환됩니다.
+    
 Returns
 -------
 token_ids: List[int]
+    `return_offsets = False`인 경우.
     token id의 목록을 list로 반환합니다.
+
+token_ids_and_offsets: Tuple[List[int], List[Tuple[int, int]]]
+    `return_offsets = True`인 경우.
+    token id의 리스트와 각 토큰들의 시작지점과 끝지점(형태소 단위)을 나타내는 tuple의 리스트를 반환합니다.
 
         '''
         self.kiwi.space_tolerance = self._space_tolerance
-        return super().encode_from_morphs(morphs)
+        return super().encode_from_morphs(morphs, return_offsets)
 
     def decode(self,
         ids: Iterable[int],

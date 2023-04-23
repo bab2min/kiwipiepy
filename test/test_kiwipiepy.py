@@ -73,7 +73,7 @@ def test_swtokenizer_morph():
     
     token_ids = tokenizer.encode("한국어에 특화된 토크나이저입니다.")
 
-    token_ids_from_morphs = tokenizer.encode_from_morphs([
+    morphs = [
         ('한국어', 'NNP', False), 
         ('에', 'JKB',), 
         ('특화', 'NNG', True), 
@@ -83,9 +83,15 @@ def test_swtokenizer_morph():
         ('이', 'VCP', False), 
         ('ᆸ니다', 'EF',), 
         ('.', 'SF', False),
-    ])
+    ]
+
+    token_ids_from_morphs = tokenizer.encode_from_morphs(morphs)
 
     assert (token_ids == token_ids_from_morphs).all()
+
+    token_ids_from_morphs, offsets = tokenizer.encode_from_morphs(morphs, return_offsets=True)
+
+    assert offsets.tolist() == [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [5, 6], [5, 6], [6, 7], [7, 8], [8, 9]]
 
 def test_swtokenizer_trainer_empty():
     config = sw_tokenizer.SwTokenizerConfig()
