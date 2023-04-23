@@ -252,15 +252,15 @@ typo_cost_threshold: float
     '''
 
     def __init__(self, 
-        num_workers:Optional[int] = None,
-        model_path:Optional[str] = None,
-        options:Optional[int] = None,
-        integrate_allomorph:Optional[bool] = None,
-        load_default_dict:Optional[bool] = None,
-        load_typo_dict:Optional[bool] = None,
-        model_type:Optional[str] = 'knlm',
-        typos:Optional[Union[str, TypoTransformer]] = None,
-        typo_cost_threshold:Optional[float] = 2.5,
+        num_workers: Optional[int] = None,
+        model_path: Optional[str] = None,
+        options: Optional[int] = None,
+        integrate_allomorph: Optional[bool] = None,
+        load_default_dict: Optional[bool] = None,
+        load_typo_dict: Optional[bool] = None,
+        model_type: Optional[str] = 'knlm',
+        typos: Optional[Union[str, TypoTransformer]] = None,
+        typo_cost_threshold: float = 2.5,
     ) -> None:
         if num_workers is None:
             num_workers = 0

@@ -87,6 +87,10 @@ def test_decode():
     d = tokenizer.decode([2, 75, 130, 3], skip_special_tokens=True)
     assert d == "가자"
 
+def test_tokenize():
+    t = tokenizer.tokenize("맞습니다요!")
+    assert t == ["맞/V", "습니다/E", "요/J", "!"]
+
 if __name__ == '__main__':
     for k, v in locals().copy().items():
         if k.startswith('test'): v()

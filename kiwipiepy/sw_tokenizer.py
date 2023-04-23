@@ -334,6 +334,14 @@ path: str
 
     @property
     @lru_cache(maxsize=None)
+    def id2vocab(self) -> List[str]:
+        ret = [None] * len(self)
+        for k, v in self.vocab.items():
+            ret[v] = k
+        return ret
+
+    @property
+    @lru_cache(maxsize=None)
     def config(self) -> SwTokenizerConfig:
         '''
 토크나이저의 설정값을 담은 `SwTokenizerConfig` 데이터 클래스를 반환합니다. (읽기 전용)

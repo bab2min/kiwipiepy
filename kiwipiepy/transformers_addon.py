@@ -1,6 +1,7 @@
 import os
 import itertools
 from typing import Union, List, Optional, Dict, Tuple
+import warnings
 
 import numpy as np
 
@@ -376,7 +377,28 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
         return 0
 
     def _add_tokens(self, new_tokens, special_tokens = False) -> int:
+        warnings.warn("`KiwiTokenizer.add_tokens` is not support yet.")
         return 0
+
+    def tokenize(
+        self, 
+        text: str, 
+        pair: Optional[str] = None, 
+        add_special_tokens: bool = False,
+    ) -> List[str]:
+        ids = self.encode(text, pair, add_special_tokens=add_special_tokens)
+        return list(map(self._tokenizer.id2vocab.__getitem__, ids))
+
+    def convert_ids_to_tokens(
+        self, ids: Union[int, List[int]], skip_special_tokens: bool = False
+    ) -> Union[str, List[str]]:
+        if isinstance(ids, int):
+            if skip_special_tokens and ids in self.all_special_ids: return ''
+            return self._tokenizer.id2vocab[ids]
+
+        if skip_special_tokens:
+            ids = [i for i in ids if i not in self.all_special_ids]
+        return list(map(self._tokenizer.id2vocab.__getitem__, ids))
 
     def _save_pretrained(
         self,
