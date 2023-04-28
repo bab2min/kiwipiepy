@@ -359,6 +359,13 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
     def get_vocab(self):
         return self._tokenizer.vocab
     
+    @property
+    def vocab(self):
+        return self._tokenizer.vocab
+    
+    def __len__(self):
+        return len(self._tokenizer)
+
     def convert_tokens_to_ids(self, tokens: Union[str, List[str]]) -> Union[int, List[int]]:
         if tokens is None:
             return None
