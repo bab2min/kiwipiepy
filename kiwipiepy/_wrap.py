@@ -1032,7 +1032,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         stopwords:Optional[Stopwords] = None,
         echo:Optional[bool] = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
-    ) -> List[Token]:
+    ) -> Union[List[Token], Iterable[List[Token]], List[List[Token]], Iterable[List[List[Token]]]]:
         '''.. versionadded:: 0.10.2
 
 `analyze`와는 다르게 형태소 분석결과만 간단하게 반환합니다.
