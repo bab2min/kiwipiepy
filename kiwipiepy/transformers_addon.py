@@ -57,30 +57,65 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
     @property
     def unk_token(self) -> str:
         return self._tokenizer.unk_token
+    
+    @unk_token.setter
+    def unk_token(self, s):
+        if s != self._tokenizer.unk_token:
+            raise AttributeError("can't set attribute 'unk_token'")
 
     @property
     def cls_token(self) -> str:
         return self._tokenizer.cls_token
 
+    @cls_token.setter
+    def cls_token(self, s):
+        if s != self._tokenizer.cls_token:
+            raise AttributeError("can't set attribute 'cls_token'")
+
     @property
     def sep_token(self) -> str:
         return self._tokenizer.sep_token
     
+    @sep_token.setter
+    def sep_token(self, s):
+        if s != self._tokenizer.sep_token:
+            raise AttributeError("can't set attribute 'sep_token'")
+
     @property
     def pad_token(self) -> str:
         return self._tokenizer.pad_token
+
+    @pad_token.setter
+    def pad_token(self, s):
+        if s != self._tokenizer.pad_token:
+            raise AttributeError("can't set attribute 'pad_token'")
 
     @property
     def mask_token(self) -> str:
         return self._tokenizer.mask_token
     
+    @mask_token.setter
+    def mask_token(self, s):
+        if s != self._tokenizer.mask_token:
+            raise AttributeError("can't set attribute 'mask_token'")
+
     @property
     def bos_token(self) -> str:
         return self._tokenizer.bos_token
     
+    @bos_token.setter
+    def bos_token(self, s):
+        if s != self._tokenizer.bos_token:
+            raise AttributeError("can't set attribute 'bos_token'")
+
     @property
     def eos_token(self) -> str:
         return self._tokenizer.eos_token
+
+    @eos_token.setter
+    def eos_token(self, s):
+        if s != self._tokenizer.eos_token:
+            raise AttributeError("can't set attribute 'eos_token'")
 
     @property
     def unk_token_id(self) -> str:
@@ -384,8 +419,9 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
         return 0
 
     def _add_tokens(self, new_tokens, special_tokens = False) -> int:
-        warnings.warn("`KiwiTokenizer.add_tokens` is not support yet.")
-        return 0
+        if all(t in self.vocab for t in new_tokens):
+            return 0
+        raise NotImplementedError("`KiwiTokenizer.add_tokens` is not support yet.")
 
     def tokenize(
         self, 
