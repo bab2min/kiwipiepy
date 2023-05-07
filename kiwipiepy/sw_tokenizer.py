@@ -14,7 +14,7 @@ import tqdm
 
 from _kiwipiepy import _SwTokenizer
 
-from kiwipiepy import Kiwi
+from kiwipiepy import Kiwi, Token
 
 @dataclass
 class SwTokenizerConfig:
@@ -204,7 +204,7 @@ num_workers: int
     def encode(self, 
         text: Union[str, Iterable[str]],
         return_offsets: bool = False,
-    ) -> Union[Iterable[int], Tuple[Iterable[int], Iterable[Tuple[int, int]]]]:
+    ) -> Union[List[int], Tuple[List[int], List[Tuple[int, int]]]]:
         '''
 주어진 텍스트를 토큰화하여 token id의 리스트로 반환합니다.
 
@@ -266,7 +266,7 @@ tokenizer.encode(...)
     def encode_from_morphs(self, 
         morphs: Iterable[Union[Tuple[str, str, bool], Tuple[str, str]]],
         return_offsets: bool = False,
-    ) -> Iterable[int]:
+    ) -> List[int]:
         '''
 이미 형태소 분석이 완료된 결과를 토큰화하여 token id의 리스트로 변환합니다.
 
@@ -292,6 +292,49 @@ token_ids_and_offsets: Tuple[List[int], List[Tuple[int, int]]]
         '''
         self.kiwi.space_tolerance = self._space_tolerance
         return super().encode_from_morphs(morphs, return_offsets)
+
+    def tokenize_encode(self, 
+        text: Union[str, Iterable[str]],
+        return_offsets: bool = False,
+    ) -> Union[Tuple[List[Token], List[int]], Tuple[List[Token], List[int], List[Tuple[int, int]]]]:
+        '''
+주어진 텍스트의 형태소 분석 결과 및 토큰화 결과를 함께 반환합니다.
+
+Parameters
+----------
+text: Union[str, Iterable[str]]
+    분할할 텍스트, 혹은 텍스트의 iterable
+    이 인자를 단일 str로 줄 경우, 싱글스레드에서 처리하며
+    str의 Iterable로 줄 경우, 멀티스레드로 분배하여 처리합니다.
+
+return_offsets: bool
+    True일 경우 각 토큰들의 텍스트 상의 시작지점 및 끝지점이 함께 반환됩니다.
+
+Returns
+-------
+morphs_and_token_ids: Tuple[List[Token], List[int]]
+    `return_offsets = False`인 경우.
+    형태소 분석 결과와 token id의 목록을 tuple로 반환합니다.
+
+morphs_token_ids_and_offsets: Tuple[List[Token], List[int], List[Tuple[int, int]]]
+    `return_offsets = True`인 경우.
+    형태소 분석 결과와 token id의 목록, 각 토큰들의 시작지점과 끝지점(형태소 단위)을 나타내는 tuple의 리스트를 반환합니다.
+
+Notes
+-----
+
+        '''
+        self.kiwi.space_tolerance = self._space_tolerance
+
+        def _refine(res):
+            morphs, *etc = res
+            return (morphs[0][0], *etc)
+
+        ret = super().tokenize_encode(text, return_offsets=return_offsets)
+        if isinstance(text, str):
+            return _refine(ret)
+        else:
+            return map(_refine, ret)
 
     def decode(self,
         ids: Iterable[int],

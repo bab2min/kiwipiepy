@@ -93,6 +93,45 @@ def test_swtokenizer_morph():
 
     assert offsets.tolist() == [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [5, 6], [5, 6], [6, 7], [7, 8], [8, 9]]
 
+def test_swtokenizer_tokenize_encode():
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    sents = [
+        "한국어에 특화된 토크나이저입니다.",
+        "홈페이지는 https://bab2min.github.io/kiwipiepy 입니다."
+    ]
+    
+    for sent in sents:
+        ref_token_ids = tokenizer.encode(sent)
+        ref_morphs = tokenizer.kiwi.tokenize(sent, normalize_coda=True, z_coda=True)
+        morphs, token_ids, offset = tokenizer.tokenize_encode(sent, return_offsets=True)
+        assert [m.tagged_form for m in morphs] == [m.tagged_form for m in ref_morphs]
+        assert token_ids.tolist() == ref_token_ids.tolist()
+
+    for (morphs, token_ids, offset), sent in zip(tokenizer.tokenize_encode(sents, return_offsets=True), sents):
+        ref_token_ids = tokenizer.encode(sent)
+        ref_morphs = tokenizer.kiwi.tokenize(sent, normalize_coda=True, z_coda=True)
+        assert [m.tagged_form for m in morphs] == [m.tagged_form for m in ref_morphs]
+        assert token_ids.tolist() == ref_token_ids.tolist()
+
+def test_swtokenizer_morph_offset():
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json')
+    morphs = [
+        ('칼슘', 'NNG', True), 
+        ('·', 'SP', False), 
+        ('마그네슘', 'NNG', False), 
+        ('등', 'NNB', True), 
+        ('이', 'JKS', False), 
+        ('많이', 'MAG', True), 
+        ('함유', 'NNG', True), 
+        ('되', 'XSV', False), 
+        ('어', 'EC', False), 
+        ('있', 'VX', True), 
+        ('어', 'EC', False)
+    ]
+    token_ids, offsets = tokenizer.encode_from_morphs(morphs, return_offsets=True)
+    assert len(token_ids) == len(offsets)
+    assert offsets[2:7].tolist() == [[2, 3], [2, 3], [2, 3], [2, 3], [2, 3]]
+
 def test_swtokenizer_trainer_empty():
     config = sw_tokenizer.SwTokenizerConfig()
     sw_tokenizer.SwTokenizer.train(

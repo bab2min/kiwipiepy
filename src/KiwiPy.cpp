@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <fstream>
+#include <algorithm>
 
 #define USE_NUMPY
 #define MAIN_MODULE
@@ -907,6 +908,8 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 
 	PyObject* encodeFromMorphs(PyObject* args, PyObject* kwargs);
 
+	PyObject* tokenizeAndEncode(PyObject* args, PyObject* kwargs);
+
 	PyObject* decode(PyObject* args, PyObject* kwargs);
 
 	PyObject* config()
@@ -1193,6 +1196,7 @@ py::TypeWrapper<SwTokenizerObject> _SwTokenizerSetter{ [](PyTypeObject& obj)
 	{
 		{ "encode", PY_METHOD_MEMFN(&SwTokenizerObject::encode), METH_VARARGS | METH_KEYWORDS, ""},
 		{ "encode_from_morphs", PY_METHOD_MEMFN(&SwTokenizerObject::encodeFromMorphs), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "tokenize_encode", PY_METHOD_MEMFN(&SwTokenizerObject::tokenizeAndEncode), METH_VARARGS | METH_KEYWORDS, ""},
 		{ "decode", PY_METHOD_MEMFN(&SwTokenizerObject::decode), METH_VARARGS | METH_KEYWORDS, ""},
 		{ "_train", (PyCFunction)&SwTokenizerObject::train, METH_VARARGS | METH_KEYWORDS | METH_STATIC, ""},
 		{ "save", PY_METHOD_MEMFN(&SwTokenizerObject::save), METH_VARARGS | METH_KEYWORDS, ""},
@@ -1286,6 +1290,72 @@ py::TypeWrapper<SwTokenizerResIter> _SwTokenizerResIterSetter{ [](PyTypeObject&)
 {
 } };
 
+inline void chrOffsetsToTokenOffsets(const vector<TokenInfo>& tokens, vector<pair<uint32_t, uint32_t>>& offsets)
+{
+	pair<uint32_t, uint32_t> prev = { 0, 0 };
+	for (auto& p : offsets)
+	{
+		size_t start = upper_bound(tokens.begin(), tokens.end(), p.first, [](uint32_t v, const TokenInfo& t)
+		{
+			return v < t.position;
+		}) - tokens.begin() - 1;
+
+		size_t end = lower_bound(tokens.begin(), tokens.end(), p.second, [](const TokenInfo& t, uint32_t v)
+		{
+			return t.position + t.length < v;
+		}) - tokens.begin() + 1;
+
+		if (start == end)
+		{
+			if (start > prev.second) start = prev.second;
+			else end += 1;
+		}
+
+		p.first = start;
+		p.second = end;
+		prev = p;
+	}
+}
+
+using TokenEncodeResult = tuple<vector<TokenResult>, vector<uint32_t>, vector<pair<uint32_t, uint32_t>>>;
+
+struct SwTokenizerResTEIter : public py::ResultIter<SwTokenizerResTEIter, TokenEncodeResult>
+{
+	static constexpr const char* _name = "kiwipiepy._SwTokenizerResTEIter";
+	static constexpr const char* _name_in_module = "_SwTokenizerResTEIter";
+
+	py::UniqueCObj<SwTokenizerObject> tokenizer;
+	bool returnOffsets = false;
+
+	~SwTokenizerResTEIter()
+	{
+		waitQueue();
+	}
+
+	py::UniqueObj buildPy(TokenEncodeResult&& v)
+	{
+		if (returnOffsets) return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi->kiwi), get<1>(v), get<2>(v));
+		return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi->kiwi), get<1>(v));
+	}
+
+	future<TokenEncodeResult> feedNext(py::SharedObj&& next)
+	{
+		if (!PyUnicode_Check(next)) throw py::ValueError{ "`tokenize_encode` requires an instance of `str` or an iterable of `str`." };
+		return tokenizer->kiwi->kiwi.getThreadPool()->enqueue([&](size_t, const string& text)
+		{
+			vector<pair<uint32_t, uint32_t>> offsets;
+			auto res = tokenizer->kiwi->kiwi.analyze(text, 1, Match::allWithNormalizing | Match::zCoda);
+			auto tokenIds = tokenizer->tokenizer.encode(res[0].first.data(), res[0].first.size(), returnOffsets ? &offsets : nullptr);
+			if (returnOffsets) chrOffsetsToTokenOffsets(res[0].first, offsets);
+			return make_tuple(move(res), move(tokenIds), move(offsets));
+		}, py::toCpp<string>(next));
+	}
+};
+
+py::TypeWrapper<SwTokenizerResTEIter> _SwTokenizerResTEIterSetter{ [](PyTypeObject&)
+{
+} };
+
 PyObject* SwTokenizerObject::encode(PyObject* args, PyObject* kwargs)
 {
 	return py::handleExc([&]() -> PyObject*
@@ -1372,6 +1442,47 @@ PyObject* SwTokenizerObject::encodeFromMorphs(PyObject* args, PyObject* kwargs)
 	});
 }
 
+PyObject* SwTokenizerObject::tokenizeAndEncode(PyObject* args, PyObject* kwargs)
+{
+	return py::handleExc([&]() -> PyObject*
+	{
+		PyObject* text;
+		int returnOffsets = 0;
+		static const char* kwlist[] = { "text", "return_offsets", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|p", (char**)kwlist, &text, &returnOffsets)) return nullptr;
+
+		if (PyUnicode_Check(text))
+		{
+			vector<pair<uint32_t, uint32_t>> offsets;
+			auto res = tokenizer.getKiwi()->analyze(py::toCpp<string>(text), 1, Match::allWithNormalizing | Match::zCoda);
+			auto tokenIds = tokenizer.encode(res[0].first.data(), res[0].first.size(), returnOffsets ? &offsets : nullptr);
+			if (returnOffsets)
+			{
+				chrOffsetsToTokenOffsets(res[0].first, offsets);
+				return py::buildPyTuple(resToPyList(move(res), *tokenizer.getKiwi()), tokenIds, offsets).release();
+			}
+			else
+			{
+				return py::buildPyTuple(resToPyList(move(res), *tokenizer.getKiwi()), tokenIds).release();
+			}
+		}
+
+		py::UniqueObj iter{ PyObject_GetIter(text) };
+		if (!iter) throw py::ValueError{ "`tokenize_encode` requires a `str` or an iterable of `str` parameters." };
+		py::UniqueCObj<SwTokenizerResTEIter> ret{ (SwTokenizerResTEIter*)PyObject_CallObject((PyObject*)py::Type<SwTokenizerResTEIter>, nullptr) };
+		if (!ret) throw py::ExcPropagation{};
+		ret->tokenizer = py::UniqueCObj<SwTokenizerObject>{ this };
+		Py_INCREF(this);
+		ret->inputIter = move(iter);
+		ret->returnOffsets = !!returnOffsets;
+
+		for (size_t i = 0; i < kiwi->kiwi.getNumThreads() * 16; ++i)
+		{
+			if (!ret->feed()) break;
+		}
+		return (PyObject*)ret.release();
+	});
+}
 PyObject* SwTokenizerObject::decode(PyObject* args, PyObject* kwargs)
 {
 	return py::handleExc([&]() -> PyObject*
