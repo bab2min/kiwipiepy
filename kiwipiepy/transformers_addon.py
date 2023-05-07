@@ -1,7 +1,36 @@
+'''
+.. versionadded:: 0.15.1
+
+`transformers_addon` 모듈은 Kiwi의 SwTokenizer를 
+[huggingface transformers의 tokenizer](https://huggingface.co/docs/transformers/main_classes/tokenizer)와 
+호환이 가능하도록 래핑한 `KiwiTokenizer` 클래스를 제공합니다.
+
+이 기능을 사용하기 위해서는 `transformers>=4.12` 이 필요합니다.
+
+```python
+from transformers import AutoTokenizer
+
+import kiwipiepy.transformers_addon
+# kiwipiepy.transformers_addon를 import하면
+# 자동으로 KiwiTokenizer가 AutoTokenizer에 register됩니다.
+# KiwiTokenizer는 huggingface transformers의 토크나이저와 대부분의 기능이 호환되므로
+# 기존 transformers 기반의 코드를 그대로 재사용할 수 있습니다.
+
+# SwTokenizer가 some_path/tokenizer.json에 저장되어있다고 가정
+tokenizer = AutoTokenizer.from_pretrained('some_path')
+tokenizer.encode("한국어를 고려한 토크나이저!")
+```
+
+`KiwiTokenizer`의 주요 기능들은 transformers와 대부분 호환됩니다만, 다음 기능들은 현재 호환되지 않습니다.
+
+* `add_tokens`, `add_special_tokens` 등 새 토큰을 추가하는 기능
+* `encode_plus`의  `stride`, `is_split_into_words`, `return_overflowing_tokens`, `return_special_tokens_mask`, `return_length` 인자
+'''
+
+
 import os
 import itertools
 from typing import Union, List, Optional, Dict, Tuple
-import warnings
 
 import numpy as np
 
@@ -18,7 +47,7 @@ from transformers.tokenization_utils_base import (
     PaddingStrategy,
     TruncationStrategy,
     TensorType,
-    BatchEncoding,    
+    BatchEncoding, 
 )
 
 from kiwipiepy.sw_tokenizer import SwTokenizer, SwTokenizerConfig

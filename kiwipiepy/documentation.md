@@ -560,6 +560,11 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.15.0 (2023-05-07)
+    * Kiwi 0.15.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.15.1 )이 반영되었습니다.
+    * Subword Tokenizer를 제공하는 모듈인 `kiwipiepiy.sw_tokenizer`이 추가되었습니다.
+    * huggingface의 tokenizer와 호환가능한 Subword Tokenizer를 제공하는 모듈인 `kiwipiepy.transformers_addon`이 추가되었습니다.
+
 * 0.15.0 (2023-03-23)
     * Kiwi 0.15.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.15.0 )이 반영되었습니다.
         * 둘 이상의 형태소로 더 잘게 분리될 수 있는 형태소를 추가 분리하는 옵션인 `splitComplex` 도입
