@@ -560,7 +560,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
-* 0.15.0 (2023-05-07)
+* 0.15.1 (2023-05-07)
     * Kiwi 0.15.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.15.1 )이 반영되었습니다.
     * Subword Tokenizer를 제공하는 모듈인 `kiwipiepiy.sw_tokenizer`이 추가되었습니다.
     * huggingface의 tokenizer와 호환가능한 Subword Tokenizer를 제공하는 모듈인 `kiwipiepy.transformers_addon`이 추가되었습니다.
