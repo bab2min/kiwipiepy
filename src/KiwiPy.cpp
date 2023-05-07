@@ -1,12 +1,17 @@
-﻿#include <stdexcept>
+﻿#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
+
+#include <stdexcept>
+#include <fstream>
+#include <algorithm>
+
 #define USE_NUMPY
 #define MAIN_MODULE
 
 #include "PyUtils.h"
-#include "PyDoc.h"
 
 #include <kiwi/Kiwi.h>
 #include <kiwi/HSDataset.h>
+#include <kiwi/SwTokenizer.h>
 
 using namespace std;
 using namespace kiwi;
@@ -175,7 +180,8 @@ struct HSDatasetObject : py::CObject<HSDatasetObject>
 	{
 		return py::handleExc([&]() -> PyObject*
 		{
-			size_t index, augment = 0;
+			size_t index;
+			int augment = 0;
 			static const char* kwlist[] = { "index", "augment", nullptr};
 			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n|p", (char**)kwlist,
 				&index, &augment
@@ -522,29 +528,15 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ [](PyTypeObject& obj)
 	obj.tp_getset = getsets;
 }};
 
-static bool allowInitTokenObject = false;
-struct AllowInitToken
-{
-	AllowInitToken()
-	{
-		allowInitTokenObject = true;
-	}
-
-	~AllowInitToken()
-	{
-		allowInitTokenObject = false;
-	}
-};
-
 struct TokenObject : py::CObject<TokenObject>
 {
 	static constexpr const char* _name = "kiwipiepy.Token";
 	static constexpr const char* _name_in_module = "Token";
-	static constexpr const char* _doc = Token__doc__;
 
 	u16string _form, _raw_form;
 	const char* _tag = nullptr;
 	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _subSentPosition = 0, _lineNumber = 0;
+	int32_t _pairedToken = -1;
 	float _score = 0, _typoCost = 0;
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
@@ -553,9 +545,8 @@ struct TokenObject : py::CObject<TokenObject>
 
 	static int init(TokenObject* self, PyObject* args, PyObject* kwargs)
 	{
-		return py::handleExc([&]()
+		return py::handleExc([&]() -> int
 		{
-			if (allowInitTokenObject) return 0;
 			throw py::RuntimeError{ "Cannot create a new instance of `kiwipiepy.Token`." };
 		});
 	}
@@ -634,24 +625,25 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 {
 	static PyGetSetDef getsets[] =
 	{
-		{ (char*)"form", PY_GETTER_MEMPTR(&TokenObject::_form), nullptr, Token_form__doc__, nullptr },
-		{ (char*)"tag", PY_GETTER_MEMPTR(&TokenObject::_tag), nullptr, Token_tag__doc__, nullptr },
-		{ (char*)"start", PY_GETTER_MEMPTR(&TokenObject::_pos), nullptr, Token_start__doc__, nullptr },
-		{ (char*)"len", PY_GETTER_MEMPTR(&TokenObject::_len), nullptr, Token_len__doc__, nullptr },
-		{ (char*)"end", PY_GETTER_MEMFN(&TokenObject::end), nullptr, Token_end__doc__, nullptr },
-		{ (char*)"id", PY_GETTER_MEMPTR(&TokenObject::_morphId), nullptr, Token_id__doc__, nullptr },
-		{ (char*)"word_position", PY_GETTER_MEMPTR(&TokenObject::_wordPosition), nullptr, Token_word_position__doc__, nullptr },
-		{ (char*)"sent_position", PY_GETTER_MEMPTR(&TokenObject::_sentPosition), nullptr, Token_sent_position__doc__, nullptr },
-		{ (char*)"sub_sent_position", PY_GETTER_MEMPTR(&TokenObject::_subSentPosition), nullptr, Token_sub_sent_position__doc__, nullptr },
-		{ (char*)"line_number", PY_GETTER_MEMPTR(&TokenObject::_lineNumber), nullptr, Token_line_number__doc__, nullptr },
-		{ (char*)"base_form", PY_GETTER_MEMFN(&TokenObject::baseForm), nullptr, Token_base_form__doc__, nullptr },
-		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, Token_base_id__doc__, nullptr },
-		{ (char*)"tagged_form", PY_GETTER_MEMFN(&TokenObject::taggedForm), nullptr, Token_tagged_form__doc__, nullptr },
-		{ (char*)"score", PY_GETTER_MEMPTR(&TokenObject::_score), nullptr, Token_score__doc__, nullptr },
-		{ (char*)"typo_cost", PY_GETTER_MEMPTR(&TokenObject::_typoCost), nullptr, Token_typo_cost__doc__, nullptr },
-		{ (char*)"raw_form", PY_GETTER_MEMPTR(&TokenObject::_raw_form), nullptr, Token_raw_form__doc__, nullptr },
-		{ (char*)"regularity", PY_GETTER_MEMFN(&TokenObject::regularity), nullptr, Token_regularity__doc__, nullptr },
-		{ (char*)"lemma", PY_GETTER_MEMFN(&TokenObject::lemma), nullptr, Token_lemma__doc__, nullptr },
+		{ (char*)"form", PY_GETTER_MEMPTR(&TokenObject::_form), nullptr, "", nullptr },
+		{ (char*)"tag", PY_GETTER_MEMPTR(&TokenObject::_tag), nullptr, "", nullptr},
+		{ (char*)"start", PY_GETTER_MEMPTR(&TokenObject::_pos), nullptr, "", nullptr},
+		{ (char*)"len", PY_GETTER_MEMPTR(&TokenObject::_len), nullptr, "", nullptr},
+		{ (char*)"end", PY_GETTER_MEMFN(&TokenObject::end), nullptr, "", nullptr},
+		{ (char*)"id", PY_GETTER_MEMPTR(&TokenObject::_morphId), nullptr, "", nullptr},
+		{ (char*)"word_position", PY_GETTER_MEMPTR(&TokenObject::_wordPosition), nullptr, "", nullptr},
+		{ (char*)"sent_position", PY_GETTER_MEMPTR(&TokenObject::_sentPosition), nullptr, "", nullptr},
+		{ (char*)"sub_sent_position", PY_GETTER_MEMPTR(&TokenObject::_subSentPosition), nullptr, "", nullptr},
+		{ (char*)"line_number", PY_GETTER_MEMPTR(&TokenObject::_lineNumber), nullptr, "", nullptr},
+		{ (char*)"base_form", PY_GETTER_MEMFN(&TokenObject::baseForm), nullptr, "", nullptr},
+		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, "", nullptr},
+		{ (char*)"tagged_form", PY_GETTER_MEMFN(&TokenObject::taggedForm), nullptr, "", nullptr},
+		{ (char*)"score", PY_GETTER_MEMPTR(&TokenObject::_score), nullptr, "", nullptr},
+		{ (char*)"typo_cost", PY_GETTER_MEMPTR(&TokenObject::_typoCost), nullptr, "", nullptr},
+		{ (char*)"raw_form", PY_GETTER_MEMPTR(&TokenObject::_raw_form), nullptr, "", nullptr},
+		{ (char*)"regularity", PY_GETTER_MEMFN(&TokenObject::regularity), nullptr, "", nullptr},
+		{ (char*)"lemma", PY_GETTER_MEMFN(&TokenObject::lemma), nullptr, "", nullptr},
+		{ (char*)"paired_token", PY_GETTER_MEMPTR(&TokenObject::_pairedToken), nullptr, "", nullptr},
 		{ nullptr },
 	};
 
@@ -668,7 +660,6 @@ py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
 
 py::UniqueObj resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 {
-	AllowInitToken allowInitToken;
 	py::UniqueObj retList{ PyList_New(res.size()) };
 	size_t idx = 0;
 	for (auto& p : res)
@@ -684,8 +675,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 				if ((u & 0xFC00) == 0xD800) u32chrs++;
 			}
 
-			py::UniqueObj item{ PyObject_CallFunctionObjArgs((PyObject*)py::Type<TokenObject>, nullptr) };
-			auto* tItem = (TokenObject*)item.get();
+			auto tItem = py::makeNewObject<TokenObject>();
 			tItem->_form = move(q.str);
 			tItem->_regularity = !isIrregular(q.tag);
 			POSTag tag = clearIrregular(q.tag);
@@ -740,8 +730,9 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_morphId = kiwi.morphToId(q.morph);
 			tItem->_baseMorph = kiwi.idToMorph(q.morph->lmMorphemeId);
 			tItem->_raw_form = q.typoCost ? kiwi.getTypoForm(q.typoFormId) : tItem->_form;
+			tItem->_pairedToken = q.pairedToken;
 
-			PyList_SET_ITEM(rList.get(), jdx++, item.release());
+			PyList_SET_ITEM(rList.get(), jdx++, (PyObject*)tItem.release());
 			u32offset += u32chrs;
 		}
 		PyList_SET_ITEM(retList.get(), idx++, py::buildPyTuple(move(rList), p.second).release());
@@ -838,6 +829,400 @@ py::TypeWrapper<MorphemeSetObject> _MorphemeSetSetter{ [](PyTypeObject& obj)
 	obj.tp_methods = methods;
 } };
 
+inline SwTokenizerConfig convertToConfig(PyObject* obj)
+{
+	SwTokenizerConfig cfg;
+	cfg.doLowercase = py::getAttr<bool>(obj, "lowercase");
+	cfg.splitChinese = py::getAttr<bool>(obj, "split_chinese");
+	cfg.wholeWordUnk = py::getAttr<bool>(obj, "whole_word_unk");
+	cfg.integrateAllomoprh = py::getAttr<bool>(obj, "integrate_allomorph");
+	cfg.splitPunct = py::getAttr<bool>(obj, "split_punct");
+	cfg.simpleTag = py::getAttr<bool>(obj, "simple_tag");
+	cfg.splitVerb = py::getAttr<bool>(obj, "split_verb");
+	cfg.splitEomi = py::getAttr<bool>(obj, "split_eomi");
+	cfg.useGlueToken = py::getAttr<bool>(obj, "use_glue_token");
+	cfg.strict = py::getAttr<bool>(obj, "strict");
+	cfg.fallbackHangul = py::getAttr<bool>(obj, "fallback_hangul");
+	cfg.fallbackByte = py::getAttr<bool>(obj, "fallback_byte");
+
+	py::UniqueObj jsonMod{ PyImport_ImportModule("json") };
+	if (!jsonMod) throw py::ExcPropagation{};
+	py::UniqueObj additional{
+		PyObject_CallFunctionObjArgs(py::getAttr<py::UniqueObj>(jsonMod.get(), "dumps").get(), py::getAttr<py::UniqueObj>(obj, "additional").get(), nullptr)
+	};
+	if (!additional) throw py::ExcPropagation{};
+	cfg.additionalJson = py::toCpp<string>(additional.get());
+
+	static const char* sptoken_names[] = {
+		"unk_token", "cls_token", "sep_token", "pad_token", "mask_token", "bos_token", "eos_token",
+	};
+	for (size_t i = 0; i <= cfg.eos; ++i)
+	{
+		auto s = py::getAttr<optional<string>>(obj, sptoken_names[i]);
+		if (s) cfg.specialTokens[i] = *s;
+	}
+	return cfg;
+}
+
+struct SwTokenizerObject : py::CObject<SwTokenizerObject>
+{
+	static constexpr const char* _name = "kiwipiepy._SwTokenizer";
+	static constexpr const char* _name_in_module = "_SwTokenizer";
+	static constexpr int _flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+
+	py::UniqueCObj<KiwiObject> kiwi;
+	kiwi::SwTokenizer tokenizer;
+
+	static int init(SwTokenizerObject* self, PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]()
+		{
+			PyObject* kiwi;
+			const char* path;
+			static const char* kwlist[] = { "kiwi", "path", nullptr};
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Os", (char**)kwlist, &kiwi, &path)) return -1;
+			Py_INCREF(kiwi);
+			self->kiwi = py::UniqueCObj<KiwiObject>{ (KiwiObject*)kiwi };
+			self->kiwi->doPrepare();
+			std::ifstream ifs;
+			self->tokenizer = kiwi::SwTokenizer::load(self->kiwi->kiwi, openFile(ifs, path));
+			return 0;
+		});
+	}
+
+	PyObject* save(PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]() -> PyObject*
+		{
+			const char* path;
+			static const char* kwlist[] = { "path", nullptr };
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s", (char**)kwlist, &path)) return nullptr;
+			std::ofstream ofs;
+			tokenizer.save(openFile(ofs, path));
+			Py_INCREF(Py_None);
+			return Py_None;
+		});
+	}
+
+	PyObject* encode(PyObject* args, PyObject* kwargs);
+
+	PyObject* encodeFromMorphs(PyObject* args, PyObject* kwargs);
+
+	PyObject* tokenizeAndEncode(PyObject* args, PyObject* kwargs);
+
+	PyObject* decode(PyObject* args, PyObject* kwargs);
+
+	PyObject* config()
+	{
+		return py::handleExc([&]() -> PyObject*
+		{
+			py::UniqueObj ret{ PyDict_New() };
+			auto& cfg = tokenizer.getConfig();
+			PyDict_SetItemString(ret.get(), "lowercase", py::buildPyValue(cfg.doLowercase).get());
+			PyDict_SetItemString(ret.get(), "split_chinese", py::buildPyValue(cfg.splitChinese).get());
+			PyDict_SetItemString(ret.get(), "whole_word_unk", py::buildPyValue(cfg.wholeWordUnk).get());
+			PyDict_SetItemString(ret.get(), "integrate_allomorph", py::buildPyValue(cfg.integrateAllomoprh).get());
+			PyDict_SetItemString(ret.get(), "split_punct", py::buildPyValue(cfg.splitPunct).get());
+			PyDict_SetItemString(ret.get(), "simple_tag", py::buildPyValue(cfg.simpleTag).get());
+			PyDict_SetItemString(ret.get(), "split_verb", py::buildPyValue(cfg.splitVerb).get());
+			PyDict_SetItemString(ret.get(), "split_eomi", py::buildPyValue(cfg.splitEomi).get());
+			PyDict_SetItemString(ret.get(), "use_glue_token", py::buildPyValue(cfg.useGlueToken).get());
+			PyDict_SetItemString(ret.get(), "strict", py::buildPyValue(cfg.strict).get());
+			PyDict_SetItemString(ret.get(), "fallback_hangul", py::buildPyValue(cfg.fallbackHangul).get());
+			PyDict_SetItemString(ret.get(), "fallback_byte", py::buildPyValue(cfg.fallbackByte).get());
+
+			py::UniqueObj jsonMod{ PyImport_ImportModule("json") };
+			if (!jsonMod) return nullptr;
+			py::UniqueObj additional;
+			if (cfg.additionalJson.empty())
+			{
+				additional = py::buildPyValue(nullptr);
+			}
+			else
+			{
+				additional = py::UniqueObj{
+					PyObject_CallFunctionObjArgs(py::getAttr<py::UniqueObj>(jsonMod.get(), "loads").get(), py::buildPyValue(cfg.additionalJson).get(), nullptr)
+				};
+			}
+			if (!additional) return nullptr;
+			PyDict_SetItemString(ret.get(), "additional", additional.get());
+			
+			static const char* sptoken_names[] = {
+				"unk_token", "cls_token", "sep_token", "pad_token", "mask_token", "bos_token", "eos_token",
+			};
+			for (size_t i = 0; i <= cfg.eos; ++i)
+			{
+				if (cfg.specialTokens[i].empty()) continue;
+				PyDict_SetItemString(ret.get(), sptoken_names[i], py::buildPyValue(cfg.specialTokens[i]).get());
+			}
+			return ret.release();
+		});
+	}
+
+	PyObject* vocab()
+	{
+		return py::handleExc([&]() -> PyObject*
+		{
+			py::UniqueObj ret{ PyDict_New() };
+			
+			for (size_t i = 0; i < tokenizer.size(); ++i)
+			{
+				auto& v = tokenizer.getVocab(i);
+				string form = utf16To8(u16string{ v.form, v.form + v.length });
+				if (v.flags == SwTokenFlag::subword)
+				{
+					form = "##" + form;
+				}
+				else if (v.pos != POSTag::unknown)
+				{
+					form += "/";
+					form += tagToReprStr(v.pos);
+				}
+				else if (v.flags == SwTokenFlag::glue)
+				{
+					form = "##";
+				}
+				else if (v.flags == SwTokenFlag::byte)
+				{
+					form = "<0x";
+					form += "0123456789ABCDEF"[v.byte >> 4];
+					form += "0123456789ABCDEF"[v.byte & 0xF];
+					form += ">";
+				}
+				PyDict_SetItemString(ret.get(), form.c_str(), py::buildPyValue(i).get());
+			}
+			
+			return ret.release();
+		});
+	}
+
+	PyObject* _kiwi()
+	{
+		Py_INCREF(kiwi.get());
+		return (PyObject*)kiwi.get();
+	}
+
+	static Py_ssize_t len(SwTokenizerObject* self)
+	{
+		return self->tokenizer.size();
+	}
+
+	static PyObject* train(PyObject*, PyObject* args, PyObject* kwargs)
+	{
+		return py::handleExc([&]() -> PyObject*
+		{
+			PyObject* savePath;
+			PyObject* texts;
+			PyObject* config;
+			PyObject* vocabSize;
+			size_t iterations, prefixMinCnt, prefixMaxLength;
+			int strictReduction, removeRepetitive, preventMixedDigitTokens;
+			float chrCoverage, reductionRatio;
+			PyObject* kiwi;
+			PyObject* callback;
+			static const char* kwlist[] = { "save_path", "texts", "config", 
+				"vocab_size", "chr_coverage", "strict_reduction", "remove_repetitive",
+				"iterations", "reduction_ratio", 
+				"prefix_min_cnt", "prefix_max_length", "prevent_mixed_digit_tokens",
+				"kiwi", "callback",
+				nullptr
+			};
+			if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOOfppnfnnpOO", (char**)kwlist, 
+				&savePath, &texts, &config,
+				&vocabSize, &chrCoverage, &strictReduction, &removeRepetitive,
+				&iterations, &reductionRatio, 
+				&prefixMinCnt, &prefixMaxLength, &preventMixedDigitTokens,
+				&kiwi, &callback
+			)) return nullptr;
+
+			auto cfg = convertToConfig(config);
+			auto savePathes = py::toCpp<vector<string>>(savePath);
+			auto vocabSizes = py::toCpp<vector<size_t>>(vocabSize);
+			if (savePathes.size() != vocabSizes.size())
+			{
+				throw py::ValueError{ "`save_path` should have the same number of elements to `vocab_size`." };
+			}
+
+			UnigramSwTrainerConfig trainCfg;
+			trainCfg.chrCoverage = chrCoverage;
+			trainCfg.reduceStrict = strictReduction;
+			trainCfg.removeRepetitive = removeRepetitive;
+			trainCfg.preventMixedDigitTokens = !!preventMixedDigitTokens;
+			auto kkiwi = (KiwiObject*)kiwi;
+			kkiwi->doPrepare();
+			
+			UnigramSwTrainer trainer{ kkiwi->kiwi, cfg, trainCfg };
+			py::UniqueObj methodNames[] {
+				py::buildPyValue("begin_tokenization"),
+				py::buildPyValue("proc_tokenization"),
+				py::buildPyValue("end_tokenization"),
+				py::buildPyValue("begin_reduction"),
+				py::buildPyValue("proc_reduction"),
+				py::buildPyValue("end_reduction"),
+			};
+
+			py::UniqueObj textsIter{ PyObject_GetIter(texts) };
+			if (!textsIter) throw py::ValueError{ "`texts` must be an iterable of `str`." };
+
+			vector<PyObject*> callbackItems;
+			py::foreach<PyObject*>(callback, [&](PyObject* item)
+			{
+				callbackItems.emplace_back(item);
+			}, "");
+
+			for (auto ci : callbackItems)
+			{
+				py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[0].get(),
+					py::buildPyValue(0).get(),
+					nullptr
+				) };
+				if (!r) throw py::ExcPropagation{};
+			}
+
+			size_t sentCnt = 0;
+			trainer.addSentences([&]() -> u16string
+			{
+				while (1)
+				{
+					py::UniqueObj item{ PyIter_Next(textsIter.get()) };
+					if (!item)
+					{
+						if (PyErr_Occurred()) throw py::ExcPropagation{};
+						else return {};
+					}
+					auto ret = py::toCpp<u16string>(item.get());
+					if (++sentCnt % 16 == 0)
+					{
+						for (auto ci : callbackItems)
+						{
+							py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[1].get(),
+								py::buildPyValue(sentCnt).get(),
+								nullptr
+							) };
+							if (!r) throw py::ExcPropagation{};
+						}
+					}
+					if (!ret.empty()) return ret;
+				}
+				return {};
+			});
+
+			for (auto ci : callbackItems)
+			{
+				py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[2].get(),
+					py::buildPyValue(sentCnt).get(),
+					nullptr
+				) };
+				if (!r) throw py::ExcPropagation{};
+			}
+
+			for (size_t tn = 0; tn < savePathes.size(); ++tn)
+			{
+				trainer.getTrainConfig().vocabSize = vocabSizes[tn];
+				float loss = trainer.buildSubwordVocabs(prefixMinCnt, prefixMaxLength), lastLoss = 0;
+				size_t lastVocabSize = 0;
+
+				for (auto ci : callbackItems)
+				{
+					py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[3].get(),
+						py::buildPyValue(tn).get(),
+						py::buildPyValue(0).get(),
+						py::buildPyValue(trainer.getCurrentVocabSize()).get(),
+						py::buildPyValue(loss).get(),
+						nullptr
+					) };
+					if (!r) throw py::ExcPropagation{};
+				}
+
+				size_t iter = 0;
+				for (; iter < iterations; ++iter)
+				{
+					trainer.updateTokenization();
+					trainer.updateProb();
+					trainer.reduceVocab(reductionRatio);
+					trainer.updateTokenization();
+					loss = trainer.updateProb();
+					size_t curVocabSize = trainer.getCurrentVocabSize();
+
+					for (auto ci : callbackItems)
+					{
+						py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[4].get(),
+							py::buildPyValue(tn).get(),
+							py::buildPyValue(iter + 1).get(),
+							py::buildPyValue(curVocabSize).get(),
+							py::buildPyValue(loss).get(),
+							nullptr
+						) };
+						if (!r) throw py::ExcPropagation{};
+					}
+
+					if (curVocabSize <= vocabSizes[tn] || (curVocabSize == lastVocabSize && loss == lastLoss))
+					{
+						++iter;
+						break;
+					}
+					lastVocabSize = curVocabSize;
+					lastLoss = loss;
+				}
+
+				for (auto ci : callbackItems)
+				{
+					py::UniqueObj r{ PyObject_CallMethodObjArgs(ci, methodNames[5].get(),
+						py::buildPyValue(tn).get(),
+						py::buildPyValue(iter).get(),
+						py::buildPyValue(trainer.getCurrentVocabSize()).get(),
+						py::buildPyValue(loss).get(),
+						nullptr
+					) };
+					if (!r) throw py::ExcPropagation{};
+				}
+
+				auto tokenizer = trainer.build();
+				{
+					ofstream ofs;
+					tokenizer.save(openFile(ofs, savePathes[tn]));
+				}
+			}
+			
+			Py_INCREF(Py_None);
+			return Py_None;
+		});
+	}
+};
+
+py::TypeWrapper<SwTokenizerObject> _SwTokenizerSetter{ [](PyTypeObject& obj)
+{
+	static PyMethodDef methods[] =
+	{
+		{ "encode", PY_METHOD_MEMFN(&SwTokenizerObject::encode), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "encode_from_morphs", PY_METHOD_MEMFN(&SwTokenizerObject::encodeFromMorphs), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "tokenize_encode", PY_METHOD_MEMFN(&SwTokenizerObject::tokenizeAndEncode), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "decode", PY_METHOD_MEMFN(&SwTokenizerObject::decode), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "_train", (PyCFunction)&SwTokenizerObject::train, METH_VARARGS | METH_KEYWORDS | METH_STATIC, ""},
+		{ "save", PY_METHOD_MEMFN(&SwTokenizerObject::save), METH_VARARGS | METH_KEYWORDS, ""},
+		{ nullptr }
+	};
+
+	static PyGetSetDef getsets[] =
+	{
+		{ (char*)"_config", PY_GETTER_MEMFN(&SwTokenizerObject::config), nullptr, "", nullptr},
+		{ (char*)"_vocab", PY_GETTER_MEMFN(&SwTokenizerObject::vocab), nullptr, "", nullptr},
+		{ (char*)"_kiwi", PY_GETTER_MEMFN(&SwTokenizerObject::_kiwi), nullptr, "", nullptr},
+		{ nullptr },
+	};
+
+	static PySequenceMethods seq = {
+		(lenfunc)SwTokenizerObject::len,
+		nullptr,
+		nullptr,
+		nullptr,
+	};
+
+	obj.tp_methods = methods;
+	obj.tp_getset = getsets;
+	obj.tp_as_sequence = &seq;
+} };
+
 struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
 {
 	static constexpr const char* _name = "kiwipiepy._ResIter";
@@ -872,6 +1257,244 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
 py::TypeWrapper<KiwiResIter> _ResIterSetter{ [](PyTypeObject&)
 {
 } };
+
+using EncodeResult = pair<vector<uint32_t>, vector<pair<uint32_t, uint32_t>>>;
+
+struct SwTokenizerResIter : public py::ResultIter<SwTokenizerResIter, EncodeResult>
+{
+	static constexpr const char* _name = "kiwipiepy._SwTokenizerResIter";
+	static constexpr const char* _name_in_module = "_SwTokenizerResIter";
+
+	py::UniqueCObj<SwTokenizerObject> tokenizer;
+	bool returnOffsets = false;
+
+	~SwTokenizerResIter()
+	{
+		waitQueue();
+	}
+
+	py::UniqueObj buildPy(EncodeResult&& v)
+	{
+		if (returnOffsets) return py::buildPyTuple(v.first, v.second);
+		return py::buildPyValue(v.first);
+	}
+
+	future<EncodeResult> feedNext(py::SharedObj&& next)
+	{
+		if (!PyUnicode_Check(next)) throw py::ValueError{ "`encode` requires an instance of `str` or an iterable of `str`." };
+		return tokenizer->tokenizer.asyncEncodeOffset(py::toCpp<string>(next), true);
+	}
+};
+
+py::TypeWrapper<SwTokenizerResIter> _SwTokenizerResIterSetter{ [](PyTypeObject&)
+{
+} };
+
+inline void chrOffsetsToTokenOffsets(const vector<TokenInfo>& tokens, vector<pair<uint32_t, uint32_t>>& offsets)
+{
+	pair<uint32_t, uint32_t> prev = { 0, 0 };
+	for (auto& p : offsets)
+	{
+		size_t start = upper_bound(tokens.begin(), tokens.end(), p.first, [](uint32_t v, const TokenInfo& t)
+		{
+			return v < t.position;
+		}) - tokens.begin() - 1;
+
+		size_t end = lower_bound(tokens.begin(), tokens.end(), p.second, [](const TokenInfo& t, uint32_t v)
+		{
+			return t.position + t.length < v;
+		}) - tokens.begin() + 1;
+
+		if (start == end)
+		{
+			if (start > prev.second) start = prev.second;
+			else end += 1;
+		}
+
+		p.first = start;
+		p.second = end;
+		prev = p;
+	}
+}
+
+using TokenEncodeResult = tuple<vector<TokenResult>, vector<uint32_t>, vector<pair<uint32_t, uint32_t>>>;
+
+struct SwTokenizerResTEIter : public py::ResultIter<SwTokenizerResTEIter, TokenEncodeResult>
+{
+	static constexpr const char* _name = "kiwipiepy._SwTokenizerResTEIter";
+	static constexpr const char* _name_in_module = "_SwTokenizerResTEIter";
+
+	py::UniqueCObj<SwTokenizerObject> tokenizer;
+	bool returnOffsets = false;
+
+	~SwTokenizerResTEIter()
+	{
+		waitQueue();
+	}
+
+	py::UniqueObj buildPy(TokenEncodeResult&& v)
+	{
+		if (returnOffsets) return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi->kiwi), get<1>(v), get<2>(v));
+		return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi->kiwi), get<1>(v));
+	}
+
+	future<TokenEncodeResult> feedNext(py::SharedObj&& next)
+	{
+		if (!PyUnicode_Check(next)) throw py::ValueError{ "`tokenize_encode` requires an instance of `str` or an iterable of `str`." };
+		return tokenizer->kiwi->kiwi.getThreadPool()->enqueue([&](size_t, const string& text)
+		{
+			vector<pair<uint32_t, uint32_t>> offsets;
+			auto res = tokenizer->kiwi->kiwi.analyze(text, 1, Match::allWithNormalizing | Match::zCoda);
+			auto tokenIds = tokenizer->tokenizer.encode(res[0].first.data(), res[0].first.size(), returnOffsets ? &offsets : nullptr);
+			if (returnOffsets) chrOffsetsToTokenOffsets(res[0].first, offsets);
+			return make_tuple(move(res), move(tokenIds), move(offsets));
+		}, py::toCpp<string>(next));
+	}
+};
+
+py::TypeWrapper<SwTokenizerResTEIter> _SwTokenizerResTEIterSetter{ [](PyTypeObject&)
+{
+} };
+
+PyObject* SwTokenizerObject::encode(PyObject* args, PyObject* kwargs)
+{
+	return py::handleExc([&]() -> PyObject*
+	{
+		PyObject* text;
+		int returnOffsets = 0;
+		static const char* kwlist[] = { "text", "return_offsets", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|p", (char**)kwlist, &text, &returnOffsets)) return nullptr;
+
+		if (PyUnicode_Check(text))
+		{
+			vector<pair<uint32_t, uint32_t>> offsets;
+			auto tokenIds = tokenizer.encode(py::toCpp<string>(text), returnOffsets ? &offsets : nullptr, true);
+			if (returnOffsets)
+			{
+				return py::buildPyTuple(tokenIds, offsets).release();
+			}
+			else
+			{
+				return py::buildPyValue(tokenIds).release();
+			}
+		}
+
+		py::UniqueObj iter{ PyObject_GetIter(text) };
+		if (!iter) throw py::ValueError{ "`encode` requires a `str` or an iterable of `str` parameters." };
+		py::UniqueCObj<SwTokenizerResIter> ret{ (SwTokenizerResIter*)PyObject_CallObject((PyObject*)py::Type<SwTokenizerResIter>, nullptr) };
+		if (!ret) throw py::ExcPropagation{};
+		ret->tokenizer = py::UniqueCObj<SwTokenizerObject>{ this };
+		Py_INCREF(this);
+		ret->inputIter = move(iter);
+		ret->returnOffsets = !!returnOffsets;
+		
+		for (size_t i = 0; i < kiwi->kiwi.getNumThreads() * 16; ++i)
+		{
+			if (!ret->feed()) break;
+		}
+		return (PyObject*)ret.release();
+	});
+}
+
+PyObject* SwTokenizerObject::encodeFromMorphs(PyObject* args, PyObject* kwargs)
+{
+	return py::handleExc([&]() -> PyObject*
+	{
+		PyObject* morphs;
+		int returnOffsets = 0;
+		static const char* kwlist[] = { "morphs", "return_offsets", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|p", (char**)kwlist, &morphs, &returnOffsets)) return nullptr;
+
+		py::UniqueObj iter{ PyObject_GetIter(morphs) };
+		if (!iter) throw py::ValueError{ "`encodeFromMorphs` requires an iterable of `Tuple[str, str, bool]` parameters." };
+		vector<tuple<u16string, POSTag, bool>> tokens;
+		py::foreachVisit<variant<
+			tuple<string, string, bool>,
+			tuple<string, string>
+		>>(iter.get(), [&](auto&& item)
+		{
+			using T = std::decay_t<decltype(item)>;
+			if constexpr (is_same_v<T, tuple<string, string, bool>>)
+			{
+				auto form = utf8To16(get<0>(item));
+				auto pos = parseTag(get<1>(item).c_str());
+				auto spaceness = get<2>(item);
+				tokens.emplace_back(form, pos, spaceness);
+			}
+			else if constexpr (is_same_v<T, tuple<string, string>>)
+			{
+				auto form = utf8To16(get<0>(item));
+				auto pos = parseTag(get<1>(item).c_str());
+				auto spaceness = false;
+				tokens.emplace_back(form, pos, spaceness);
+			}
+		}, "`encodeFromMorphs` requires an iterable of `Tuple[str, str, bool]` parameters.");
+		vector<pair<uint32_t, uint32_t>> offsets;
+		auto tokenIds = tokenizer.encode(tokens, returnOffsets ? &offsets : nullptr);
+		if (returnOffsets)
+		{
+			return py::buildPyTuple(tokenIds, offsets).release();
+		}
+		else
+		{
+			return py::buildPyValue(tokenIds).release();
+		}
+	});
+}
+
+PyObject* SwTokenizerObject::tokenizeAndEncode(PyObject* args, PyObject* kwargs)
+{
+	return py::handleExc([&]() -> PyObject*
+	{
+		PyObject* text;
+		int returnOffsets = 0;
+		static const char* kwlist[] = { "text", "return_offsets", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|p", (char**)kwlist, &text, &returnOffsets)) return nullptr;
+
+		if (PyUnicode_Check(text))
+		{
+			vector<pair<uint32_t, uint32_t>> offsets;
+			auto res = tokenizer.getKiwi()->analyze(py::toCpp<string>(text), 1, Match::allWithNormalizing | Match::zCoda);
+			auto tokenIds = tokenizer.encode(res[0].first.data(), res[0].first.size(), returnOffsets ? &offsets : nullptr);
+			if (returnOffsets)
+			{
+				chrOffsetsToTokenOffsets(res[0].first, offsets);
+				return py::buildPyTuple(resToPyList(move(res), *tokenizer.getKiwi()), tokenIds, offsets).release();
+			}
+			else
+			{
+				return py::buildPyTuple(resToPyList(move(res), *tokenizer.getKiwi()), tokenIds).release();
+			}
+		}
+
+		py::UniqueObj iter{ PyObject_GetIter(text) };
+		if (!iter) throw py::ValueError{ "`tokenize_encode` requires a `str` or an iterable of `str` parameters." };
+		py::UniqueCObj<SwTokenizerResTEIter> ret{ (SwTokenizerResTEIter*)PyObject_CallObject((PyObject*)py::Type<SwTokenizerResTEIter>, nullptr) };
+		if (!ret) throw py::ExcPropagation{};
+		ret->tokenizer = py::UniqueCObj<SwTokenizerObject>{ this };
+		Py_INCREF(this);
+		ret->inputIter = move(iter);
+		ret->returnOffsets = !!returnOffsets;
+
+		for (size_t i = 0; i < kiwi->kiwi.getNumThreads() * 16; ++i)
+		{
+			if (!ret->feed()) break;
+		}
+		return (PyObject*)ret.release();
+	});
+}
+PyObject* SwTokenizerObject::decode(PyObject* args, PyObject* kwargs)
+{
+	return py::handleExc([&]() -> PyObject*
+	{
+		PyObject* ids;
+		int ignoreErrors = 1;
+		static const char* kwlist[] = { "ids", "ignore_errors", nullptr};
+		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|p", (char**)kwlist, &ids, &ignoreErrors)) return nullptr;
+
+		return py::buildPyValue(tokenizer.decode(py::toCpp<vector<uint32_t>>(ids), !!ignoreErrors)).release();
+	});
+}
 
 PyObject* KiwiObject::addUserWord(PyObject* args, PyObject *kwargs)
 {	
@@ -1026,7 +1649,7 @@ PyObject* KiwiObject::extractWords(PyObject* args, PyObject *kwargs)
 		PyObject* sentences;
 		size_t minCnt = 10, maxWordLen = 10;
 		float minScore = 0.25f, posScore = -3;
-		size_t lmFilter = 1;
+		int lmFilter = 1;
 		static const char* kwlist[] = { "texts", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnffp", (char**)kwlist, &sentences, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
 
@@ -1051,7 +1674,7 @@ PyObject* KiwiObject::extractAddWords(PyObject* args, PyObject *kwargs)
 		PyObject* sentences;
 		size_t minCnt = 10, maxWordLen = 10;
 		float minScore = 0.25f, posScore = -3;
-		size_t lmFilter = 1;
+		int lmFilter = 1;
 		static const char* kwlist[] = { "texts", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnffp", (char**)kwlist, &sentences, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
 
@@ -1074,7 +1697,8 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 {
 	return py::handleExc([&]() -> PyObject*
 	{
-		size_t topN = 1, matchOptions = (size_t)Match::all, echo = 0;
+		size_t topN = 1, matchOptions = (size_t)Match::all;
+		int echo = 0;
 		PyObject* text, *blockList = Py_None;
 		static const char* kwlist[] = { "text", "top_n", "match_options", "echo", "blocklist", nullptr};
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnpO", (char**)kwlist, &text, &topN, &matchOptions, &echo, &blockList)) return nullptr;
@@ -1105,7 +1729,7 @@ PyObject* KiwiObject::analyze(PyObject* args, PyObject *kwargs)
 				ret->blocklist = py::UniqueCObj<MorphemeSetObject>{ (MorphemeSetObject*)blockList };
 				Py_INCREF(blockList);
 			}
-			for (int i = 0; i < kiwi.getNumThreads() * 16; ++i)
+			for (size_t i = 0; i < kiwi.getNumThreads() * 16; ++i)
 			{
 				if (!ret->feed()) break;
 			}
@@ -1122,7 +1746,7 @@ PyObject* KiwiObject::perform(PyObject* args, PyObject *kwargs)
 		PyObject* sentences;
 		size_t minCnt = 10, maxWordLen = 10;
 		float minScore = 0.25f, posScore = -3;
-		size_t lmFilter = 1;
+		int lmFilter = 1;
 		static const char* kwlist[] = { "texts", "top_n", "match_options", "min_cnt", "max_word_len", "min_score", "pos_score", "lm_filter", nullptr };
 		if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|nnnnffp", (char**)kwlist,
 			&sentences, &topN, &matchOptions, &minCnt, &maxWordLen, &minScore, &posScore, &lmFilter)) return nullptr;
@@ -1163,7 +1787,7 @@ PyObject* KiwiObject::getMorpheme(PyObject* args, PyObject* kwargs)
 PyObject* KiwiObject::join(PyObject* args, PyObject* kwargs)
 {
 	PyObject* morphs;
-	size_t lm_search = 1;
+	int lm_search = 1;
 	static const char* kwlist[] = { "morphs", "lm_search", nullptr};
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|p", (char**)kwlist, &morphs, &lm_search)) return nullptr;
 	return py::handleExc([&]()

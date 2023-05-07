@@ -1,9 +1,10 @@
 """
 .. include:: ./documentation.md
 """
-from _kiwipiepy import Token
+from kiwipiepy._c_api import Token
 from kiwipiepy._version import __version__
 from kiwipiepy._wrap import Kiwi, Sentence, TypoTransformer, TypoDefinition, HSDataset, MorphemeSet
+import kiwipiepy.sw_tokenizer as sw_tokenizer
 import kiwipiepy.utils as utils
 from kiwipiepy.const import Match, Option
 

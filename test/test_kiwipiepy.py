@@ -1,6 +1,8 @@
 import os
+import sys
+import re
 
-from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet
+from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer
 from kiwipiepy.utils import Stopwords
 
 curpath = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +35,174 @@ def test_blocklist():
     
     tokens = kiwi.tokenize("고마움을", blocklist=['고마움'])
     assert tokens[0].form == "고맙"
+
+def test_swtokenizer():
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    print(tokenizer.vocab)
+    print(tokenizer.config)
+    strs = [
+        "",
+        "한국어에 특화된 토크나이저입니다.", 
+        "감사히 먹겠습니당!",
+        "노래진 손톱을 봤던걸요.",
+        "제임스웹우주천체망원경",
+        "그만해여~",
+    ]
+    for s in strs:
+        token_ids = tokenizer.encode(s)
+        token_ids, offset = tokenizer.encode(s, return_offsets=True)
+        decoded = tokenizer.decode(token_ids)
+        assert s == decoded
+
+def test_swtokenizer_batch():
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    strs = [
+        "",
+        "한국어에 특화된 토크나이저입니다.", 
+        "감사히 먹겠습니당!",
+        "노래진 손톱을 봤던걸요.",
+        "제임스웹우주천체망원경",
+        "그만해여~",
+    ]
+    for token_ids, s in zip(tokenizer.encode(strs), strs):
+        decoded = tokenizer.decode(token_ids)
+        assert s == decoded
+
+def test_swtokenizer_morph():
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    
+    token_ids = tokenizer.encode("한국어에 특화된 토크나이저입니다.")
+
+    morphs = [
+        ('한국어', 'NNP', False), 
+        ('에', 'JKB',), 
+        ('특화', 'NNG', True), 
+        ('되', 'XSV',), 
+        ('ᆫ', 'ETM', False), 
+        ('토크나이저', 'NNG', True), 
+        ('이', 'VCP', False), 
+        ('ᆸ니다', 'EF',), 
+        ('.', 'SF', False),
+    ]
+
+    token_ids_from_morphs = tokenizer.encode_from_morphs(morphs)
+
+    assert (token_ids == token_ids_from_morphs).all()
+
+    token_ids_from_morphs, offsets = tokenizer.encode_from_morphs(morphs, return_offsets=True)
+
+    assert offsets.tolist() == [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [5, 6], [5, 6], [6, 7], [7, 8], [8, 9]]
+
+def test_swtokenizer_tokenize_encode():
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    sents = [
+        "한국어에 특화된 토크나이저입니다.",
+        "홈페이지는 https://bab2min.github.io/kiwipiepy 입니다."
+    ]
+    
+    for sent in sents:
+        ref_token_ids = tokenizer.encode(sent)
+        ref_morphs = tokenizer.kiwi.tokenize(sent, normalize_coda=True, z_coda=True)
+        morphs, token_ids, offset = tokenizer.tokenize_encode(sent, return_offsets=True)
+        assert [m.tagged_form for m in morphs] == [m.tagged_form for m in ref_morphs]
+        assert token_ids.tolist() == ref_token_ids.tolist()
+
+    for (morphs, token_ids, offset), sent in zip(tokenizer.tokenize_encode(sents, return_offsets=True), sents):
+        ref_token_ids = tokenizer.encode(sent)
+        ref_morphs = tokenizer.kiwi.tokenize(sent, normalize_coda=True, z_coda=True)
+        assert [m.tagged_form for m in morphs] == [m.tagged_form for m in ref_morphs]
+        assert token_ids.tolist() == ref_token_ids.tolist()
+
+def test_swtokenizer_morph_offset():
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json')
+    morphs = [
+        ('칼슘', 'NNG', True), 
+        ('·', 'SP', False), 
+        ('마그네슘', 'NNG', False), 
+        ('등', 'NNB', True), 
+        ('이', 'JKS', False), 
+        ('많이', 'MAG', True), 
+        ('함유', 'NNG', True), 
+        ('되', 'XSV', False), 
+        ('어', 'EC', False), 
+        ('있', 'VX', True), 
+        ('어', 'EC', False)
+    ]
+    token_ids, offsets = tokenizer.encode_from_morphs(morphs, return_offsets=True)
+    assert len(token_ids) == len(offsets)
+    assert offsets[2:7].tolist() == [[2, 3], [2, 3], [2, 3], [2, 3], [2, 3]]
+
+def test_swtokenizer_trainer_empty():
+    config = sw_tokenizer.SwTokenizerConfig()
+    sw_tokenizer.SwTokenizer.train(
+        'test.json', 
+        [], 
+        config,
+        4000,
+    )
+
+def test_swtokenizer_trainer_small():
+    config = sw_tokenizer.SwTokenizerConfig()
+    sw_tokenizer.SwTokenizer.train(
+        'test.json', 
+        ["이런 저런 문장", "이렇게 저렇게 처리해서", "이렇고 저렇고", "이런 저런 결과를", "얻었다"], 
+        config,
+        4000,
+    )
+
+def test_swtokenizer_trainer_digits():
+    kiwi = Kiwi(num_workers=1)
+    config = sw_tokenizer.SwTokenizerConfig()
+
+    tokenizer = sw_tokenizer.SwTokenizer.train(
+        'test.json', 
+        [f"드디어 제{i}회 평가" for i in range(1, 1000)], 
+        config,
+        4000,
+        kiwi=kiwi,
+        prevent_mixed_digit_tokens=False,
+    )
+    mixed_digit = [k for k in tokenizer.vocab if re.search(r'제[0-9]|[0-9]회', k)]
+    assert len(mixed_digit) > 0
+
+    tokenizer = sw_tokenizer.SwTokenizer.train(
+        'test.json', 
+        [f"드디어 제{i}회 평가" for i in range(1, 1000)], 
+        config,
+        4000,
+        kiwi=kiwi,
+        prevent_mixed_digit_tokens=True,
+    )
+    mixed_digit = [k for k in tokenizer.vocab if re.search(r'제[0-9]|[0-9]회', k)]
+    assert len(mixed_digit) == 0
+
+def test_swtokenizer_trainer():
+    import itertools
+
+    config = sw_tokenizer.SwTokenizerConfig()
+    sw_tokenizer.SwTokenizer.train(
+        'test.json', 
+        itertools.chain.from_iterable(open(f, encoding='utf-8') for f in (
+            'kiwipiepy/documentation.md', 
+            'kiwipiepy/_wrap.py', 
+        )), 
+        config,
+        4000,
+    )
+
+def test_swtokenizer_trainer_multiple_vocab_sizes():
+    import itertools
+
+    config = sw_tokenizer.SwTokenizerConfig()
+    sw_tokenizer.SwTokenizer.train(
+        ['test.json', 'test2.json', 'test3.json'], 
+        itertools.chain.from_iterable(open(f, encoding='utf-8') for f in (
+            'kiwipiepy/documentation.md', 
+            'kiwipiepy/_wrap.py', 
+        )), 
+        config,
+        [4000, 2000, 1000],
+    )
 
 def test_analyze_single():
     kiwi = Kiwi()
@@ -241,6 +411,9 @@ def test_typo_transformer():
     print(basic_typos.generate("안돼"))
 
 def test_typo_correction():
+    if sys.maxsize <= 2**32:
+        print("[skipped this test in 32bit OS.]", file=sys.stderr)
+        return
     kiwi = Kiwi(typos='basic')
     ret = kiwi.tokenize("외않됀대?")
     assert ret[0].form == '왜'
@@ -256,6 +429,9 @@ def test_sbg():
     print(kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.'))
 
 def test_issue_92():
+    if sys.maxsize <= 2**32:
+        print("[skipped this test in 32bit OS.]", file=sys.stderr)
+        return
     kiwi = Kiwi(typos='basic')
     try:
         kiwi.join(kiwi.analyze('쁘'))

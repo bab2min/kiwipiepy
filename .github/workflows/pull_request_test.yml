@@ -49,10 +49,19 @@ jobs:
       with:
         name: Linux Binary ${{ matrix.cp }}
         path: build.tgz
-    - name: Test
+    - name: Test kiwipiepy
       run: |
         /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
-        /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test.py
+        /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_kiwipiepy.py
+    - name: Test transformers_addon
+      run: |
+        for v in {12..28}
+        do
+          echo "Test with transformers 4.$v ..."
+          if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
+            /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
+          fi
+        done
 
   build_manylinux2014:
     name: Build for manylinux2014
@@ -97,52 +106,19 @@ jobs:
       with:
         name: Linux Binary ${{ matrix.cp }}
         path: build.tgz
-    - name: Test
+    - name: Test kiwipiepy
       run: |
         /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
-        /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test.py
-
-  build_macos_10_15:
-    name: Build for macOS 10.15
-    runs-on: macOS-10.15
-    strategy:
-      max-parallel: 4
-      matrix:
-        python-version: [3.6, 3.7]
-
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-        lfs: true
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Build
+        /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_kiwipiepy.py
+    - name: Test transformers_addon
       run: |
-        mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
-        
-        python -m pip install numpy==`python .github/workflows/numpy_version.py`
-
-        cd model
-        python setup.py build install
-        cd ..
-        MACOSX_DEPLOYMENT_TARGET=10.14 USE_MIMALLOC=1 python setup.py build install
-    - name: Archive binary
-      uses: actions/upload-artifact@v2
-      with:
-        name: macOS Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
-        path: |
-          build/*
-    - name: Test
-      run: |
-        python -m pip install pytest
-        python -m pytest -s --verbose test.py
+        for v in {12..28}
+        do
+          echo "Test with transformers 4.$v ..."
+          if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
+            /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
+          fi
+        done
 
   build_macos_11:
     name: Build for macOS 11
@@ -183,18 +159,18 @@ jobs:
         name: macOS Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
         path: |
           build/*
-    - name: Test
+    - name: Test kiwipiepy
       run: |
         python -m pip install pytest
-        python -m pytest -s --verbose test.py
+        python -m pytest -s --verbose test/test_kiwipiepy.py
 
   build_windows:
     name: Build for Windows
     runs-on: windows-2019
     strategy:
-      max-parallel: 4
+      max-parallel: 5
       matrix:
-        python-version: [3.7, 3.8, 3.9, "3.10", 3.11]
+        python-version: [3.8, 3.9, "3.10", 3.11]
         architecture: [x86, x64]
 
     steps:
@@ -228,16 +204,16 @@ jobs:
         name: Windows Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
         path: |
           build/*
-    - name: Test
+    - name: Test kiwipiepy
       run: |
         python -m pip install pytest
-        python -m pytest --verbose test.py
+        python -m pytest --verbose test/test_kiwipiepy.py
 
   build_other_arch:
     name: Build for manylinux (other arch)
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
-      max-parallel: 4
+      max-parallel: 8
       matrix:
         cp: [cp37-cp37m, cp38-cp38, cp39-cp39, cp310-cp310, cp311-cp311]
         arch: [aarch64, ppc64le]
@@ -274,7 +250,7 @@ jobs:
           cp -r dist /artifacts/
 
           /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
-          /opt/python/${{ matrix.cp }}/bin/python -m pytest -s --verbose test.py
+          /opt/python/${{ matrix.cp }}/bin/python -m pytest -s --verbose test/test_kiwipiepy.py
 
     - name: Archive binary
       uses: actions/upload-artifact@v2

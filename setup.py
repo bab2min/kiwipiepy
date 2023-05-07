@@ -229,6 +229,7 @@ setup(
         'dataclasses',
         'kiwipiepy_model~=0.15',
         'numpy',
+        'tqdm',
     ],
     packages=['kiwipiepy'],
     include_package_data=True,
