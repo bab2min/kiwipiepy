@@ -5,6 +5,7 @@ on:
     tags:
       - 'v*.*.*'
       - '!v*.*.*d'
+  workflow_dispatch
 
 jobs:
   build_manylinux:
