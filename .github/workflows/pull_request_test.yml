@@ -120,55 +120,13 @@ jobs:
           fi
         done
 
-  build_macos_10_15:
-    name: Build for macOS 10.15
-    runs-on: macOS-10.15
-    strategy:
-      max-parallel: 4
-      matrix:
-        python-version: [3.6, 3.7]
-
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-        lfs: true
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Build
-      run: |
-        mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
-        
-        python -m pip install numpy==`python .github/workflows/numpy_version.py`
-
-        cd model
-        python setup.py build install
-        cd ..
-        MACOSX_DEPLOYMENT_TARGET=10.14 USE_MIMALLOC=1 python setup.py build install
-    - name: Archive binary
-      uses: actions/upload-artifact@v2
-      with:
-        name: macOS Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
-        path: |
-          build/*
-    - name: Test kiwipiepy
-      run: |
-        python -m pip install pytest
-        python -m pytest -s --verbose test/test_kiwipiepy.py
-
   build_macos_11:
     name: Build for macOS 11
     runs-on: macOS-11
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.8, 3.9, "3.10", 3.11]
+        python-version: [3.7, 3.8, 3.9, "3.10", 3.11]
 
     steps:
     - uses: actions/checkout@v2
