@@ -113,6 +113,14 @@ def test_swtokenizer_tokenize_encode():
         assert [m.tagged_form for m in morphs] == [m.tagged_form for m in ref_morphs]
         assert token_ids.tolist() == ref_token_ids.tolist()
 
+def test_swtokenizer_offset():
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json')
+    for sent in [
+        '🔴🟠🟡🟢🔵🟣🟤⚫⚪\n'
+    ]:
+        token_ids, offsets = tokenizer.encode(sent, return_offsets=True)
+        assert len(token_ids) == len(offsets)
+
 def test_swtokenizer_morph_offset():
     tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json')
     morphs = [
