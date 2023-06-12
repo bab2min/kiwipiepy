@@ -16,7 +16,7 @@
 using namespace std;
 using namespace kiwi;
 
-static PyObject* gModule;
+static py::Module gModule{ "_kiwipiepy", "Kiwi API for Python" };
 
 struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 {
@@ -89,7 +89,7 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 	}
 };
 
-py::TypeWrapper<TypoTransformerObject> _TypoTransformerSetter{ [](PyTypeObject& obj)
+py::TypeWrapper<TypoTransformerObject> _TypoTransformerSetter{ gModule, [](PyTypeObject& obj)
 {
 	static PyMethodDef methods[] =
 	{
@@ -202,7 +202,7 @@ struct HSDatasetObject : py::CObject<HSDatasetObject>
 	}
 };
 
-py::TypeWrapper<HSDatasetObject> _HSDatasetSetter{ [](PyTypeObject& obj)
+py::TypeWrapper<HSDatasetObject> _HSDatasetSetter{ gModule, [](PyTypeObject& obj)
 {
 	static PyMethodDef methods[] =
 	{
@@ -296,7 +296,7 @@ struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
 	}
 };
 
-py::TypeWrapper<HSDatasetIterObject> _HSDatasetIterSetter{ [](PyTypeObject& obj)
+py::TypeWrapper<HSDatasetIterObject> _HSDatasetIterSetter{ gModule, [](PyTypeObject& obj)
 {
 } };
 
@@ -493,7 +493,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 	}
 };
 
-py::TypeWrapper<KiwiObject> _KiwiSetter{ [](PyTypeObject& obj)
+py::TypeWrapper<KiwiObject> _KiwiSetter{ gModule, [](PyTypeObject& obj)
 {
 	static PyMethodDef methods[] =
 	{
@@ -621,7 +621,7 @@ struct TokenObject : py::CObject<TokenObject>
 	}
 };
 
-py::TypeWrapper<TokenObject> _TokenSetter{ [](PyTypeObject& obj)
+py::TypeWrapper<TokenObject> _TokenSetter{ gModule, [](PyTypeObject& obj)
 {
 	static PyGetSetDef getsets[] =
 	{
@@ -819,7 +819,7 @@ struct MorphemeSetObject : py::CObject<MorphemeSetObject>
 	}
 };
 
-py::TypeWrapper<MorphemeSetObject> _MorphemeSetSetter{ [](PyTypeObject& obj)
+py::TypeWrapper<MorphemeSetObject> _MorphemeSetSetter{ gModule, [](PyTypeObject& obj)
 {
 	static PyMethodDef methods[] =
 	{
@@ -1190,7 +1190,7 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 	}
 };
 
-py::TypeWrapper<SwTokenizerObject> _SwTokenizerSetter{ [](PyTypeObject& obj)
+py::TypeWrapper<SwTokenizerObject> _SwTokenizerSetter{ gModule, [](PyTypeObject& obj)
 {
 	static PyMethodDef methods[] =
 	{
@@ -1254,7 +1254,7 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
 	}
 };
 
-py::TypeWrapper<KiwiResIter> _ResIterSetter{ [](PyTypeObject&)
+py::TypeWrapper<KiwiResIter> _ResIterSetter{ gModule, [](PyTypeObject&)
 {
 } };
 
@@ -1286,7 +1286,7 @@ struct SwTokenizerResIter : public py::ResultIter<SwTokenizerResIter, EncodeResu
 	}
 };
 
-py::TypeWrapper<SwTokenizerResIter> _SwTokenizerResIterSetter{ [](PyTypeObject&)
+py::TypeWrapper<SwTokenizerResIter> _SwTokenizerResIterSetter{ gModule, [](PyTypeObject&)
 {
 } };
 
@@ -1352,7 +1352,7 @@ struct SwTokenizerResTEIter : public py::ResultIter<SwTokenizerResTEIter, TokenE
 	}
 };
 
-py::TypeWrapper<SwTokenizerResTEIter> _SwTokenizerResTEIterSetter{ [](PyTypeObject&)
+py::TypeWrapper<SwTokenizerResTEIter> _SwTokenizerResTEIterSetter{ gModule, [](PyTypeObject&)
 {
 } };
 
@@ -1868,24 +1868,8 @@ PyObject* KiwiObject::makeHSDataset(PyObject* args, PyObject* kwargs)
 	});
 }
 
-PyObject* moduleInit()
-{
-	static PyModuleDef mod =
-	{
-		PyModuleDef_HEAD_INIT,
-		"_kiwipiepy",
-		"Kiwi API for Python",
-		-1,
-		nullptr
-	};
-
-	gModule = PyModule_Create(&mod);
-	py::TypeManager::addToModule(gModule);
-	return gModule;
-}
-
 PyMODINIT_FUNC PyInit__kiwipiepy()
 {
 	import_array();
-	return moduleInit();
+	return gModule.init();
 }

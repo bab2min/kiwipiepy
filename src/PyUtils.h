@@ -1624,26 +1624,48 @@ namespace py
 		}
 	};
 
-	class TypeManager
+	class Module
 	{
-	private:
 		std::map<const char*, PyTypeObject*> types;
-		TypeManager() {}
+		PyModuleDef def;
+		PyObject* mod = nullptr;
+
 	public:
-		static TypeManager& getInst()
+		Module(const char* name, const char* doc)
 		{
-			static TypeManager inst;
-			return inst;
+			def.m_base = PyModuleDef_HEAD_INIT;
+			def.m_name = name;
+			def.m_doc = doc;
+			def.m_size = -1;
+			def.m_methods = nullptr;
+			def.m_slots = nullptr;
+			def.m_traverse = nullptr;
+			def.m_clear = nullptr;
+			def.m_free = nullptr;
 		}
 
-		static void registerType(PyTypeObject* type, const char* name)
+		template<class Fn>
+		Module(const char* name, const char* doc, Fn&& fn)
+			: Module{ name, doc }
 		{
-			getInst().types[name] = type;
+			fn(def);
 		}
 
-		static void addToModule(PyObject* mod)
+		PyObject* init()
 		{
-			for (auto& p : getInst().types)
+			mod = PyModule_Create(&def);
+			addToModule();
+			return mod;
+		}
+
+		void registerType(PyTypeObject* type, const char* name)
+		{
+			types[name] = type;
+		}
+
+		void addToModule()
+		{
+			for (auto& p : types)
 			{
 				if (PyType_Ready(p.second) < 0) throw ExcPropagation{};
 				Py_INCREF(p.second);
@@ -1659,7 +1681,7 @@ namespace py
 		static PyTypeObject obj;
 
 		template<class Fn>
-		TypeWrapper(Fn&& fn)
+		TypeWrapper(Module& tm, Fn&& fn)
 		{
 			obj.tp_basicsize = sizeof(Ty);
 			obj.tp_dealloc = (destructor)Ty::dealloc;
@@ -1673,7 +1695,7 @@ namespace py
 			if ((void*)&CObject<Ty>::iternext != (void*)Ty::iternext) obj.tp_iternext = (iternextfunc)Ty::iternext;
 			if ((void*)&CObject<Ty>::repr != (void*)Ty::repr) obj.tp_repr = (reprfunc)Ty::repr;
 			fn(obj);
-			TypeManager::registerType(&obj, Ty::_name_in_module);
+			tm.registerType(&obj, Ty::_name_in_module);
 		}
 
 		static constexpr PyObject* getTypeObj() { return (PyObject*)&obj; }
