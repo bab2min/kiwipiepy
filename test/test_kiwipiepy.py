@@ -14,10 +14,6 @@ class FileReader:
     def __iter__(self):
         yield from open(self.path, encoding='utf-8')
 
-def test_glue_empty():
-    kiwi = Kiwi()
-    kiwi.glue([])
-
 def test_repr():
     kiwi = Kiwi()
     print(repr(kiwi))
@@ -393,6 +389,10 @@ Multilingual을 활용하여 실험한 결과 F1 스코어 46.0%의 성능을 �
     kiwi = Kiwi()
     ret, space_insertions = kiwi.glue(chunks, return_space_insertions=True)
     assert space_insertions == [False, False, True, False, True, True, True]
+
+def test_glue_empty():
+    kiwi = Kiwi()
+    kiwi.glue([])
 
 def test_join():
     kiwi = Kiwi()
