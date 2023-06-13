@@ -1,4 +1,4 @@
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 
 class Token:
     '''
@@ -83,6 +83,13 @@ class Token:
         '''.. versionadded:: 0.11.1
 
 form과 tag를 `형태/품사태그`꼴로 합쳐서 반환합니다.'''
+        ...
+
+    @property
+    def form_tag(self) -> Tuple[str, str]:
+        '''.. versionadded:: 0.15.2
+
+(form, tag)를 반환합니다.'''
         ...
 
     @property

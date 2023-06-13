@@ -1,4 +1,4 @@
-#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
+﻿#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
 
 #include <stdexcept>
 #include <fstream>
@@ -564,6 +564,11 @@ struct TokenObject : py::CObject<TokenObject>
 		ret.insert(ret.end(), _tag, _tag + strlen(_tag));
 	 	return ret;
 	}
+	
+	py::UniqueObj formTag() const
+	{
+		return py::buildPyTuple(_form, _tag);
+	}
 
 	u16string baseForm() const
 	{
@@ -639,6 +644,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ gModule, [](PyTypeObject& obj)
 		{ (char*)"base_form", PY_GETTER_MEMFN(&TokenObject::baseForm), nullptr, "", nullptr},
 		{ (char*)"base_id", PY_GETTER_MEMFN(&TokenObject::baseId), nullptr, "", nullptr},
 		{ (char*)"tagged_form", PY_GETTER_MEMFN(&TokenObject::taggedForm), nullptr, "", nullptr},
+		{ (char*)"form_tag", PY_GETTER_MEMFN(&TokenObject::formTag), nullptr, "", nullptr},
 		{ (char*)"score", PY_GETTER_MEMPTR(&TokenObject::_score), nullptr, "", nullptr},
 		{ (char*)"typo_cost", PY_GETTER_MEMPTR(&TokenObject::_typoCost), nullptr, "", nullptr},
 		{ (char*)"raw_form", PY_GETTER_MEMPTR(&TokenObject::_raw_form), nullptr, "", nullptr},
