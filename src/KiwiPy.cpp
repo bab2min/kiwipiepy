@@ -1,4 +1,4 @@
-﻿#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
+#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
 
 #include <stdexcept>
 #include <fstream>
@@ -535,6 +535,7 @@ struct TokenObject : py::CObject<TokenObject>
 
 	u16string _form, _raw_form;
 	const char* _tag = nullptr;
+	size_t resultHash = 0;
 	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _subSentPosition = 0, _lineNumber = 0;
 	int32_t _pairedToken = -1;
 	float _score = 0, _typoCost = 0;
@@ -658,6 +659,16 @@ py::TypeWrapper<TokenObject> _TokenSetter{ gModule, [](PyTypeObject& obj)
 	obj.tp_as_sequence = &seq;
 } };
 
+inline size_t hashTokenInfo(const vector<TokenInfo>& tokens)
+{
+	size_t ret = 0;
+	for (auto& t : tokens)
+	{
+		ret = (ret << 3) | (ret >> (sizeof(size_t) * 8 - 3)) | hash<u16string>{}(t.str);
+	}
+	return ret;
+}
+
 py::UniqueObj resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 {
 	py::UniqueObj retList{ PyList_New(res.size()) };
@@ -667,6 +678,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 		py::UniqueObj rList{ PyList_New(p.first.size()) };
 		size_t jdx = 0;
 		size_t u32offset = 0;
+		size_t resultHash = hashTokenInfo(p.first);
 		for (auto& q : p.first)
 		{
 			size_t u32chrs = 0;
@@ -678,6 +690,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			auto tItem = py::makeNewObject<TokenObject>();
 			tItem->_form = move(q.str);
 			tItem->_regularity = !isIrregular(q.tag);
+			tItem->resultHash = resultHash;
 			POSTag tag = clearIrregular(q.tag);
 			if (tag == POSTag::vv || tag == POSTag::va || tag == POSTag::vx || tag == POSTag::xsa)
 			{
@@ -1794,19 +1807,29 @@ PyObject* KiwiObject::join(PyObject* args, PyObject* kwargs)
 	{
 		doPrepare();
 		auto joiner = kiwi.newJoiner(!!lm_search);
+		size_t prevHash = 0;
+		size_t prevEnd = 0;
 		py::foreach<PyObject*>(morphs, [&](PyObject* item)
 		{
 			if (PyObject_IsInstance(item, _TokenSetter.getTypeObj()))
 			{
 				auto& token = *((TokenObject*)item);
+				cmb::Space space = cmb::Space::none;
+				if (token.resultHash == prevHash)
+				{
+					space = token._pos <= prevEnd ? cmb::Space::no_space : cmb::Space::insert_space;
+				}
+
 				if (token._morph->kform && !token._morph->kform->empty())
 				{
-					joiner.add(token._morphId);
+					joiner.add(token._morphId, space);
 				}
 				else
 				{
-					joiner.add(token._form, token._morph->tag, false);
+					joiner.add(token._form, token._morph->tag, false, space);
 				}
+				prevHash = token.resultHash;
+				prevEnd = token.end();
 			}
 			else if (PyTuple_Check(item) && PyTuple_Size(item) == 2)
 			{
@@ -1814,6 +1837,18 @@ PyObject* KiwiObject::join(PyObject* args, PyObject* kwargs)
 				const char* tag = py::toCpp<const char*>(PyTuple_GET_ITEM(item, 1));
 				const char* p = strchr(tag, '-');
 				joiner.add(utf8To16(form), parseTag(tag), p ? false : true);
+				prevHash = 0;
+				prevEnd = 0;
+			}
+			else if (PyTuple_Check(item) && PyTuple_Size(item) == 3)
+			{
+				const char* form = py::toCpp<const char*>(PyTuple_GET_ITEM(item, 0));
+				const char* tag = py::toCpp<const char*>(PyTuple_GET_ITEM(item, 1));
+				const char* p = strchr(tag, '-');
+				cmb::Space space = PyObject_IsTrue(PyTuple_GET_ITEM(item, 2)) ? cmb::Space::insert_space : cmb::Space::no_space;
+				joiner.add(utf8To16(form), parseTag(tag), p ? false : true, space);
+				prevHash = 0;
+				prevEnd = 0;
 			}
 			else
 			{
