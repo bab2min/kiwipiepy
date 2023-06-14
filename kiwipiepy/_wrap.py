@@ -1487,10 +1487,10 @@ Notes
 
 Parameters
 ----------
-morphs: Iterable[Union[Token, Tuple[str, str]]]
+morphs: Iterable[Union[Token, Tuple[str, str], Tuple[str, str, bool]]]
     결합할 형태소의 목록입니다. 
     각 형태소는 `Kiwi.tokenize`에서 얻어진 `Token` 타입이거나, 
-    (형태, 품사)로 구성된 `tuple` 타입이어야 합니다.
+    (형태, 품사) 혹은 (형태, 품사, 왼쪽 띄어쓰기 유무)로 구성된 `tuple` 타입이어야 합니다.
 lm_search: bool
     둘 이상의 형태로 복원 가능한 모호한 형태소가 있는 경우, 이 값이 True면 언어 모델 탐색을 통해 최적의 형태소를 선택합니다.
     False일 경우 탐색을 실시하지 않지만 더 빠른 속도로 복원이 가능합니다.
@@ -1536,6 +1536,13 @@ Token(form='결과', tag='NNG', start=4, len=2)
 '묻어요'
 >> kiwi.join([('묻', 'VV-I'), ('어요', 'EF')])
 '물어요'
+
+# 0.15.2버전부터는 Tuple의 세번째 요소로 띄어쓰기 유무를 지정할 수 있습니다. 
+# True일 경우 강제로 띄어쓰기, False일 경우 강제로 붙여쓰기를 수행합니다.
+>> kiwi.join([('길', 'NNG'), ('을', 'JKO', True), ('묻', 'VV'), ('어요', 'EF')])
+'길 을 물어요'
+>> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV', False), ('어요', 'EF')])
+'길을물어요'
 
 # 과거형 선어말어미를 제거하는 예시
 >> remove_past = lambda s: kiwi.join(t for t in kiwi.tokenize(s) if t.tagged_form != '었/EP')

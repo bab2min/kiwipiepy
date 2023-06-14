@@ -14,10 +14,6 @@ class FileReader:
     def __iter__(self):
         yield from open(self.path, encoding='utf-8')
 
-def test_glue_empty():
-    kiwi = Kiwi()
-    kiwi.glue([])
-
 def test_repr():
     kiwi = Kiwi()
     print(repr(kiwi))
@@ -394,6 +390,10 @@ Multilingual을 활용하여 실험한 결과 F1 스코어 46.0%의 성능을 �
     ret, space_insertions = kiwi.glue(chunks, return_space_insertions=True)
     assert space_insertions == [False, False, True, False, True, True, True]
 
+def test_glue_empty():
+    kiwi = Kiwi()
+    kiwi.glue([])
+
 def test_join():
     kiwi = Kiwi()
     tokens = kiwi.tokenize("이렇게 형태소로 분해된 문장을 다시 합칠 수 있을까요?")
@@ -409,6 +409,25 @@ def test_join():
     assert (kiwi.join([("왜", "MAG"), ("저", "NP"), ("한테", "JKB"), ("묻", "VV-I"), ("어요", "EF")])
         == "왜 저한테 물어요"
     )
+
+    assert (kiwi.join([("왜", "MAG"), ("저", "NP"), ("한테", "JKB", True), ("묻", "VV-I"), ("어요", "EF")])
+        == "왜 저 한테 물어요"
+    )
+
+    assert (kiwi.join([("왜", "MAG"), ("저", "NP"), ("한테", "JKB"), ("묻", "VV-I", False), ("어요", "EF")])
+        == "왜 저한테물어요"
+    )
+
+def test_join_edge_cases():
+    kiwi = Kiwi()
+    for c in [
+        '가격이 싼 것이 이것뿐이에요.'
+    ]:
+        tokens = kiwi.tokenize(c)
+        restored = kiwi.join(tokens)
+        raw = kiwi.join([(t.form, t.tag) for t in tokens])
+        assert c == restored
+        assert c == raw
 
 def test_bug_87():
     text = "한글(韓㐎[1], 영어: Hangeul[2]또는 Hangul[3])은 한국어의 공식문자로서, 세종이 한국어를 표기하기 위하여 창제한 문자인 '훈민정음'(訓民正音)을 20세기 초반 이후 달리 이르는 명칭이다.[4][5] 한글이란 이름은 주시경 선생과 국어연구학회 회원들에 의해 지어진것으로 알려져 있으며[6][7][8][9] 그 뜻은 '으뜸이 되는 큰글', '오직 하나뿐인 큰글', '한국인의 글자'이다.[6][10] 한글의 또 다른 별칭으로는 정음(正音), 언문(諺文)[11], 언서(諺書), 반절(反切), 암클, 아햇글, 가갸글, 국문(國文)[12] 등이 있다.[5]"
