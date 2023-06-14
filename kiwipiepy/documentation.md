@@ -560,6 +560,13 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.15.2 (2023-06-14)
+    * Kiwi 0.15.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.15.2 )이 반영되었습니다.
+        * 매우 긴 텍스트를 분석할 때 시작 지점이 잘못 나오는 버그 수정
+        * U+10000 이상의 문자가 여러 개 포함된 텍스트를 SwTokenizer로 encode할때 offset이 누락되는 버그 수정
+    * `Kiwi.join`에서 형태소 결합 시 띄어쓰기 유무를 설정할 수 있는 기능 추가
+    * `Kiwi.tokenize`로 형태소 분석 후 다시 `Kiwi.join`을 수행하는 경우 원본 텍스트의 띄어쓰기를 최대한 반영하여 결합하도록 개선
+
 * 0.15.1 (2023-05-07)
     * Kiwi 0.15.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.15.1 )이 반영되었습니다.
     * Subword Tokenizer를 제공하는 모듈인 `kiwipiepiy.sw_tokenizer`이 추가되었습니다.

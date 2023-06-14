@@ -763,6 +763,13 @@ Token(form='결과', tag='NNG', start=4, len=2)
 >> kiwi.join([('묻', 'VV-I'), ('어요', 'EF')])
 '물어요'
 
+# 0.15.2버전부터는 Tuple의 세번째 요소로 띄어쓰기 유무를 지정할 수 있습니다. 
+# True일 경우 강제로 띄어쓰기, False일 경우 강제로 붙여쓰기를 수행합니다.
+>> kiwi.join([('길', 'NNG'), ('을', 'JKO', True), ('묻', 'VV'), ('어요', 'EF')])
+'길 을 물어요'
+>> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV', False), ('어요', 'EF')])
+'길을물어요'
+
 # 과거형 선어말어미를 제거하는 예시
 >> remove_past = lambda s: kiwi.join(t for t in kiwi.tokenize(s) if t.tagged_form != '었/EP')
 >> remove_past('먹었다')
