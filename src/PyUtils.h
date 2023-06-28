@@ -36,6 +36,14 @@
 #include <numpy/arrayobject.h>
 #endif
 
+#if defined(__clang__)
+#define PY_STRONG_INLINE inline
+#elif defined(__GNUC__) || defined(__GNUG__)
+#define PY_STRONG_INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define PY_STRONG_INLINE __forceinline 
+#endif
+
 namespace py
 {
 	template<class Ty = PyObject>
@@ -1544,7 +1552,7 @@ namespace py
 
 	private:
 		template<class InitArgs, size_t ...idx>
-		static void initFromPython(Derived* self, PyObject* args, std::index_sequence<idx...>)
+		PY_STRONG_INLINE static void initFromPython(Derived* self, PyObject* args, std::index_sequence<idx...>)
 		{
 			*self = Derived{ toCpp<std::tuple_element_t<idx, InitArgs>>(PyTuple_GET_ITEM(args, idx))... };
 		}
@@ -1753,7 +1761,7 @@ namespace py
 	}
 
 	template<typename _Fn>
-	auto handleExc(_Fn&& fn)
+	PY_STRONG_INLINE auto handleExc(_Fn&& fn)
 		-> typename std::enable_if<std::is_pointer<decltype(fn())>::value, decltype(fn())>::type
 	{
 		try
@@ -1796,7 +1804,7 @@ namespace py
 	}
 
 	template<typename _Fn>
-	auto handleExc(_Fn&& fn)
+	PY_STRONG_INLINE auto handleExc(_Fn&& fn)
 		-> typename std::enable_if<std::is_same<decltype(fn()), UniqueObj>::value, decltype(fn())>::type
 	{
 		try
@@ -1839,7 +1847,7 @@ namespace py
 	}
 
 	template<typename _Fn>
-	auto handleExc(_Fn&& fn)
+	PY_STRONG_INLINE auto handleExc(_Fn&& fn)
 		-> typename std::enable_if<std::is_integral<decltype(fn())>::value, decltype(fn())>::type
 	{
 		try
