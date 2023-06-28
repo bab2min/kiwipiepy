@@ -1095,7 +1095,7 @@ py::TypeWrapper<SwTokenizerObject> _SwTokenizerSetter{ gModule, [](PyTypeObject&
 	};
 
 	static PySequenceMethods seq = {
-		PY_LENFUNC(SwTokenizerObject::len),
+		PY_LENFUNC(&SwTokenizerObject::len),
 		nullptr,
 		nullptr,
 		nullptr,
