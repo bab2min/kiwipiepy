@@ -418,6 +418,9 @@ path: str
     def __repr__(self) -> str:
         return super().__repr__()
 
+    def __getstate__(self):
+        return self.__dict__
+
     @property
     def unk_token(self) -> Optional[str]:
         return self.config.unk_token
