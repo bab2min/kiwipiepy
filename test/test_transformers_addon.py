@@ -92,6 +92,13 @@ def test_tokenize():
     t = tokenizer.tokenize("맞습니다요!")
     assert t == ["맞/V", "습니다/E", "요/J", "!"]
 
+def test_pickle():
+    pickled = pickle.dumps(tokenizer)
+    unpickled_tokenizer = pickle.loads(pickled)
+    ref = tokenizer.tokenize("Unpickled Test")
+    tar = unpickled_tokenizer.tokenize("Unpickled Test")
+    assert ref == tar
+
 if __name__ == '__main__':
     for k, v in locals().copy().items():
         if k.startswith('test'): v()
