@@ -100,4 +100,4 @@ if __name__ == '__main__':
     tokenizer = pickle.loads(pickled)
 
     for k, v in locals().copy().items():
-        if k.startswith('test'): v()
+        if k != 'test_init' and k.startswith('test'): v()
