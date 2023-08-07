@@ -96,8 +96,8 @@ if __name__ == '__main__':
     for k, v in locals().copy().items():
         if k.startswith('test'): v()
 
-    picked = pickle.dumps(tokenizer)
-    tokenizer = pickle.loads(picked)
+    pickled = pickle.dumps(tokenizer)
+    tokenizer = pickle.loads(pickled)
 
     for k, v in locals().copy().items():
         if k.startswith('test'): v()
