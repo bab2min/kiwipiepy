@@ -1,3 +1,4 @@
+import pickle
 
 def test_init():
     from transformers import AutoTokenizer
@@ -92,5 +93,11 @@ def test_tokenize():
     assert t == ["맞/V", "습니다/E", "요/J", "!"]
 
 if __name__ == '__main__':
+    for k, v in locals().copy().items():
+        if k.startswith('test'): v()
+
+    picked = pickle.dumps(tokenizer)
+    tokenizer = pickle.loads(picked)
+
     for k, v in locals().copy().items():
         if k.startswith('test'): v()
