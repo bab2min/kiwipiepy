@@ -26,6 +26,13 @@ class Token:
         ...
 
     @property
+    def span(self) -> Tuple[int, int]:
+        '''.. versionadded:: 0.15.3
+        
+형태소의 입력 텍스트 내 시작 및 끝 위치 (문자 단위)'''
+        ...
+
+    @property
     def len(self) -> int:
         '''형태소의 입력 텍스트 내 차지 길이 (문자 단위)'''
         ...

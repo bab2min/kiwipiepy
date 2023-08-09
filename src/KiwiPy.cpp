@@ -1,4 +1,4 @@
-﻿#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
+#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
 
 #include <stdexcept>
 #include <fstream>
@@ -492,6 +492,11 @@ struct TokenObject : py::CObject<TokenObject>
 		return _pos + _len;
 	}
 
+	tuple<uint32_t, uint32_t> span()
+	{
+		return make_tuple(_pos, _pos + _len);
+	}
+
 	u16string taggedForm() const
 	{
 		u16string ret = _form;
@@ -564,6 +569,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ gModule, [](PyTypeObject& obj)
 		{ (char*)"start", PY_GETTER(&TokenObject::_pos), nullptr, "", nullptr},
 		{ (char*)"len", PY_GETTER(&TokenObject::_len), nullptr, "", nullptr},
 		{ (char*)"end", PY_GETTER(&TokenObject::end), nullptr, "", nullptr},
+		{ (char*)"span", PY_GETTER(&TokenObject::span), nullptr, "", nullptr},
 		{ (char*)"id", PY_GETTER(&TokenObject::_morphId), nullptr, "", nullptr},
 		{ (char*)"word_position", PY_GETTER(&TokenObject::_wordPosition), nullptr, "", nullptr},
 		{ (char*)"sent_position", PY_GETTER(&TokenObject::_sentPosition), nullptr, "", nullptr},
