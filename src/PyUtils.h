@@ -15,6 +15,7 @@
 #include <future>
 #include <optional>
 #include <variant>
+#include <numeric>
 
 #ifdef _DEBUG
 #undef _DEBUG
@@ -39,7 +40,7 @@
 #if defined(__clang__)
 #define PY_STRONG_INLINE inline
 #elif defined(__GNUC__) || defined(__GNUG__)
-#define PY_STRONG_INLINE __attribute__((always_inline))
+#define PY_STRONG_INLINE __attribute__((always_inline)) inline
 #elif defined(_MSC_VER)
 #define PY_STRONG_INLINE __forceinline 
 #endif
@@ -179,6 +180,13 @@ namespace py
 
 	using UniqueObj = UniqueCObj<>;
 	using SharedObj = SharedCObj<>;
+
+	template<class Ty>
+	struct StringWithOffset
+	{
+		Ty str;
+		std::vector<size_t> offsets;
+	};
 
 	class ForeachFailed : public std::runtime_error
 	{
@@ -615,10 +623,10 @@ namespace py
 			case PyUnicode_4BYTE_KIND:
 			{
 				auto* p = PyUnicode_4BYTE_DATA(uobj.get());
+				out.reserve(len);
 				for (size_t i = 0; i < len; ++i)
 				{
 					auto c = p[i];
-					out.reserve(len);
 					if (c < 0x10000)
 					{
 						out.push_back(c);
@@ -629,6 +637,65 @@ namespace py
 						out.push_back(0xDC00 + (c & 0x3FF));
 					}
 				}
+				break;
+			}
+			default:
+				return false;
+			}
+			return true;
+		}
+	};
+
+	template<>
+	struct ValueBuilder<StringWithOffset<std::u16string>>
+	{
+		bool _toCpp(PyObject* obj, StringWithOffset<std::u16string>& out)
+		{
+			UniqueObj uobj{ PyUnicode_FromObject(obj) };
+			if (!uobj) return false;
+			size_t len = PyUnicode_GET_LENGTH(uobj.get());
+
+			switch (PyUnicode_KIND(uobj.get()))
+			{
+			case PyUnicode_1BYTE_KIND:
+			{
+				auto* p = PyUnicode_1BYTE_DATA(uobj.get());
+				out.str.resize(len);
+				std::copy(p, p + len, &out.str[0]);
+				out.offsets.resize(len + 1);
+				std::iota(out.offsets.begin(), out.offsets.end(), 0);
+				break;
+			}
+			case PyUnicode_2BYTE_KIND:
+			{
+				auto* p = PyUnicode_2BYTE_DATA(uobj.get());
+				out.str.resize(len);
+				std::copy(p, p + len, &out.str[0]);
+				out.offsets.resize(len + 1);
+				std::iota(out.offsets.begin(), out.offsets.end(), 0);
+				break;
+			}
+			case PyUnicode_4BYTE_KIND:
+			{
+				auto* p = PyUnicode_4BYTE_DATA(uobj.get());
+				out.str.reserve(len);
+				out.offsets.reserve(len);
+				for (size_t i = 0; i < len; ++i)
+				{
+					auto c = p[i];
+					if (c < 0x10000)
+					{
+						out.offsets.emplace_back(out.str.size());
+						out.str.push_back(c);
+					}
+					else
+					{
+						out.offsets.emplace_back(out.str.size());
+						out.str.push_back(0xD800 - (0x10000 >> 10) + (c >> 10));
+						out.str.push_back(0xDC00 + (c & 0x3FF));
+					}
+				}
+				out.offsets.emplace_back(out.str.size());
 				break;
 			}
 			default:
@@ -806,7 +873,7 @@ namespace py
 		void setValue(PyObject* o, const std::tuple<_Tys...>& v, std::integer_sequence<size_t, i, rest...>)
 		{
 			PyTuple_SET_ITEM(o, i, buildPyValue(std::get<i>(v)).release());
-			return setValue<rest...>(o, v, {});
+			return setValue(o, v, std::integer_sequence<size_t, rest...>{});
 		}
 
 		template<size_t n, size_t ...idx>
@@ -826,7 +893,7 @@ namespace py
 		{
 			UniqueObj ret{ PyTuple_New(sizeof...(_Tys)) };
 			size_t id = 0;
-			setValue(ret, v, std::make_index_sequence<sizeof...(_Tys)>{});
+			setValue(ret.get(), v, std::make_index_sequence<sizeof...(_Tys)>{});
 			return ret;
 		}
 

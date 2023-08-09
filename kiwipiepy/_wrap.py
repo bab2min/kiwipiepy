@@ -1,5 +1,6 @@
 import re
-from typing import Callable, List, Optional, Tuple, Union, Iterable, NamedTuple
+from functools import partial
+from typing import Callable, List, Optional, Tuple, Union, Iterable, NamedTuple, NewType
 from dataclasses import dataclass
 import warnings
 
@@ -19,6 +20,10 @@ Sentence.subs.__doc__ = '''.. versionadded:: 0.14.0
 
 현 문장 내에 포함된 안긴 문장의 목록
 '''
+
+POSTag = NewType('POSTag', str)
+PretokenizedToken = NamedTuple('PretokenizedToken', [('form', str), ('tag', POSTag), ('start', int), ('end', int)])
+PretokenizedTokenList = List[Union[Tuple[int, int], Tuple[int, int, POSTag], Tuple[int, int, PretokenizedToken], Tuple[int, int, List[PretokenizedToken]]]]
 
 @dataclass
 class TypoDefinition:
@@ -311,6 +316,7 @@ typo_cost_threshold: float
         self._load_default_dict = load_default_dict
         self._load_typo_dict = load_typo_dict
         self._typos = typos
+        self._pretokenized_pats : List[Tuple['re.Pattern', str]] = []
 
     def __repr__(self):
         return (
@@ -397,6 +403,18 @@ kiwi.add_pre_analyzed_word('사겼다', [('사귀', 'VV', 0, 2), ('었', 'EP', 1
 Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나오도록 합니다.
         '''
         return super().add_pre_analyzed_word(form, analyzed, score)
+    
+    def add_re_word(self,
+        pattern:Union[str, 're.Pattern'],
+        pretokenized:Union[Callable[['re.Match'], Union[PretokenizedToken, List[PretokenizedToken]]], POSTag, PretokenizedToken, List[PretokenizedToken]],
+    ) -> None:
+        if isinstance(pattern, str):
+            pattern = re.compile(pattern)
+            
+        self._pretokenized_pats.append((pattern, pretokenized))
+
+    def clear_re_words(self):
+        self._pretokenized_pats.clear()
 
     def add_rule(self,
         tag:str,
@@ -698,6 +716,29 @@ threshold: float
             DeprecationWarning
         )
     
+    def _make_pretokenized_spans(self, override_pretokenized, text:str):
+        span_groups = []
+        for pattern, s in self._pretokenized_pats:
+            spans = []
+            if callable(s):
+                for m in pattern.finditer(text):
+                    spans.append((*m.span(), s(m)))
+            else:
+                for m in pattern.finditer(text):
+                    spans.append((*m.span(), s))
+            if spans:
+                span_groups.append(spans)
+
+
+        if callable(override_pretokenized):
+            spans = override_pretokenized(text)
+            if spans: span_groups.append(spans)
+        elif override_pretokenized is not None:
+            spans = override_pretokenized
+            if spans: span_groups.append(spans)
+        
+        return span_groups
+
     def analyze(self,
         text:Union[str, Iterable[str]],
         top_n:Optional[int] = 1,
@@ -706,6 +747,7 @@ threshold: float
         z_coda:Optional[bool] = True,
         split_complex:Optional[bool] = False,
         blocklist:Optional[Union[MorphemeSet, Iterable[str]]] = None,
+        pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ) -> List[Tuple[List[Token], float]]:
         '''형태소 분석을 실시합니다.
 
@@ -783,7 +825,11 @@ with open('result.txt', 'w', encoding='utf-8') as output:
         
         if blocklist: blocklist._update_self()
 
-        return super().analyze(text, top_n, match_options, False, blocklist)
+        if not isinstance(text, str) and pretokenized and not callable(pretokenized):
+            raise ValueError("`pretokenized` must be a callable if `text` is an iterable of str.")
+        pretokenized = partial(self._make_pretokenized_spans, pretokenized) if self._pretokenized_pats or pretokenized else None
+
+        return super().analyze(text, top_n, match_options, False, blocklist, pretokenized)
     
     def get_option(self,
         option:int,
@@ -985,6 +1031,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         stopwords:Optional[Stopwords] = None,
         echo:Optional[bool] = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
+        pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ):
         import itertools
 
@@ -1016,11 +1063,16 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         
         if blocklist: blocklist._update_self()
 
+        if not isinstance(text, str) and pretokenized and not callable(pretokenized):
+            raise ValueError("`pretokenized` must be a callable if `text` is an iterable of str.")
+
+        pretokenized = partial(self._make_pretokenized_spans, pretokenized) if self._pretokenized_pats or pretokenized else None
+
         if isinstance(text, str):
             echo = False
-            return _refine_result(super().analyze(text, 1, match_options, False, blocklist))
+            return _refine_result(super().analyze(text, 1, match_options, False, blocklist, pretokenized))
         
-        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist))
+        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist, pretokenized))
 
     def tokenize(self, 
         text:Union[str, Iterable[str]], 
@@ -1032,6 +1084,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         stopwords:Optional[Stopwords] = None,
         echo:Optional[bool] = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
+        pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ) -> Union[List[Token], Iterable[List[Token]], List[List[Token]], Iterable[List[List[Token]]]]:
         '''.. versionadded:: 0.10.2
 
@@ -1153,7 +1206,10 @@ Notes
  Token(form='출력', tag='NNG', start=18, len=2)]
 ```
         '''
-        return self._tokenize(text, match_options, normalize_coda, z_coda, split_complex, split_sents, stopwords, echo, blocklist=blocklist)
+        return self._tokenize(text, match_options, normalize_coda, z_coda, split_complex, split_sents, stopwords, echo, 
+                              blocklist=blocklist, 
+                              pretokenized=pretokenized
+        )
 
     def split_into_sents(self, 
         text:Union[str, Iterable[str]], 
