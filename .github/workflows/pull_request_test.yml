@@ -215,7 +215,7 @@ jobs:
     strategy:
       max-parallel: 8
       matrix:
-        cp: [cp37-cp37m, cp38-cp38, cp39-cp39, cp310-cp310, cp311-cp311]
+        cp: [cp39-cp39, cp310-cp310, cp311-cp311]
         arch: [aarch64, ppc64le]
 
     steps:
