@@ -1,4 +1,6 @@
-from typing import Union, Optional, Tuple
+from typing import Union, Optional, Tuple, NewType
+
+POSTag = NewType('POSTag', str)
 
 class Token:
     '''
@@ -11,7 +13,7 @@ class Token:
         ...
 
     @property
-    def tag(self) -> str:
+    def tag(self) -> POSTag:
         '''형태소의 품사 태그'''
         ...
 
