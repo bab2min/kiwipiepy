@@ -208,7 +208,7 @@ setup(
 
     keywords='Korean morphological analysis',
     install_requires=[
-        'dataclasses',
+        'dataclasses; python_version < "3.7"',
         'kiwipiepy_model~=0.16',
         'numpy',
         'tqdm',
