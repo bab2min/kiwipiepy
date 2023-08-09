@@ -2,7 +2,7 @@ import os
 import sys
 import re
 
-from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer
+from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken
 from kiwipiepy.utils import Stopwords
 
 curpath = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +31,102 @@ def test_blocklist():
     
     tokens = kiwi.tokenize("고마움을", blocklist=['고마움'])
     assert tokens[0].form == "고맙"
+
+def test_pretokenized():
+    kiwi = Kiwi()
+    text = "드디어패트와 매트가 2017년에 국내 개봉했다. 패트와매트는 2016년..."
+
+    res = kiwi.tokenize(text, pretokenized=[
+        (3, 9),
+        (11, 16),
+        (34, 39)
+    ])
+    assert res[1].form == "패트와 매트"
+    assert res[1].tag == "NNP"
+    assert res[3].form == "2017년"
+    assert res[3].tag == "NNP"
+    assert res[13].form == "2016년"
+    assert res[13].tag == "NNP"
+
+    res = kiwi.tokenize(text, pretokenized=[
+        (3, 9),
+        (11, 16, 'NNG'),
+        (34, 39, 'NNG')
+    ])
+    assert res[3].form == "2017년"
+    assert res[3].tag == "NNG"
+    assert res[13].form == "2016년"
+    assert res[13].tag == "NNG"
+
+    res = kiwi.tokenize(text, pretokenized=[
+        (27, 29, PretokenizedToken('페트', 'NNB', 0, 2)),
+        (30, 32),
+        (21, 24, [PretokenizedToken('개봉하', 'VV', 0, 3), PretokenizedToken('었', 'EP', 2, 3)])
+    ])
+    assert res[7].form == "개봉하"
+    assert res[7].tag == 'VV'
+    assert res[7].start == 21
+    assert res[7].len == 3
+    assert res[8].form == "었"
+    assert res[8].tag == 'EP'
+    assert res[8].start == 23
+    assert res[8].len == 1
+    assert res[11].form == "페트"
+    assert res[11].tag == 'NNB'
+    assert res[13].form == "매트"
+    assert res[13].tag == 'NNG'
+
+    res = kiwi.tokenize(text, pretokenized=lambda x:[i.span() for i in re.finditer(r'패트와 ?매트', x)])
+    assert res[1].form == "패트와 매트"
+    assert res[1].span == (3, 9)
+    assert res[12].form == "패트와매트"
+    assert res[12].span == (27, 32)
+
+def test_re_word():
+    text = '{평만경(平滿景)}이 사람을 시켜 {침향(沈香)} 10냥쭝을 바쳤으므로'
+
+    kiwi = Kiwi()
+    res = kiwi.tokenize(text)
+
+    kiwi.add_re_word(r'\{[^}]+\}', 'NNP')
+
+    res = kiwi.tokenize(text)
+    assert res[0].form == '{평만경(平滿景)}'
+    assert res[0].tag == 'NNP'
+    assert res[0].span == (0, 10)
+    assert res[1].tag == 'JKS'
+    assert res[6].form == '{침향(沈香)}'
+    assert res[6].tag == 'NNP'
+    assert res[6].span == (19, 27)
+
+    kiwi.clear_re_words()
+    kiwi.add_re_word(r'(?<=\{)([^}]+)(?=\})', lambda m:PretokenizedToken(m.group(1), 'NNP', m.span(1)[0] - m.span(0)[0], m.span(1)[1] - m.span(0)[0]))
+
+    res = kiwi.tokenize(text)
+    assert res[1].form == '평만경(平滿景)'
+    assert res[1].tag == 'NNP'
+    assert res[1].span == (1, 9)
+    assert res[9].form == '침향(沈香)'
+    assert res[9].tag == 'NNP'
+    assert res[9].span == (20, 26)
+
+    kiwi.clear_re_words()
+    kiwi.add_re_word(r'\{([^}]+)\}', lambda m:PretokenizedToken(m.group(1), 'NNP', m.span(1)[0] - m.span(0)[0], m.span(1)[1] - m.span(0)[0]))
+
+    res = kiwi.tokenize(text)
+    assert res[0].form == '평만경(平滿景)'
+    assert res[0].tag == 'NNP'
+    assert res[0].span == (0, 10)
+    assert res[6].form == '침향(沈香)'
+    assert res[6].tag == 'NNP'
+    assert res[6].span == (19, 27)
+
+    res = kiwi.tokenize(text, pretokenized=[(28, 32)])
+    assert res[7].form == '10냥쭝'
+    assert res[7].tag == 'NNP'
+    assert res[7].span == (28, 32)
+
+    res = kiwi.tokenize(text, pretokenized=[(1, 4)])
 
 def test_swtokenizer():
     tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
