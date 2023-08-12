@@ -1,6 +1,6 @@
 import re
 from functools import partial
-from typing import Callable, List, Optional, Tuple, Union, Iterable, NamedTuple, NewType
+from typing import Callable, List, Dict, Optional, Tuple, Union, Iterable, NamedTuple, NewType, Any
 from dataclasses import dataclass
 import warnings
 
@@ -319,7 +319,8 @@ typo_cost_threshold: float
         self._load_default_dict = load_default_dict
         self._load_typo_dict = load_typo_dict
         self._typos = typos
-        self._pretokenized_pats : List[Tuple['re.Pattern', str]] = []
+        self._pretokenized_pats : List[Tuple['re.Pattern', str, Any]] = []
+        self._user_values : Dict[int, Any] = {}
 
     def __repr__(self):
         return (
@@ -339,6 +340,7 @@ typo_cost_threshold: float
         tag:POSTag = 'NNP',
         score:float = 0.,
         orig_word:Optional[str] = None,
+        user_value:Optional[Any] = None,
     ) -> bool:
         '''현재 모델에 사용자 정의 형태소를 추가합니다.
 
@@ -364,7 +366,9 @@ inserted: bool
     사용자 정의 형태소가 정상적으로 삽입된 경우 True, 이미 동일한 형태소가 존재하여 삽입되지 않은 경우 False를 반환합니다.
         '''
         if re.search(r'\s', word): raise ValueError("Whitespace characters are not allowed at `word`")
-        return super().add_user_word(word, tag, score, orig_word)
+        mid, inserted = super().add_user_word(word, tag, score, orig_word)
+        self._user_values[mid] = user_value
+        return inserted
     
     def add_pre_analyzed_word(self,
         form:str,
@@ -410,11 +414,12 @@ Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나�
     def add_re_word(self,
         pattern:Union[str, 're.Pattern'],
         pretokenized:Union[Callable[['re.Match'], Union[PretokenizedToken, List[PretokenizedToken]]], POSTag, PretokenizedToken, List[PretokenizedToken]],
+        user_value:Optional[Any] = None,
     ) -> None:
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
             
-        self._pretokenized_pats.append((pattern, pretokenized))
+        self._pretokenized_pats.append((pattern, pretokenized, user_value))
 
     def clear_re_words(self):
         self._pretokenized_pats.clear()
@@ -423,6 +428,7 @@ Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나�
         tag:POSTag,
         replacer:Callable[[str], str],
         score:float = 0.,
+        user_value:Optional[Any] = None,
     ) -> List[str]:
         '''.. versionadded:: 0.11.0
 
@@ -445,13 +451,19 @@ Returns
 inserted_forms: List[str]
     규칙에 의해 새로 생성된 형태소의 `list`를 반환합니다.
         '''
-        return super().add_rule(tag, replacer, score)
+        ret = super().add_rule(tag, replacer, score)
+        if not ret: return []
+        mids, inserted_forms = zip(*ret)
+        for mid in mids:
+            self._user_values[mid] = user_value
+        return inserted_forms
     
     def add_re_rule(self,
         tag:POSTag,
         pattern:Union[str, 're.Pattern'],
         repl:Union[str, Callable],
         score:float = 0.,
+        user_value:Optional[Any] = None,
     ) -> List[str]:
         '''.. versionadded:: 0.11.0
 
@@ -489,7 +501,7 @@ score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
         '''
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
-        return super().add_rule(tag, lambda x:pattern.sub(repl, x), score)
+        return self.add_rule(tag, lambda x:pattern.sub(repl, x), score, user_value)
 
     def load_user_dictionary(self,
         dict_path:str
@@ -721,14 +733,14 @@ threshold: float
     
     def _make_pretokenized_spans(self, override_pretokenized, text:str):
         span_groups = []
-        for pattern, s in self._pretokenized_pats:
+        for pattern, s, user_value in self._pretokenized_pats:
             spans = []
             if callable(s):
                 for m in pattern.finditer(text):
-                    spans.append((*m.span(), s(m)))
+                    spans.append((*m.span(), s(m), user_value))
             else:
                 for m in pattern.finditer(text):
-                    spans.append((*m.span(), s))
+                    spans.append((*m.span(), s, user_value))
             if spans:
                 span_groups.append(spans)
 
