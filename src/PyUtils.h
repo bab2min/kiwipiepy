@@ -1661,11 +1661,13 @@ namespace py
 		friend class TypeWrapper<Derived>;
 	};
 
-	template<class Derived, class RetTy>
+	template<class Derived, class RetTy, class Future = std::future<RetTy>>
 	struct ResultIter : public CObject<Derived>
 	{
+		using ReturnTy = RetTy;
+		using FutureTy = Future;
 		UniqueObj inputIter;
-		std::deque<std::future<RetTy>> futures;
+		std::deque<Future> futures;
 		std::deque<SharedObj> inputItems;
 		bool echo = false;
 
@@ -1727,7 +1729,7 @@ namespace py
 			return true;
 		}
 
-		std::future<RetTy> feedNext(py::SharedObj&& next)
+		Future feedNext(py::SharedObj&& next)
 		{
 			return {};
 		}
