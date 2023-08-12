@@ -128,6 +128,43 @@ def test_re_word():
 
     res = kiwi.tokenize(text, pretokenized=[(1, 4)])
 
+def test_user_value():
+    kiwi = Kiwi()
+    kiwi.add_user_word('사용자단어', user_value=['user_value'])
+    kiwi.add_user_word('태그', user_value={'tag':'USER_TAG'})
+    kiwi.add_re_rule('NNG', '바보', '밥오', user_value='babo')
+    kiwi.add_re_word(r'\{[^}]+\}', 'USER0', user_value={'tag':'SPECIAL'})
+
+    tokens = kiwi.tokenize('사용자단어입니다.')
+    assert tokens[0].form == '사용자단어'
+    assert tokens[0].user_value == ['user_value']
+    assert tokens[1].user_value == None
+    assert tokens[2].user_value == None
+
+    tokens = kiwi.tokenize('사용자 태그이다!')
+    assert tokens[0].tag == 'NNG'
+    assert tokens[1].form == '태그'
+    assert tokens[1].tag == 'USER_TAG'
+    assert tokens[1].form_tag == ('태그', 'USER_TAG')
+    assert tokens[1].tagged_form == '태그/USER_TAG'
+
+    tokens = kiwi.tokenize('밥오..')
+    assert tokens[0].form == '밥오'
+    assert tokens[0].tag == 'NNG'
+    assert tokens[0].user_value == 'babo'
+
+    tokens = kiwi.tokenize('이렇게 {이것}은 특별하다')
+    assert tokens[1].form == '{이것}'
+    assert tokens[1].tag == 'SPECIAL'
+    assert tokens[1].user_value == {'tag':'SPECIAL'}
+    assert sum(1 for t in tokens if t.user_value is not None) == 1
+
+    tokens = next(kiwi.tokenize(['{이것}은 특별하다']))
+    assert tokens[0].form == '{이것}'
+    assert tokens[0].tag == 'SPECIAL'
+    assert tokens[0].user_value == {'tag':'SPECIAL'}
+    assert sum(1 for t in tokens if t.user_value is not None) == 1
+
 def test_swtokenizer():
     tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
     print(tokenizer.vocab)
