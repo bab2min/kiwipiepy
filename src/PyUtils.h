@@ -979,7 +979,7 @@ namespace py
 				return true;
 			}
 
-			if constexpr (sizeof...(Ts))
+			if constexpr (sizeof...(Ts) > 0)
 			{
 				std::variant<Ts...> v2;
 				if (toCpp<std::variant<Ts...>>(obj, v2))
@@ -1864,11 +1864,11 @@ namespace py
 				PyErr_SetString(e.pytype(), e.what());
 			}
 		}
-		catch (const std::exception& e)
+		/*catch (const std::exception& e)
 		{
 			std::cerr << "Uncaughted c++ exception: " << e.what() << std::endl;
 			PyErr_SetString(PyExc_RuntimeError, e.what());
-		}
+		}*/
 		return nullptr;
 	}
 
@@ -1907,11 +1907,11 @@ namespace py
 				PyErr_SetString(e.pytype(), e.what());
 			}
 		}
-		catch (const std::exception& e)
+		/*catch (const std::exception& e)
 		{
 			std::cerr << "Uncaughted c++ exception: " << e.what() << std::endl;
 			PyErr_SetString(PyExc_RuntimeError, e.what());
-		}
+		}*/
 		return UniqueObj{ nullptr };
 	}
 
@@ -1950,11 +1950,11 @@ namespace py
 				PyErr_SetString(e.pytype(), e.what());
 			}
 		}
-		catch (const std::exception& e)
+		/*catch (const std::exception& e)
 		{
 			std::cerr << "Uncaughted c++ exception: " << e.what() << std::endl;
 			PyErr_SetString(PyExc_RuntimeError, e.what());
-		}
+		}*/
 		return -1;
 	}
 
