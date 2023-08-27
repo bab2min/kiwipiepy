@@ -1,4 +1,6 @@
-from typing import Union, Optional, Tuple
+from typing import Union, Optional, Tuple, NewType
+
+POSTag = NewType('POSTag', str)
 
 class Token:
     '''
@@ -11,7 +13,7 @@ class Token:
         ...
 
     @property
-    def tag(self) -> str:
+    def tag(self) -> POSTag:
         '''형태소의 품사 태그'''
         ...
 
@@ -23,6 +25,13 @@ class Token:
     @property
     def end(self) -> int:
         '''형태소의 입력 텍스트 내 끝 위치 (문자 단위)'''
+        ...
+
+    @property
+    def span(self) -> Tuple[int, int]:
+        '''.. versionadded:: 0.15.3
+        
+형태소의 입력 텍스트 내 시작 및 끝 위치 (문자 단위)'''
         ...
 
     @property
@@ -135,3 +144,6 @@ form과 tag를 `형태/품사태그`꼴로 합쳐서 반환합니다.'''
 현재 형태소가 짝을 이루는 다른 형태소를 가지고 있다면 그 형태소의 index를 반환합니다. 없는 경우 -1을 반환합니다.'''
         ...
 
+    @property
+    def user_value(self):
+        ...

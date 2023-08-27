@@ -329,10 +329,10 @@ struct KiwiObject : py::CObject<KiwiObject>
 		}
 	}
 
-	bool addUserWord(const char* word, const char* tag = "NNP", float score = 0, std::optional<const char*> origWord = {});
+	std::pair<uint32_t, bool> addUserWord(const char* word, const char* tag = "NNP", float score = 0, std::optional<const char*> origWord = {});
 	bool addPreAnalyzedWord(const char* form, PyObject* oAnalyzed = nullptr, float score = 0);
-	std::vector<std::u16string> addRule(const char* tag, PyObject* replacer, float score = 0);
-	py::UniqueObj analyze(PyObject* text, size_t topN = 1, Match matchOptions = Match::all, bool echo = false, PyObject* blockList = Py_None);
+	std::vector<std::pair<uint32_t, std::u16string>> addRule(const char* tag, PyObject* replacer, float score = 0);
+	py::UniqueObj analyze(PyObject* text, size_t topN = 1, Match matchOptions = Match::all, bool echo = false, PyObject* blockList = Py_None, PyObject* pretokenized = Py_None);
 	py::UniqueObj extractAddWords(PyObject* sentences, size_t minCnt = 10, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true);
 	py::UniqueObj extractWords(PyObject* sentences, size_t minCnt, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true) const;
 	size_t loadUserDictionary(const char* path);
@@ -476,6 +476,7 @@ struct TokenObject : py::CObject<TokenObject>
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
 	const Morpheme* _baseMorph = nullptr;
+	py::UniqueObj _userValue;
 	bool _regularity = false;
 
 	using _InitArgs = std::tuple<int>;
@@ -492,11 +493,16 @@ struct TokenObject : py::CObject<TokenObject>
 		return _pos + _len;
 	}
 
+	tuple<uint32_t, uint32_t> span()
+	{
+		return make_tuple(_pos, _pos + _len);
+	}
+
 	u16string taggedForm() const
 	{
 		u16string ret = _form;
 		ret.push_back(u'/');
-		ret.insert(ret.end(), _tag, _tag + strlen(_tag));
+		ret += utf8To16(_tag);
 	 	return ret;
 	}
 	
@@ -564,6 +570,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ gModule, [](PyTypeObject& obj)
 		{ (char*)"start", PY_GETTER(&TokenObject::_pos), nullptr, "", nullptr},
 		{ (char*)"len", PY_GETTER(&TokenObject::_len), nullptr, "", nullptr},
 		{ (char*)"end", PY_GETTER(&TokenObject::end), nullptr, "", nullptr},
+		{ (char*)"span", PY_GETTER(&TokenObject::span), nullptr, "", nullptr},
 		{ (char*)"id", PY_GETTER(&TokenObject::_morphId), nullptr, "", nullptr},
 		{ (char*)"word_position", PY_GETTER(&TokenObject::_wordPosition), nullptr, "", nullptr},
 		{ (char*)"sent_position", PY_GETTER(&TokenObject::_sentPosition), nullptr, "", nullptr},
@@ -579,6 +586,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ gModule, [](PyTypeObject& obj)
 		{ (char*)"regularity", PY_GETTER(&TokenObject::regularity), nullptr, "", nullptr},
 		{ (char*)"lemma", PY_GETTER(&TokenObject::lemma), nullptr, "", nullptr},
 		{ (char*)"paired_token", PY_GETTER(&TokenObject::_pairedToken), nullptr, "", nullptr},
+		{ (char*)"user_value", PY_GETTER(&TokenObject::_userValue), nullptr, "", nullptr},
 		{ nullptr },
 	};
 
@@ -603,8 +611,12 @@ inline size_t hashTokenInfo(const vector<TokenInfo>& tokens)
 	return ret;
 }
 
-py::UniqueObj resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
+py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, vector<py::UniqueObj>&& userValues = {})
 {
+	auto& kiwi = kiwiObj->kiwi;
+	static py::UniqueObj userValuesAttr = py::buildPyValue("_user_values"), tagAttr = py::buildPyValue("tag");
+	py::UniqueObj userValuesObj{ PyObject_GetAttr((PyObject*)kiwiObj, userValuesAttr.get()) };
+	PyErr_Clear();
 	py::UniqueObj retList{ PyList_New(res.size()) };
 	size_t idx = 0;
 	for (auto& p : res)
@@ -674,10 +686,31 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const Kiwi& kiwi)
 			tItem->_score = q.score;
 			tItem->_typoCost = q.typoCost;
 			tItem->_morph = q.morph;
-			tItem->_morphId = kiwi.morphToId(q.morph);
-			tItem->_baseMorph = kiwi.idToMorph(q.morph->lmMorphemeId);
+			tItem->_morphId = q.morph ? kiwi.morphToId(q.morph) : -1;
+			tItem->_baseMorph = q.morph ? kiwi.idToMorph(q.morph->lmMorphemeId) : nullptr;
 			tItem->_raw_form = q.typoCost ? kiwi.getTypoForm(q.typoFormId) : tItem->_form;
 			tItem->_pairedToken = q.pairedToken;
+
+			if (!q.typoCost && q.typoFormId && userValues[q.typoFormId - 1])
+			{
+				tItem->_userValue = move(userValues[q.typoFormId - 1]);
+			}
+			else
+			{
+				tItem->_userValue = py::UniqueObj{ userValuesObj ? PyDict_GetItem(userValuesObj.get(), py::buildPyValue(tItem->_morphId).get()) : nullptr };
+				if (!tItem->_userValue) tItem->_userValue = py::UniqueObj{ Py_None };
+				Py_INCREF(tItem->_userValue.get());
+			}
+
+			if (PyDict_Check(tItem->_userValue.get()))
+			{
+				// tag override
+				auto v = PyDict_GetItem(tItem->_userValue.get(), tagAttr.get());
+				if (v)
+				{
+					tItem->_tag = PyUnicode_AsUTF8(v);
+				}
+			}
 
 			PyList_SET_ITEM(rList.get(), jdx++, (PyObject*)tItem.release());
 			u32offset += u32chrs;
@@ -1106,13 +1139,185 @@ py::TypeWrapper<SwTokenizerObject> _SwTokenizerSetter{ gModule, [](PyTypeObject&
 	obj.tp_as_sequence = &seq;
 } };
 
-struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
+inline pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> makePretokenizedSpans(PyObject* obj)
+{
+	vector<PretokenizedSpan> ret;
+	vector<py::UniqueObj> userValues;
+	if (obj == Py_None) return make_pair(move(ret), move(userValues));
+
+	vector<size_t> groupBoundaries;
+	vector<tuple<PretokenizedSpan*, size_t, py::UniqueObj>> spanPtrs;
+
+	py::foreach<PyObject*>(obj, [&](PyObject* group)
+	{
+		py::foreachVisit<variant<
+			tuple<uint32_t, uint32_t>,
+			tuple<uint32_t, uint32_t, PyObject*>,
+			tuple<uint32_t, uint32_t, PyObject*, PyObject*>
+		>>(group, [&](auto&& item)
+		{
+			using T = decay_t<decltype(item)>;
+			ret.emplace_back(PretokenizedSpan{ get<0>(item), get<1>(item) });
+			if constexpr (is_same_v<T, tuple<uint32_t, uint32_t, PyObject*>> || is_same_v<T, tuple<uint32_t, uint32_t, PyObject*, PyObject*>>)
+			{
+				if (PyUnicode_Check(get<2>(item))) // POSTag
+				{
+					ret.back().tokenization.emplace_back();
+					auto tag = parseTag(py::toCpp<u16string>(get<2>(item)));
+					if (tag == POSTag::max) throw py::ValueError{ "wrong tag value: " + py::repr(get<2>(item)) };
+					auto& token = ret.back().tokenization.back();
+					token.tag = tag;
+					token.begin = 0;
+					token.end = get<1>(item) - get<0>(item);
+				}
+				else
+				{
+					tuple<u16string, u16string, size_t, size_t> singleItem;
+					if (py::toCpp<tuple<u16string, u16string, size_t, size_t>>(get<2>(item), singleItem))
+					{
+						auto tag = parseTag(get<1>(singleItem));
+						if (tag == POSTag::max) throw py::ValueError{ "wrong tag value: " + utf16To8(get<1>(singleItem)) };
+						ret.back().tokenization.emplace_back();
+						auto& token = ret.back().tokenization.back();
+						token.form = move(get<0>(singleItem));
+						token.tag = tag;
+						token.begin = get<2>(singleItem);
+						token.end = get<3>(singleItem);
+					}
+					else
+					{
+						py::foreach<tuple<u16string, u16string, size_t, size_t>>(get<2>(item), [&](auto&& i)
+						{
+							auto tag = parseTag(get<1>(i));
+							if (tag == POSTag::max) throw py::ValueError{ "wrong tag value: " + utf16To8(get<1>(i)) };
+							ret.back().tokenization.emplace_back();
+							auto& token = ret.back().tokenization.back();
+							token.form = move(get<0>(i));
+							token.tag = tag;
+							token.begin = get<2>(i);
+							token.end = get<3>(i);
+						}, "");
+					}
+				}
+			}
+
+			if constexpr (is_same_v<T, tuple<uint32_t, uint32_t, PyObject*, PyObject*>>)
+			{
+				userValues.emplace_back(py::UniqueObj{ get<3>(item) });
+				Py_INCREF(userValues.back().get());
+			}
+			else
+			{
+				userValues.emplace_back();
+			}
+		}, "`pretokenized` must be an iterable of `Tuple[int, int]`, `Tuple[int, int, str]`, `Tuple[int, int, List[Token]]`");
+		groupBoundaries.emplace_back(ret.size());
+	}, "`pretokenized` must be an iterable of `Tuple[int, int]`, `Tuple[int, int, str]`, `Tuple[int, int, List[Token]]`");
+
+	if (groupBoundaries.size() > 1)
+	{
+		spanPtrs.reserve(ret.size());
+		size_t g = 0;
+		for (size_t i = 0; i < ret.size(); ++i)
+		{
+			while (i >= groupBoundaries[g]) ++g;
+			spanPtrs.emplace_back(&ret[i], g, move(userValues[i]));
+		}
+
+		sort(spanPtrs.begin(), spanPtrs.end(), [&](auto&& a, auto&& b)
+		{
+			return get<0>(a)->begin < get<0>(b)->begin;
+		});
+
+		size_t target = 0;
+		for (size_t cursor = 1; cursor < spanPtrs.size(); ++cursor)
+		{
+			if (get<0>(spanPtrs[target])->end > get<0>(spanPtrs[cursor])->begin)
+			{
+				if (get<1>(spanPtrs[target]) == get<1>(spanPtrs[cursor])) throw py::ValueError{ "Overlapped spans in `pretokenized` are not allowed: " + py::repr(obj) };
+				
+				if (get<1>(spanPtrs[target]) < get<1>(spanPtrs[cursor]))
+				{
+					spanPtrs[target] = move(spanPtrs[cursor]);
+				}
+			}
+			else
+			{
+				++target;
+				if (target != cursor) spanPtrs[target] = move(spanPtrs[cursor]);
+			}
+		}
+		++target;
+		vector<PretokenizedSpan> temp;
+		vector<py::UniqueObj> tempUserValues;
+		for (size_t i = 0; i < target; ++i)
+		{
+			temp.emplace_back(move(*get<0>(spanPtrs[i])));
+			tempUserValues.emplace_back(move(get<2>(spanPtrs[i])));
+		}
+		ret.swap(temp);
+		userValues.swap(tempUserValues);
+	}
+
+	return make_pair(move(ret), move(userValues));
+}
+
+inline void updatePretokenizedSpanToU16(vector<PretokenizedSpan>& spans, const py::StringWithOffset<u16string>& so)
+{
+	for (auto& s : spans)
+	{
+		for (auto& t : s.tokenization)
+		{
+			t.begin = so.offsets[s.begin + t.begin] - so.offsets[s.begin];
+			t.end = so.offsets[s.begin + t.end] - so.offsets[s.begin];
+		}
+		s.begin = so.offsets[s.begin];
+		s.end = so.offsets[s.end];
+
+		if (s.tokenization.size() == 1 && s.tokenization[0].form.empty())
+		{
+			s.tokenization[0].form = so.str.substr(s.begin, s.end - s.begin);
+		}
+	}
+}
+
+template<class FutureTy, class CarriedTy>
+struct FutureCarrier
+{
+	std::future<FutureTy> future;
+	CarriedTy carried;
+
+	FutureCarrier(std::future<FutureTy>&& _future, const CarriedTy& _carried)
+		: future{std::move(_future)}, carried{_carried}
+	{}
+
+	FutureCarrier(std::future<FutureTy>&& _future, CarriedTy&& _carried)
+		: future{ std::move(_future) }, carried{ std::move(_carried) }
+	{}
+
+	FutureCarrier(FutureCarrier&&) = default;
+	FutureCarrier& operator=(FutureCarrier&&) = default;
+
+	std::pair<FutureTy, CarriedTy> get()
+	{
+		return std::make_pair(future.get(), std::move(carried));
+	}
+};
+
+template<class FutureTy, class CarriedTy>
+auto makeFutureCarrier(std::future<FutureTy>&& future, CarriedTy&& carried)
+{
+	return FutureCarrier<FutureTy, std::remove_reference_t<CarriedTy>>{ std::move(future), std::forward<CarriedTy>(carried) };
+}
+
+struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, FutureCarrier<vector<TokenResult>, vector<py::UniqueObj>>>
 {
 	static constexpr const char* _name = "kiwipiepy._ResIter";
 	static constexpr const char* _name_in_module = "_ResIter";
 
 	py::UniqueCObj<KiwiObject> kiwi;
 	py::UniqueCObj<MorphemeSetObject> blocklist;
+	py::UniqueObj pretokenizedCallable;
 	size_t topN = 1;
 	Match matchOptions = Match::all;
 
@@ -1125,19 +1330,39 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>>
 		waitQueue();
 	}
 
-	py::UniqueObj buildPy(vector<TokenResult>&& v)
+	py::UniqueObj buildPy(pair<vector<TokenResult>, vector<py::UniqueObj>>&& v)
 	{
 		return py::handleExc([&]()
 		{
-			if (v.size() > topN) v.erase(v.begin() + topN, v.end());
-			return resToPyList(move(v), kiwi->kiwi);
+			if (v.first.size() > topN) v.first.erase(v.first.begin() + topN, v.first.end());
+			return resToPyList(move(v.first), kiwi.get(), move(v.second));
 		});
 	}
 
-	future<vector<TokenResult>> feedNext(py::SharedObj&& next)
+	FutureTy feedNext(py::SharedObj&& next)
 	{
 		if (!PyUnicode_Check(next)) throw py::ValueError{ "`analyze` requires an instance of `str` or an iterable of `str`." };
-		return kiwi->kiwi.asyncAnalyze(PyUnicode_AsUTF8(next), topN, matchOptions, blocklist ? &blocklist->morphSet : nullptr);
+		
+		pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> pretokenized;
+		if (pretokenizedCallable)
+		{
+			py::UniqueObj ptResult{ PyObject_CallFunctionObjArgs(pretokenizedCallable.get(), next.get(), nullptr) };
+			pretokenized = makePretokenizedSpans(ptResult.get());
+		}
+		py::StringWithOffset<u16string> so;
+		if (pretokenized.first.empty())
+		{
+			so.str = py::toCpp<u16string>(next);
+		}
+		else
+		{
+			so = py::toCpp<py::StringWithOffset<u16string>>(next);
+			updatePretokenizedSpanToU16(pretokenized.first, so);
+		}
+		return makeFutureCarrier(
+			kiwi->kiwi.asyncAnalyze(move(so.str), topN, matchOptions, blocklist ? &blocklist->morphSet : nullptr, move(pretokenized.first)), 
+			move(pretokenized.second)
+		);
 	}
 };
 
@@ -1229,8 +1454,8 @@ struct SwTokenizerResTEIter : public py::ResultIter<SwTokenizerResTEIter, TokenE
 
 	py::UniqueObj buildPy(TokenEncodeResult&& v)
 	{
-		if (returnOffsets) return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi->kiwi), get<1>(v), get<2>(v));
-		return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi->kiwi), get<1>(v));
+		if (returnOffsets) return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi.get()), get<1>(v), get<2>(v));
+		return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi.get()), get<1>(v));
 	}
 
 	future<TokenEncodeResult> feedNext(py::SharedObj&& next)
@@ -1293,7 +1518,7 @@ py::UniqueObj SwTokenizerObject::encodeFromMorphs(PyObject* morphs, bool returnO
 		tuple<string, string>
 	>>(iter.get(), [&](auto&& item)
 	{
-		using T = std::decay_t<decltype(item)>;
+		using T = decay_t<decltype(item)>;
 		if constexpr (is_same_v<T, tuple<string, string, bool>>)
 		{
 			auto form = utf8To16(get<0>(item));
@@ -1331,11 +1556,11 @@ py::UniqueObj SwTokenizerObject::tokenizeAndEncode(PyObject* text, bool returnOf
 		if (returnOffsets)
 		{
 			chrOffsetsToTokenOffsets(res[0].first, offsets);
-			return py::buildPyTuple(resToPyList(move(res), *tokenizer.getKiwi()), tokenIds, offsets);
+			return py::buildPyTuple(resToPyList(move(res), kiwi.get()), tokenIds, offsets);
 		}
 		else
 		{
-			return py::buildPyTuple(resToPyList(move(res), *tokenizer.getKiwi()), tokenIds);
+			return py::buildPyTuple(resToPyList(move(res), kiwi.get()), tokenIds);
 		}
 	}
 
@@ -1360,10 +1585,10 @@ std::string SwTokenizerObject::decode(PyObject* ids, bool ignoreErrors) const
 	return tokenizer.decode(py::toCpp<vector<uint32_t>>(ids), !!ignoreErrors);
 }
 
-bool KiwiObject::addUserWord(const char* word, const char* tag, float score, std::optional<const char*> origWord)
+std::pair<uint32_t, bool> KiwiObject::addUserWord(const char* word, const char* tag, float score, std::optional<const char*> origWord)
 {	
 	auto pos = parseTag(tag);
-	bool added = false;
+	std::pair<uint32_t, bool> added = std::make_pair(0, false);
 	if (origWord)
 	{
 		added = builder.addWord(utf8To16(word), pos, score, utf8To16(*origWord));
@@ -1372,7 +1597,7 @@ bool KiwiObject::addUserWord(const char* word, const char* tag, float score, std
 	{
 		added = builder.addWord(utf8To16(word), pos, score);
 	}
-	if (added) kiwi = Kiwi{};
+	if (added.second) kiwi = Kiwi{};
 	return added;
 }
 
@@ -1427,7 +1652,7 @@ bool KiwiObject::addPreAnalyzedWord(const char* form, PyObject* oAnalyzed, float
 	}
 }
 
-std::vector<std::u16string> KiwiObject::addRule(const char* tag, PyObject* replacer, float score)
+std::vector<std::pair<uint32_t, std::u16string>> KiwiObject::addRule(const char* tag, PyObject* replacer, float score)
 {
 	if (!PyCallable_Check(replacer)) throw py::ValueError{ "`replacer` must be an callable." };
 
@@ -1502,16 +1727,39 @@ py::UniqueObj KiwiObject::extractAddWords(PyObject* sentences, size_t minCnt, si
 	return retList;
 }
 
-py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOptions, bool echo, PyObject* blockList)
+py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOptions, bool echo, PyObject* blockList, PyObject* pretokenized)
 {
 	doPrepare();
 	if (PyUnicode_Check(text))
 	{
 		const unordered_set<const Morpheme*>* morphs = nullptr;
+		pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> pretokenizedSpans;
 		if (blockList != Py_None) morphs = &((MorphemeSetObject*)blockList)->morphSet;
-		auto res = kiwi.analyze(PyUnicode_AsUTF8(text), max(topN, (size_t)10), matchOptions, morphs);
+		if (PyCallable_Check(pretokenized))
+		{
+			py::UniqueObj ptResult{ PyObject_CallFunctionObjArgs(pretokenized, text, nullptr) };
+			if (!ptResult) throw py::ExcPropagation{};
+			pretokenizedSpans = makePretokenizedSpans(ptResult.get());
+		}
+		else if (pretokenized != Py_None)
+		{
+			pretokenizedSpans = makePretokenizedSpans(pretokenized);
+		}
+
+		py::StringWithOffset<u16string> so;
+		if (pretokenizedSpans.first.empty())
+		{
+			so.str = py::toCpp<u16string>(text);
+		}
+		else
+		{
+			so = py::toCpp<py::StringWithOffset<u16string>>(text);
+			updatePretokenizedSpanToU16(pretokenizedSpans.first, so);
+		}
+
+		auto res = kiwi.analyze(so.str, max(topN, (size_t)10), matchOptions, morphs, pretokenizedSpans.first);
 		if (res.size() > topN) res.erase(res.begin() + topN, res.end());
-		return resToPyList(move(res), kiwi);
+		return resToPyList(move(res), this, move(pretokenizedSpans.second));
 	}
 	else
 	{
@@ -1530,6 +1778,17 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOption
 			ret->blocklist = py::UniqueCObj<MorphemeSetObject>{ (MorphemeSetObject*)blockList };
 			Py_INCREF(blockList);
 		}
+
+		if (PyCallable_Check(pretokenized))
+		{
+			ret->pretokenizedCallable = py::UniqueObj{ pretokenized };
+			Py_INCREF(pretokenized);
+		}
+		else if (pretokenized != Py_None)
+		{
+			throw py::ValueError{ "`analyze` of multiple inputs requires a callable `pretokenized` argument." };
+		}
+
 		for (size_t i = 0; i < kiwi.getNumThreads() * 16; ++i)
 		{
 			if (!ret->feed()) break;
@@ -1547,7 +1806,7 @@ py::UniqueObj KiwiObject::perform(PyObject* sentences, size_t topN, Match matchO
 	py::UniqueObj ret{ PyList_New(0) };
 	tKiwi.analyze(topN, reader(), [&](vector<TokenResult>&& res)
 	{
-		PyList_Append(ret.get(), resToPyList(move(res), kiwi).get());
+		PyList_Append(ret.get(), resToPyList(move(res), this).get());
 	}, matchOptions);
 	return ret;
 }

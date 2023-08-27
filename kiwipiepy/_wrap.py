@@ -1,5 +1,6 @@
 import re
-from typing import Callable, List, Optional, Tuple, Union, Iterable, NamedTuple
+from functools import partial
+from typing import Callable, List, Dict, Optional, Tuple, Union, Iterable, NamedTuple, NewType, Any
 from dataclasses import dataclass
 import warnings
 
@@ -19,6 +20,10 @@ Sentence.subs.__doc__ = '''.. versionadded:: 0.14.0
 
 현 문장 내에 포함된 안긴 문장의 목록
 '''
+
+POSTag = NewType('POSTag', str)
+PretokenizedToken = NamedTuple('PretokenizedToken', [('form', str), ('tag', POSTag), ('start', int), ('end', int)])
+PretokenizedTokenList = List[Union[Tuple[int, int], Tuple[int, int, POSTag], Tuple[int, int, PretokenizedToken], Tuple[int, int, List[PretokenizedToken]]]]
 
 @dataclass
 class TypoDefinition:
@@ -168,7 +173,7 @@ Parameters
 ----------
 kiwi: Kiwi
     형태소 집합을 정의할 Kiwi의 인스턴스입니다.
-morphs: Iterable[Union[str, Tuple[str, str]]]
+morphs: Iterable[Union[str, Tuple[str, POSTag]]]
     집합에 포함될 형태소의 목록입니다. 형태소는 단일 `str`이나 `tuple`로 표기될 수 있습니다.
 
 Notes
@@ -183,7 +188,10 @@ morphset = MorphemeSet([
 ])
 ```
     '''
-    def __init__(self, kiwi, morphs):
+    def __init__(self, 
+        kiwi, 
+        morphs:Iterable[Union[str, Tuple[str, POSTag]]]
+    ):
         if not isinstance(kiwi, Kiwi):
             raise ValueError("`kiwi` must be an instance of `Kiwi`.")
         super().__init__(kiwi)
@@ -258,7 +266,7 @@ typo_cost_threshold: float
         integrate_allomorph: Optional[bool] = None,
         load_default_dict: Optional[bool] = None,
         load_typo_dict: Optional[bool] = None,
-        model_type: Optional[str] = 'knlm',
+        model_type: str = 'knlm',
         typos: Optional[Union[str, TypoTransformer]] = None,
         typo_cost_threshold: float = 2.5,
     ) -> None:
@@ -311,6 +319,8 @@ typo_cost_threshold: float
         self._load_default_dict = load_default_dict
         self._load_typo_dict = load_typo_dict
         self._typos = typos
+        self._pretokenized_pats : List[Tuple['re.Pattern', str, Any]] = []
+        self._user_values : Dict[int, Any] = {}
 
     def __repr__(self):
         return (
@@ -327,9 +337,10 @@ typo_cost_threshold: float
 
     def add_user_word(self,
         word:str,
-        tag:Optional[str] = 'NNP',
-        score:Optional[float] = 0.,
+        tag:POSTag = 'NNP',
+        score:float = 0.,
         orig_word:Optional[str] = None,
+        user_value:Optional[Any] = None,
     ) -> bool:
         '''현재 모델에 사용자 정의 형태소를 추가합니다.
 
@@ -355,12 +366,14 @@ inserted: bool
     사용자 정의 형태소가 정상적으로 삽입된 경우 True, 이미 동일한 형태소가 존재하여 삽입되지 않은 경우 False를 반환합니다.
         '''
         if re.search(r'\s', word): raise ValueError("Whitespace characters are not allowed at `word`")
-        return super().add_user_word(word, tag, score, orig_word)
+        mid, inserted = super().add_user_word(word, tag, score, orig_word)
+        self._user_values[mid] = user_value
+        return inserted
     
     def add_pre_analyzed_word(self,
         form:str,
-        analyzed:Iterable[Tuple[str, str]],
-        score:Optional[float] = 0.,
+        analyzed:Iterable[Tuple[str, POSTag]],
+        score:float = 0.,
     ) -> bool:
         '''.. versionadded:: 0.11.0
 
@@ -397,11 +410,25 @@ kiwi.add_pre_analyzed_word('사겼다', [('사귀', 'VV', 0, 2), ('었', 'EP', 1
 Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나오도록 합니다.
         '''
         return super().add_pre_analyzed_word(form, analyzed, score)
+    
+    def add_re_word(self,
+        pattern:Union[str, 're.Pattern'],
+        pretokenized:Union[Callable[['re.Match'], Union[PretokenizedToken, List[PretokenizedToken]]], POSTag, PretokenizedToken, List[PretokenizedToken]],
+        user_value:Optional[Any] = None,
+    ) -> None:
+        if isinstance(pattern, str):
+            pattern = re.compile(pattern)
+            
+        self._pretokenized_pats.append((pattern, pretokenized, user_value))
+
+    def clear_re_words(self):
+        self._pretokenized_pats.clear()
 
     def add_rule(self,
-        tag:str,
+        tag:POSTag,
         replacer:Callable[[str], str],
-        score:Optional[float] = 0.,
+        score:float = 0.,
+        user_value:Optional[Any] = None,
     ) -> List[str]:
         '''.. versionadded:: 0.11.0
 
@@ -424,13 +451,19 @@ Returns
 inserted_forms: List[str]
     규칙에 의해 새로 생성된 형태소의 `list`를 반환합니다.
         '''
-        return super().add_rule(tag, replacer, score)
+        ret = super().add_rule(tag, replacer, score)
+        if not ret: return []
+        mids, inserted_forms = zip(*ret)
+        for mid in mids:
+            self._user_values[mid] = user_value
+        return inserted_forms
     
     def add_re_rule(self,
-        tag:str,
+        tag:POSTag,
         pattern:Union[str, 're.Pattern'],
         repl:Union[str, Callable],
-        score:Optional[float] = 0.,
+        score:float = 0.,
+        user_value:Optional[Any] = None,
     ) -> List[str]:
         '''.. versionadded:: 0.11.0
 
@@ -468,7 +501,7 @@ score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
         '''
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
-        return super().add_rule(tag, lambda x:pattern.sub(repl, x), score)
+        return self.add_rule(tag, lambda x:pattern.sub(repl, x), score, user_value)
 
     def load_user_dictionary(self,
         dict_path:str
@@ -495,11 +528,11 @@ Notes
 
     def extract_words(self,
         texts,
-        min_cnt:Optional[int] = 10,
-        max_word_len:Optional[int] = 10,
-        min_score:Optional[float] = 0.25,
-        pos_score:Optional[float] = -3.,
-        lm_filter:Optional[bool] = True,
+        min_cnt:int = 10,
+        max_word_len:int = 10,
+        min_score:float = 0.25,
+        pos_score:float = -3.,
+        lm_filter:bool = True,
     ):
         '''말뭉치로부터 새로운 단어를 추출합니다. 
 이 기능은 https://github.com/lovit/soynlp 의 Word Extraction 기법을 바탕으로 하되, 
@@ -557,11 +590,11 @@ result: List[Tuple[str, float, int, float]]
     
     def extract_add_words(self,
         texts,
-        min_cnt:Optional[int] = 10,
-        max_word_len:Optional[int] = 10,
-        min_score:Optional[float] = 0.25,
-        pos_score:Optional[float] = -3.,
-        lm_filter:Optional[bool] = True,
+        min_cnt:int = 10,
+        max_word_len:int = 10,
+        min_score:float = 0.25,
+        pos_score:float = -3.,
+        lm_filter:bool = True,
     ):
         '''말뭉치로부터 새로운 단어를 추출하고 새로운 명사에 적합한 결과들만 추려냅니다. 그리고 그 결과를 현재 모델에 자동으로 추가합니다.
 
@@ -603,13 +636,13 @@ result: List[Tuple[str, float, int, float]]
     
     def perform(self,
         texts,
-        top_n:Optional[int] = 1,
-        match_options:Optional[int] = Match.ALL,
-        min_cnt:Optional[int] = 10,
-        max_word_len:Optional[int] = 10,
-        min_score:Optional[float] = 0.25,
-        pos_score:Optional[float] = -3.,
-        lm_filter:Optional[bool] = True,
+        top_n:int = 1,
+        match_options:int = Match.ALL,
+        min_cnt:int = 10,
+        max_word_len:int = 10,
+        min_score:float = 0.25,
+        pos_score:float = -3.,
+        lm_filter:bool = True,
     ):
         '''현재 모델의 사본을 만들어
 `kiwipiepy.Kiwi.extract_add_words`메소드로 말뭉치에서 단어를 추출하여 추가하고, `kiwipiepy.Kiwi.analyze`로 형태소 분석을 실시합니다.
@@ -698,14 +731,38 @@ threshold: float
             DeprecationWarning
         )
     
+    def _make_pretokenized_spans(self, override_pretokenized, text:str):
+        span_groups = []
+        for pattern, s, user_value in self._pretokenized_pats:
+            spans = []
+            if callable(s):
+                for m in pattern.finditer(text):
+                    spans.append((*m.span(), s(m), user_value))
+            else:
+                for m in pattern.finditer(text):
+                    spans.append((*m.span(), s, user_value))
+            if spans:
+                span_groups.append(spans)
+
+
+        if callable(override_pretokenized):
+            spans = override_pretokenized(text)
+            if spans: span_groups.append(spans)
+        elif override_pretokenized is not None:
+            spans = override_pretokenized
+            if spans: span_groups.append(spans)
+        
+        return span_groups
+
     def analyze(self,
         text:Union[str, Iterable[str]],
-        top_n:Optional[int] = 1,
-        match_options:Optional[int] = Match.ALL,
-        normalize_coda:Optional[bool] = False,
-        z_coda:Optional[bool] = True,
-        split_complex:Optional[bool] = False,
+        top_n:int = 1,
+        match_options:int = Match.ALL,
+        normalize_coda:bool = False,
+        z_coda:bool = True,
+        split_complex:bool = False,
         blocklist:Optional[Union[MorphemeSet, Iterable[str]]] = None,
+        pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ) -> List[Tuple[List[Token], float]]:
         '''형태소 분석을 실시합니다.
 
@@ -783,7 +840,11 @@ with open('result.txt', 'w', encoding='utf-8') as output:
         
         if blocklist: blocklist._update_self()
 
-        return super().analyze(text, top_n, match_options, False, blocklist)
+        if not isinstance(text, str) and pretokenized and not callable(pretokenized):
+            raise ValueError("`pretokenized` must be a callable if `text` is an iterable of str.")
+        pretokenized = partial(self._make_pretokenized_spans, pretokenized) if self._pretokenized_pats or pretokenized else None
+
+        return super().analyze(text, top_n, match_options, False, blocklist, pretokenized)
     
     def get_option(self,
         option:int,
@@ -977,14 +1038,15 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
 
     def _tokenize(self, 
         text:Union[str, Iterable[str]], 
-        match_options:Optional[int] = Match.ALL,
-        normalize_coda:Optional[bool] = False,
-        z_coda:Optional[bool] = True,
-        split_complex:Optional[bool] = False,
-        split_sents:Optional[bool] = False,
+        match_options:int = Match.ALL,
+        normalize_coda:bool = False,
+        z_coda:bool = True,
+        split_complex:bool = False,
+        split_sents:bool = False,
         stopwords:Optional[Stopwords] = None,
-        echo:Optional[bool] = False,
+        echo:bool = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
+        pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ):
         import itertools
 
@@ -1016,22 +1078,28 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         
         if blocklist: blocklist._update_self()
 
+        if not isinstance(text, str) and pretokenized and not callable(pretokenized):
+            raise ValueError("`pretokenized` must be a callable if `text` is an iterable of str.")
+
+        pretokenized = partial(self._make_pretokenized_spans, pretokenized) if self._pretokenized_pats or pretokenized else None
+
         if isinstance(text, str):
             echo = False
-            return _refine_result(super().analyze(text, 1, match_options, False, blocklist))
+            return _refine_result(super().analyze(text, 1, match_options, False, blocklist, pretokenized))
         
-        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist))
+        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist, pretokenized))
 
     def tokenize(self, 
         text:Union[str, Iterable[str]], 
-        match_options:Optional[int] = Match.ALL,
-        normalize_coda:Optional[bool] = False,
-        z_coda:Optional[bool] = True,
-        split_complex:Optional[bool] = False,
-        split_sents:Optional[bool] = False,
+        match_options:int = Match.ALL,
+        normalize_coda:bool = False,
+        z_coda:bool = True,
+        split_complex:bool = False,
+        split_sents:bool = False,
         stopwords:Optional[Stopwords] = None,
-        echo:Optional[bool] = False,
+        echo:bool = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
+        pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ) -> Union[List[Token], Iterable[List[Token]], List[List[Token]], Iterable[List[List[Token]]]]:
         '''.. versionadded:: 0.10.2
 
@@ -1153,17 +1221,20 @@ Notes
  Token(form='출력', tag='NNG', start=18, len=2)]
 ```
         '''
-        return self._tokenize(text, match_options, normalize_coda, z_coda, split_complex, split_sents, stopwords, echo, blocklist=blocklist)
+        return self._tokenize(text, match_options, normalize_coda, z_coda, split_complex, split_sents, stopwords, echo, 
+                              blocklist=blocklist, 
+                              pretokenized=pretokenized
+        )
 
     def split_into_sents(self, 
         text:Union[str, Iterable[str]], 
-        match_options:Optional[int] = Match.ALL, 
-        normalize_coda:Optional[bool] = False,
-        z_coda:Optional[bool] = True,
-        split_complex:Optional[bool] = False,
+        match_options:int = Match.ALL, 
+        normalize_coda:bool = False,
+        z_coda:bool = True,
+        split_complex:bool = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
-        return_tokens:Optional[bool] = False,
-        return_sub_sents:Optional[bool] = True,
+        return_tokens:bool = False,
+        return_sub_sents:bool = True,
     ) -> Union[List[Sentence], Iterable[List[Sentence]]]:
         '''..versionadded:: 0.10.3
 
@@ -1282,8 +1353,8 @@ Notes
 
     def glue(self,
         text_chunks:Iterable[str],
-        insert_new_lines:Iterable[bool] = None,
-        return_space_insertions:Optional[bool] = False,
+        insert_new_lines:Optional[Iterable[bool]] = None,
+        return_space_insertions:bool = False,
     ) -> Union[str, Tuple[str, List[bool]]]:
         '''..versionadded:: 0.11.1
 
@@ -1350,7 +1421,7 @@ Notes
             while 1:
                 yield False
 
-        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL, False, None)
+        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL, False, None, None)
             
         if insert_new_lines is None: 
             insert_new_lines = _repeat_false()
@@ -1382,7 +1453,7 @@ Notes
 
     def space(self,
         text:Union[str, Iterable[str]],
-        reset_whitespace:Optional[bool] = False,
+        reset_whitespace:bool = False,
     ) -> Union[str, Iterable[str]]:
         '''..versionadded:: 0.11.1
 
@@ -1471,14 +1542,14 @@ Notes
 
         if isinstance(text, str):
             if reset_whitespace: text = _reset(text)
-            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA, False, None), text))
+            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA, False, None, None), text))
         else:
             if reset_whitespace: text = map(_reset, text)
-            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, True, None))
+            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, True, None, None))
 
     def join(self, 
         morphs:Iterable[Tuple[str, str]],
-        lm_search:Optional[bool] = True
+        lm_search:bool = True
     ) -> str:
         '''..versionadded:: 0.12.0
 
