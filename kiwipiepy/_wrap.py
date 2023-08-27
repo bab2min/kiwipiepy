@@ -288,14 +288,14 @@ typo_cost_threshold: float
             typos = kiwipiepy.basic_typos
 
         super().__init__(
-            num_workers=num_workers,
-            model_path=model_path,
-            integrate_allomorph=integrate_allomorph,
-            load_default_dict=load_default_dict,
-            load_typo_dict=load_typo_dict,
-            sbg=(model_type=='sbg'),
-            typos=typos,
-            typo_cost_threshold=typo_cost_threshold,
+            num_workers,
+            model_path,
+            integrate_allomorph,
+            load_default_dict,
+            load_typo_dict,
+            (model_type=='sbg'),
+            typos,
+            typo_cost_threshold,
         )
 
         self._ns_integrate_allomorph = integrate_allomorph
@@ -783,7 +783,7 @@ with open('result.txt', 'w', encoding='utf-8') as output:
         
         if blocklist: blocklist._update_self()
 
-        return super().analyze(text, top_n, match_options, blocklist=blocklist)
+        return super().analyze(text, top_n, match_options, False, blocklist)
     
     def get_option(self,
         option:int,
@@ -1018,9 +1018,9 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
 
         if isinstance(text, str):
             echo = False
-            return _refine_result(super().analyze(text, top_n=1, match_options=match_options, blocklist=blocklist))
+            return _refine_result(super().analyze(text, 1, match_options, False, blocklist))
         
-        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, top_n=1, match_options=match_options, echo=echo, blocklist=blocklist))
+        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist))
 
     def tokenize(self, 
         text:Union[str, Iterable[str]], 
@@ -1350,7 +1350,7 @@ Notes
             while 1:
                 yield False
 
-        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL)
+        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL, False, None)
             
         if insert_new_lines is None: 
             insert_new_lines = _repeat_false()
@@ -1471,10 +1471,10 @@ Notes
 
         if isinstance(text, str):
             if reset_whitespace: text = _reset(text)
-            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA), text))
+            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA, False, None), text))
         else:
             if reset_whitespace: text = map(_reset, text)
-            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, echo=True))
+            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, True, None))
 
     def join(self, 
         morphs:Iterable[Tuple[str, str]],

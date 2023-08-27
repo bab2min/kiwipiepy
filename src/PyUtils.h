@@ -13,11 +13,8 @@
 #include <cstring>
 #include <deque>
 #include <future>
-
-#if __cplusplus >= 201700L
-	#include <optional>
-	#include <variant>
-#endif
+#include <optional>
+#include <variant>
 
 #ifdef _DEBUG
 #undef _DEBUG
@@ -39,13 +36,25 @@
 #include <numpy/arrayobject.h>
 #endif
 
+#if defined(__clang__)
+#define PY_STRONG_INLINE inline
+#elif defined(__GNUC__) || defined(__GNUG__)
+#define PY_STRONG_INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define PY_STRONG_INLINE __forceinline 
+#endif
+
 namespace py
 {
 	template<class Ty = PyObject>
 	struct UniqueCObj
 	{
 		Ty* obj = nullptr;
-		explicit UniqueCObj(Ty* _obj = nullptr) : obj(_obj) {}
+		
+		UniqueCObj() {}
+
+		explicit UniqueCObj(Ty* _obj) : obj(_obj) {}
+
 		~UniqueCObj()
 		{
 			Py_XDECREF(obj);
@@ -63,6 +72,11 @@ namespace py
 		{
 			std::swap(obj, o.obj);
 			return *this;
+		}
+
+		operator UniqueCObj<PyObject>()
+		{
+			return UniqueCObj<PyObject>{ (PyObject*)release() };
 		}
 
 		Ty* get() const
@@ -102,7 +116,11 @@ namespace py
 	struct SharedCObj
 	{
 		Ty* obj = nullptr;
-		explicit SharedCObj(Ty* _obj = nullptr) : obj(_obj) {}
+
+		SharedCObj() {}
+
+		SharedCObj(Ty* _obj) : obj(_obj) {}
+
 		~SharedCObj()
 		{
 			Py_XDECREF(obj);
@@ -113,6 +131,7 @@ namespace py
 		{
 			Py_INCREF(obj);
 		}
+
 		SharedCObj& operator=(const SharedCObj& o)
 		{
 			Py_XDECREF(obj);
@@ -695,7 +714,7 @@ namespace py
 		{
 			if (v)
 			{
-				Py_INCREF(v);
+				Py_INCREF(v.get());
 				return UniqueObj{ (PyObject*)v.get() };
 			}
 			else
@@ -709,7 +728,7 @@ namespace py
 		{
 			if (v)
 			{
-				Py_INCREF(v);
+				Py_INCREF(v.get());
 				return UniqueObj{ (PyObject*)v.get() };
 			}
 			else
@@ -719,14 +738,9 @@ namespace py
 			}
 		}
 
-		bool _toCpp(PyObject* obj, UniqueCObj<Ty>& out)
-		{
-			out = UniqueCObj<Ty>{ (Ty*)obj };
-			Py_INCREF(obj);
-			return true;
-		}
+		bool _toCpp(PyObject* obj, UniqueCObj<Ty>& out);
 	};
-
+	
 	template<typename Ty>
 	struct ValueBuilder<SharedCObj<Ty>>
 	{
@@ -1534,16 +1548,49 @@ namespace py
 			Py_TYPE(self)->tp_free((PyObject*)self);
 		}
 
+		using _InitArgs = std::tuple<>;
+
 	private:
-		static void init() { }
-		static void iter() {}
-		static void iternext() {}
-		static void repr() {}
+		template<class InitArgs, size_t ...idx>
+		PY_STRONG_INLINE static void initFromPython(Derived* self, PyObject* args, std::index_sequence<idx...>)
+		{
+			*self = Derived{ toCpp<std::tuple_element_t<idx, InitArgs>>(PyTuple_GET_ITEM(args, idx))... };
+		}
+
+		static int init(Derived* self, PyObject* args, PyObject* kwargs)
+		{
+			return handleExc([&]() -> int
+			{
+				using InitArgs = typename Derived::_InitArgs;
+				if constexpr (std::tuple_size_v<InitArgs> == 0)
+				{
+					if (args && PyTuple_GET_SIZE(args) != 0)
+					{
+						throw TypeError{ "function takes " + std::to_string(std::tuple_size_v<InitArgs>) + " arguments (" + std::to_string(PyTuple_GET_SIZE(args)) + " given)" };
+					}
+				}
+
+				if (std::tuple_size_v<InitArgs> != PyTuple_GET_SIZE(args))
+				{
+					throw TypeError{ "function takes " + std::to_string(std::tuple_size_v<InitArgs>) + " arguments (" + std::to_string(PyTuple_GET_SIZE(args)) + " given)" };
+				}
+				if (kwargs)
+				{
+					throw TypeError{ "function takes positional arguments only" };
+				}
+
+				auto temp = self->ob_base;
+				initFromPython<InitArgs>(self, args, std::make_index_sequence<std::tuple_size_v<InitArgs>>{});
+				self->ob_base = temp;
+				return 0;
+			});
+		}
 
 		static constexpr const char* _name = "";
 		static constexpr const char* _name_in_module = "";
 		static constexpr const char* _doc = "";
 		static constexpr int _flags = Py_TPFLAGS_DEFAULT;
+
 		friend class TypeWrapper<Derived>;
 	};
 
@@ -1554,6 +1601,13 @@ namespace py
 		std::deque<std::future<RetTy>> futures;
 		std::deque<SharedObj> inputItems;
 		bool echo = false;
+
+		ResultIter() = default;
+		ResultIter(ResultIter&&) = default;
+		ResultIter& operator=(ResultIter&&) = default;
+
+		ResultIter(const ResultIter&) = delete;
+		ResultIter& operator=(const ResultIter&) = delete;
 
 		~ResultIter()
 		{
@@ -1570,34 +1624,27 @@ namespace py
 			}
 		}
 
-		static int init(Derived* self, PyObject*, PyObject*)
+		py::UniqueCObj<Derived> iter() const
 		{
-			return 0;
+			Py_INCREF(this);
+			return py::UniqueCObj<Derived>{ static_cast<Derived*>(const_cast<ResultIter*>(this)) };
 		}
 
-		static Derived* iter(Derived* self)
+		py::UniqueObj iternext()
 		{
-			Py_INCREF(self);
-			return self;
-		}
-
-		static PyObject* iternext(Derived* self)
-		{
-			return handleExc([&]() -> PyObject* {
-				if (!self->feed() && self->futures.empty()) return nullptr;
-			auto f = std::move(self->futures.front());
-			self->futures.pop_front();
-			if (self->echo)
+			if (!feed() && futures.empty()) throw py::ExcPropagation{};
+			auto f = std::move(futures.front());
+			futures.pop_front();
+			if (echo)
 			{
-				auto input = std::move(self->inputItems.front());
-				self->inputItems.pop_front();
-				return buildPyTuple(UniqueObj{ self->buildPy(f.get()) }, input).release();
+				auto input = std::move(inputItems.front());
+				inputItems.pop_front();
+				return buildPyTuple(static_cast<Derived*>(this)->buildPy(f.get()), input);
 			}
 			else
 			{
-				return self->buildPy(f.get()).release();
+				return static_cast<Derived*>(this)->buildPy(f.get());
 			}
-			});
 		}
 
 		bool feed()
@@ -1681,22 +1728,7 @@ namespace py
 		static PyTypeObject obj;
 
 		template<class Fn>
-		TypeWrapper(Module& tm, Fn&& fn)
-		{
-			obj.tp_basicsize = sizeof(Ty);
-			obj.tp_dealloc = (destructor)Ty::dealloc;
-			obj.tp_new = (newfunc)Ty::_new;
-			obj.tp_alloc = PyType_GenericAlloc;
-			obj.tp_flags = Ty::_flags;
-			obj.tp_name = Ty::_name;
-			obj.tp_doc = Ty::_doc;
-			if ((void*)&CObject<Ty>::init != (void*)Ty::init) obj.tp_init = (initproc)Ty::init;
-			if ((void*)&CObject<Ty>::iter != (void*)Ty::iter) obj.tp_iter = (getiterfunc)Ty::iter;
-			if ((void*)&CObject<Ty>::iternext != (void*)Ty::iternext) obj.tp_iternext = (iternextfunc)Ty::iternext;
-			if ((void*)&CObject<Ty>::repr != (void*)Ty::repr) obj.tp_repr = (reprfunc)Ty::repr;
-			fn(obj);
-			tm.registerType(&obj, Ty::_name_in_module);
-		}
+		TypeWrapper(Module& tm, Fn&& fn);
 
 		static constexpr PyObject* getTypeObj() { return (PyObject*)&obj; }
 	};
@@ -1716,8 +1748,20 @@ namespace py
 		return ret;
 	}
 
+	template<class Ty>
+	bool ValueBuilder<UniqueCObj<Ty>>::_toCpp(PyObject* obj, UniqueCObj<Ty>& out)
+	{
+		out = UniqueCObj<Ty>{ (Ty*)obj };
+		if (!std::is_same_v<Ty, PyObject> && !PyObject_IsInstance(obj, (PyObject*)Type<Ty>))
+		{
+			return false;
+		}
+		Py_INCREF(obj);
+		return true;
+	}
+
 	template<typename _Fn>
-	auto handleExc(_Fn&& fn)
+	PY_STRONG_INLINE auto handleExc(_Fn&& fn)
 		-> typename std::enable_if<std::is_pointer<decltype(fn())>::value, decltype(fn())>::type
 	{
 		try
@@ -1760,7 +1804,7 @@ namespace py
 	}
 
 	template<typename _Fn>
-	auto handleExc(_Fn&& fn)
+	PY_STRONG_INLINE auto handleExc(_Fn&& fn)
 		-> typename std::enable_if<std::is_same<decltype(fn()), UniqueObj>::value, decltype(fn())>::type
 	{
 		try
@@ -1803,7 +1847,7 @@ namespace py
 	}
 
 	template<typename _Fn>
-	auto handleExc(_Fn&& fn)
+	PY_STRONG_INLINE auto handleExc(_Fn&& fn)
 		-> typename std::enable_if<std::is_integral<decltype(fn())>::value, decltype(fn())>::type
 	{
 		try
@@ -1889,14 +1933,16 @@ namespace py
 	namespace detail
 	{
 		template <typename T>
-		struct TypeDecomposerImpl;
+		struct CppWrapperImpl;
 
+		/* global function object */
 		template <typename R, typename... Ts>
-		struct TypeDecomposerImpl<R(Ts...)>
+		struct CppWrapperImpl<R(Ts...)>
 		{
 			using Type = R(Ts...);
 			using FunctionPointerType = R(*)(Ts...);
 			using ReturnType = R;
+			using ClassType = void;
 			using ArgsTuple = std::tuple<Ts...>;
 
 			template <std::size_t N>
@@ -1904,22 +1950,30 @@ namespace py
 
 			static const std::size_t nargs{ sizeof...(Ts) };
 
-			template<Type func>
-			static FunctionPointerType GetCFunctionPointer()
+			template<Type func, size_t ...idx>
+			static constexpr auto callFromPython(void*, PyObject* args, PyObject* kwargs, std::index_sequence<idx...>)
 			{
-				return [](Ts... ts)
+				if (PyTuple_GET_SIZE(args) != std::tuple_size_v<ArgsTuple>)
 				{
-					return func(std::forward<Ts>(ts)...);
-				};
+					throw TypeError{ "function takes " + std::to_string(std::tuple_size_v<ArgsTuple>) + " arguments (" + std::to_string(PyTuple_GET_SIZE(args)) + " given)" };
+				}
+				if (kwargs)
+				{
+					throw TypeError{ "function takes positional arguments only" };
+				}
+
+				return func(toCpp<Arg<idx>>(PyTuple_GET_ITEM(args, idx))...);
 			}
 		};
 
+		/* global function pointer */
 		template <typename R, typename... Ts>
-		struct TypeDecomposerImpl<R(*)(Ts...)>
+		struct CppWrapperImpl<R(*)(Ts...)>
 		{
 			using Type = R(*)(Ts...);
 			using FunctionPointerType = R(*)(Ts...);
 			using ReturnType = R;
+			using ClassType = void;
 			using ArgsTuple = std::tuple<Ts...>;
 
 			template <std::size_t N>
@@ -1927,18 +1981,25 @@ namespace py
 
 			static const std::size_t nargs{ sizeof...(Ts) };
 
-			template <Type func>
-			static FunctionPointerType GetCFunctionPointer()
+			template<Type func, size_t ...idx>
+			static constexpr auto call(void*, PyObject* args, PyObject* kwargs, std::index_sequence<idx...>)
 			{
-				return [](Ts... ts)
+				if (PyTuple_GET_SIZE(args) != std::tuple_size_v<ArgsTuple>)
 				{
-					return func(std::forward<Ts>(ts)...);
-				};
+					throw TypeError{ "function takes " + std::to_string(std::tuple_size_v<ArgsTuple>) + " arguments (" + std::to_string(PyTuple_GET_SIZE(args)) + " given)" };
+				}
+				if (kwargs)
+				{
+					throw TypeError{ "function takes positional arguments only" };
+				}
+
+				return func(toCpp<Arg<idx>>(PyTuple_GET_ITEM(args, idx))...);
 			}
 		};
 
+		/* member function pointer */
 		template <typename C, typename R, typename... Ts>
-		struct TypeDecomposerImpl<R(C::*)(Ts...)>
+		struct CppWrapperImpl<R(C::*)(Ts...)>
 		{
 			using Type = R(C::*)(Ts...);
 			using FunctionPointerType = R(*)(C*, Ts...);
@@ -1951,26 +2012,58 @@ namespace py
 
 			static constexpr std::size_t nargs{ sizeof...(Ts) };
 
-			template <Type func>
-			static FunctionPointerType GetCFunctionPointer()
+			template<Type func, size_t ...idx>
+			static constexpr auto call(ClassType* self, PyObject* args, PyObject* kwargs, std::index_sequence<idx...>)
 			{
-				return [](ClassType* c, Ts... ts) -> ReturnType
+				if (PyTuple_GET_SIZE(args) != std::tuple_size_v<ArgsTuple>)
 				{
-					return (c->*func)(std::forward<Ts>(ts)...);
-				};
+					throw TypeError{ "function takes " + std::to_string(std::tuple_size_v<ArgsTuple>) + " arguments (" + std::to_string(PyTuple_GET_SIZE(args)) + " given)" };
+				}
+				if (kwargs)
+				{
+					throw TypeError{ "function takes positional arguments only" };
+				}
+
+				return (self->*func)(toCpp<Arg<idx>>(PyTuple_GET_ITEM(args, idx))...);
 			}
 
-			template<Type fn, const char* ...argNames> static PyCFunction method()
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 0, ReturnType> len(ClassType* self)
 			{
-				return (PyCFunction)(PyCFunctionWithKeywords)[](PyObject* self, PyObject* args, PyObject* kwargs) -> PyObject*
-				{
-					return (((C*)self)->*fn)();
-				};
+				static_assert(std::is_integral_v<ReturnType>, "len() must return integral type");
+				return (self->*func)();
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 1, ReturnType> ssizearg(ClassType* self, Py_ssize_t idx)
+			{
+				static_assert(std::is_integral_v<Arg<0>>, "ssizearg() must take one integral argument");
+				return (self->*func)(idx);
+			}
+			
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 0, ReturnType> repr(ClassType* self)
+			{
+				return (self->*func)();
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 0, ReturnType> get(ClassType* self)
+			{
+				return (self->*func)();
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 1, int> set(ClassType* self, PyObject* val)
+			{
+				(self->*func)(toCpp<Arg<0>>(val));
+				return 0;
 			}
 		};
 
+		/* const member function pointer */
 		template <typename C, typename R, typename... Ts>
-		struct TypeDecomposerImpl<R(C::*)(Ts...) const>
+		struct CppWrapperImpl<R(C::*)(Ts...) const>
 		{
 			using Type = R(C::*)(Ts...) const;
 			using FunctionPointerType = R(*)(C*, Ts...);
@@ -1983,139 +2076,221 @@ namespace py
 
 			static constexpr std::size_t nargs{ sizeof...(Ts) };
 
-			template <Type func>
-			static FunctionPointerType GetCFunctionPointer()
+			template<Type func, size_t ...idx>
+			static constexpr auto call(const ClassType* self, PyObject* args, PyObject* kwargs, std::index_sequence<idx...>)
 			{
-				return [](ClassType* c, Ts... ts)
+				if (PyTuple_GET_SIZE(args) != std::tuple_size_v<ArgsTuple>)
 				{
-					return (c->*func)(std::forward<Ts>(ts)...);
+					throw TypeError{ "function takes " + std::to_string(std::tuple_size_v<ArgsTuple>) + " arguments (" + std::to_string(PyTuple_GET_SIZE(args)) + " given)" };
+				}
+				if (kwargs)
+				{
+					throw TypeError{ "function takes positional arguments only" };
+				}
+
+				return (self->*func)(toCpp<Arg<idx>>(PyTuple_GET_ITEM(args, idx))...);
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 0, ReturnType> len(const ClassType* self)
+			{
+				static_assert(std::is_integral_v<ReturnType>, "len() must return integral type");
+				return (self->*func)();
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 1, ReturnType> ssizearg(const ClassType* self, Py_ssize_t idx)
+			{
+				static_assert(std::is_integral_v<Arg<0>>, "ssizearg() must take one integral argument");
+				return (self->*func)(idx);
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 0, ReturnType> repr(const ClassType* self)
+			{
+				return (self->*func)();
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 0, ReturnType> get(const ClassType* self)
+			{
+				return (self->*func)();
+			}
+		};
+
+		/* member variable pointer */
+		template <typename C, typename R>
+		struct CppWrapperImpl<R(C::*)>
+		{
+			using Type = R(C::*);
+			using ReturnType = R;
+			using ClassType = C;
+
+			template<Type ptr>
+			static constexpr const ReturnType& get(ClassType* self)
+			{
+				return self->*ptr;
+			}
+
+			template<Type ptr>
+			static constexpr int set(ClassType* self, PyObject* val)
+			{
+				self->*ptr = toCpp<ReturnType>(val);
+				return 0;
+			}
+		};
+
+		template<class Base>
+		struct CppWrapperInterface : public Base
+		{
+			using T = typename Base::Type;
+
+			template<T func>
+			static constexpr PyCFunction call()
+			{
+				return (PyCFunction)(PyCFunctionWithKeywords)[](PyObject* self, PyObject* args, PyObject* kwargs) -> PyObject*
+				{
+					return handleExc([&]() -> PyObject*
+					{
+						if constexpr (std::is_same_v<typename Base::ReturnType, void>)
+						{
+							Base::template call<func>((typename Base::ClassType*)self, args, kwargs, std::make_index_sequence<std::tuple_size_v<typename Base::ArgsTuple>>{});
+							return buildPyValue(nullptr).release();
+						}
+						else
+						{
+							return buildPyValue(Base::template call<func>((typename Base::ClassType*)self, args, kwargs, std::make_index_sequence<std::tuple_size_v<typename Base::ArgsTuple>>{})).release();
+						}
+					});
+				};
+			}
+
+			template<T ptr>
+			static constexpr lenfunc len()
+			{
+				return (lenfunc)[](PyObject* self) -> Py_ssize_t
+				{
+					return handleExc([&]()
+					{
+						return Base::template len<ptr>((typename Base::ClassType*)self);
+					});
+				};
+			}
+
+			template<T ptr>
+			static constexpr reprfunc repr()
+			{
+				return (reprfunc)[](PyObject* self) -> PyObject*
+				{
+					return handleExc([&]()
+					{
+						return buildPyValue(Base::template repr<ptr>((typename Base::ClassType*)self)).release();
+					});
+				};
+			}
+
+			template<T ptr>
+			static constexpr ssizeargfunc ssizearg()
+			{
+				return (ssizeargfunc)[](PyObject* self, Py_ssize_t idx) -> PyObject*
+				{
+					return handleExc([&]()
+					{
+						return buildPyValue(Base::template ssizearg<ptr>((typename Base::ClassType*)self, idx)).release();
+					});
+				};
+			}
+
+			template<T ptr>
+			static constexpr getter get()
+			{
+				return (getter)[](PyObject* self, void* closure) -> PyObject*
+				{
+					return handleExc([&]()
+					{
+						return buildPyValue(Base::template get<ptr>((typename Base::ClassType*)self)).release();
+					});
+				};
+			}
+
+			template<T ptr>
+			static constexpr setter set()
+			{
+				return (setter)[](PyObject* self, PyObject* val, void* closure) -> int
+				{
+					return handleExc([&]()
+					{
+						return Base::template set<ptr>((typename Base::ClassType*)self, val);
+					});
 				};
 			}
 		};
+
+#define _PY_DETAILED_TEST_MEMFN(name, func) \
+		template <typename T>\
+		class name\
+		{\
+			using one = char;\
+			struct two { char x[2]; };\
+			template <typename C> static one test(decltype(&C::func));\
+			template <typename C> static two test(...);\
+		public:\
+			enum { value = sizeof(test<T>(0)) == sizeof(char) };\
+		};
+
+		_PY_DETAILED_TEST_MEMFN(HasRepr, repr);
+		_PY_DETAILED_TEST_MEMFN(HasIter, iter);
+		_PY_DETAILED_TEST_MEMFN(HasIterNext, iternext);
+		_PY_DETAILED_TEST_MEMFN(HasLen, len);
 	}
 
 	template <typename T, typename = void>
-	struct TypeDecomposer : detail::TypeDecomposerImpl<T>
+	struct CppWrapper : detail::CppWrapperInterface<detail::CppWrapperImpl<T>>
 	{
 	};
 
 	template <typename T>
-	struct TypeDecomposer<T, typename std::enable_if<IsFunctionObject<T>::value>::type> :
-		detail::TypeDecomposerImpl<decltype(&T::operator())>
+	struct CppWrapper<T, typename std::enable_if<IsFunctionObject<T>::value>::type> :
+		detail::CppWrapperInterface<detail::CppWrapperImpl<decltype(&T::operator())>>
 	{
 	};
 
-
-	namespace detail
+	template<class Ty>
+	template<class Fn>
+	TypeWrapper<Ty>::TypeWrapper(Module& tm, Fn&& fn)
 	{
-		template<typename Class, typename Ret, typename... Args>
-		struct MemberTraits
+		obj.tp_basicsize = sizeof(Ty);
+		obj.tp_dealloc = (destructor)Ty::dealloc;
+		obj.tp_new = (newfunc)Ty::_new;
+		obj.tp_alloc = PyType_GenericAlloc;
+		obj.tp_flags = Ty::_flags;
+		obj.tp_name = Ty::_name;
+		obj.tp_doc = Ty::_doc;
+		obj.tp_init = (initproc)Ty::init;
+		
+		if constexpr (detail::HasIter<Ty>::value)
 		{
-			using ClassTy = Class;
-			using RetTy = Ret;
-			using ArgsTy = std::tuple<Args...>;
-		};
+			obj.tp_iter = CppWrapper<decltype(&Ty::iter)>::template repr<&Ty::iter>();
+		}
 
-		template<typename Class, typename Ret, typename ...Args>
-		MemberTraits<Class, Ret, Args...> memFnTrait(Ret(Class::* f)(Args...));
-
-		template<typename Class, typename Ret, typename ...Args>
-		MemberTraits<Class, Ret, Args...> memFnTrait(Ret(Class::* f)(Args...) const);
-
-		template<typename Class, typename Ret, typename Arg>
-		Arg memFnFirstArg(Ret(Class::* f)(Arg));
-
-		template<typename Class, typename Ret, typename Arg>
-		Arg memFnFirstArg(Ret(Class::* f)(Arg) const);
-
-		template<typename Class, typename Ty>
-		MemberTraits<Class, Ty> memPtrTrait(Ty Class::* f);
-	}
-
-	template<typename Ty, PyObject* (Ty::* memfn)(PyObject*, PyObject*)>
-	PyCFunction method()
-	{
-		return (PyCFunction)(PyCFunctionWithKeywords)[](PyObject* self, PyObject* args, PyObject* kwargs) -> PyObject*
+		if constexpr (detail::HasIterNext<Ty>::value)
 		{
-			return (((Ty*)self)->*memfn)(args, kwargs);
-		};
-	}
+			obj.tp_iternext = CppWrapper<decltype(&Ty::iternext)>::template repr<&Ty::iternext>();
+		}
 
-	template<typename Ty, PyObject* (Ty::* memfn)()>
-	PyCFunction method()
-	{
-		return (PyCFunction)[](PyObject* self, PyObject*) -> PyObject*
+		if constexpr (detail::HasRepr<Ty>::value)
 		{
-			return (((Ty*)self)->*memfn)();
-		};
-	}
+			obj.tp_repr = CppWrapper<decltype(&Ty::repr)>::template repr<&Ty::repr>();
+		}
 
-	template<typename Ty, typename Val, Val Ty::* mem>
-	getter get_property()
-	{
-		return (getter)[](PyObject* self, void* closure) -> PyObject*
-		{
-			return handleExc([&]()
-			{
-				return buildPyValue(((Ty*)self)->*mem).release();
-			});
-		};
-	}
-
-	template<typename Ty, typename Val, Val(Ty::* memfn)()>
-	getter get_property()
-	{
-		return (getter)[](PyObject* self, void* closure) -> PyObject*
-		{
-			return handleExc([&]()
-			{
-				return buildPyValue((((Ty*)self)->*memfn)()).release();
-			});
-		};
-	}
-
-	template<typename Ty, typename Val, Val(Ty::* memfn)() const>
-	getter get_property()
-	{
-		return (getter)[](PyObject* self, void* closure) -> PyObject*
-		{
-			return handleExc([&]()
-			{
-				return buildPyValue((((Ty*)self)->*memfn)()).release();
-			});
-		};
-	}
-
-	template<typename Ty, typename Val, Val Ty::* mem>
-	setter set_property()
-	{
-		return (setter)[](PyObject* self, PyObject* val, void* closure) -> int
-		{
-			return handleExc([&]()
-			{
-				((Ty*)self)->*mem = toCpp<Val>(val);
-				return 0;
-			});
-		};
-	}
-
-	template<typename Ty, typename Val, void(Ty::* memfn)(Val)>
-	setter set_property()
-	{
-		return (setter)[](PyObject* self, PyObject* val, void* closure) -> int
-		{
-			return handleExc([&]()
-			{
-				if (!val) return -1;
-				(((Ty*)self)->*memfn)(toCpp<Val>(val));
-				return 0;
-			});
-		};
+		fn(obj);
+		tm.registerType(&obj, Ty::_name_in_module);
 	}
 }
 
-#define PY_METHOD_MEMFN(P) py::method<typename decltype(py::detail::memFnTrait(P))::ClassTy, P>()
-#define PY_GETTER_MEMPTR(P) py::get_property<typename decltype(py::detail::memPtrTrait(P))::ClassTy, typename decltype(py::detail::memPtrTrait(P))::RetTy, P>()
-#define PY_GETTER_MEMFN(P) py::get_property<typename decltype(py::detail::memFnTrait(P))::ClassTy, typename decltype(py::detail::memFnTrait(P))::RetTy, P>()
-#define PY_SETTER_MEMPTR(P) py::set_property<typename decltype(py::detail::memPtrTrait(P))::ClassTy, typename decltype(py::detail::memPtrTrait(P))::RetTy, P>()
-#define PY_SETTER_MEMFN(P) py::set_property<typename decltype(py::detail::memFnTrait(P))::ClassTy, decltype(py::detail::memFnFirstArg(P)), P>()
+#define PY_METHOD(P) py::CppWrapper<decltype(P)>::call<P>()
+#define PY_GETTER(P) py::CppWrapper<decltype(P)>::get<P>()
+#define PY_SETTER(P) py::CppWrapper<decltype(P)>::set<P>()
+#define PY_LENFUNC(P) py::CppWrapper<decltype(P)>::len<P>()
+#define PY_SSIZEARGFUNC(P) py::CppWrapper<decltype(P)>::ssizearg<P>()
+#define PY_REPRFUNC(P) py::CppWrapper<decltype(P)>::repr<P>()

@@ -261,7 +261,7 @@ tokenizer.encode(...)
 ```
         '''
         self.kiwi.space_tolerance = self._space_tolerance
-        return super().encode(text, return_offsets=return_offsets)
+        return super().encode(text, return_offsets)
     
     def encode_from_morphs(self, 
         morphs: Iterable[Union[Tuple[str, str, bool], Tuple[str, str]]],
@@ -330,7 +330,7 @@ Notes
             morphs, *etc = res
             return (morphs[0][0], *etc)
 
-        ret = super().tokenize_encode(text, return_offsets=return_offsets)
+        ret = super().tokenize_encode(text, return_offsets)
         if isinstance(text, str):
             return _refine(ret)
         else:
@@ -660,18 +660,20 @@ Notes
             vocab_size = [vocab_size]
         
         _SwTokenizer._train(
-            save_path, texts, config, 
-            vocab_size=vocab_size, 
-            chr_coverage=chr_coverage, 
-            strict_reduction=strict_reduction, 
-            remove_repetitive=remove_repetitive, 
-            iterations=iterations,
-            reduction_ratio=reduction_ratio, 
-            prefix_min_cnt=prefix_min_cnt,
-            prefix_max_length=prefix_max_length,
-            prevent_mixed_digit_tokens=prevent_mixed_digit_tokens,
-            kiwi=kiwi, 
-            callback=callback,
+            save_path, 
+            texts, 
+            config, 
+            vocab_size, 
+            iterations,
+            prefix_min_cnt,
+            prefix_max_length,
+            strict_reduction, 
+            remove_repetitive, 
+            prevent_mixed_digit_tokens,
+            chr_coverage, 
+            reduction_ratio, 
+            kiwi, 
+            callback,
         )
         if single_target:
             return SwTokenizer(save_path[0], kiwi)
