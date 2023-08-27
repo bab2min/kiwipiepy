@@ -70,22 +70,6 @@ def get_extra_cmake_options():
 
     return _cmake_extra_options, _clean_build_folder
 
-
-def rmtree(name):
-    """remove a directory and its subdirectories.
-    """
-    def remove_read_only(func, path, exc):
-        excvalue = exc[1]
-        if func in (os.rmdir, os.remove) and excvalue.errno == errno.EACCES:
-            os.chmod(path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
-            func(path)
-        else:
-            raise
-
-    if os.path.exists(name):
-        log.info('Removing old directory {}'.format(name))
-        shutil.rmtree(name, ignore_errors=False, onerror=remove_read_only)
-
 def num_available_cpu_cores(ram_per_build_process_in_gb):
     import multiprocessing
     try:
@@ -153,8 +137,6 @@ class CMakeBuild(build_ext):
 
         build_folder = os.path.abspath(self.build_temp)
 
-        if clean_build_folder:
-            rmtree(build_folder)
         if not os.path.exists(build_folder):
             os.makedirs(build_folder)
 
