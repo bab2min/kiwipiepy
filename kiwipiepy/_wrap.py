@@ -1049,6 +1049,7 @@ Notes
         normalize_coda:bool = False,
         z_coda:bool = True,
         split_complex:bool = False,
+        stopwords:Optional[Stopwords] = None,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
         return_tokens:bool = False,
         return_sub_sents:bool = True,
@@ -1071,6 +1072,11 @@ normalize_coda: bool
 z_coda: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 split_complex: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+stopwords: Stopwords
+
+    .. versionadded:: 0.16.0
+
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 blocklist: Union[Iterable[str], MorphemeSet]
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
@@ -1138,13 +1144,16 @@ Notes
 ])]
 ```
         '''
+        def _filter_tokens(tokens):
+            return tokens if stopwords is None else stopwords.filter(tokens)
+
         def _make_result(arg):
             sents, raw_input = arg
             ret = []
             for sent in sents:
                 start = sent[0].start
                 end = sent[-1].end
-                tokens = sent if return_tokens else None
+                tokens = _filter_tokens(sent) if return_tokens else None
                 subs = None
                 if return_sub_sents:
                     subs = []
@@ -1153,7 +1162,7 @@ Notes
                     for tok in sent:
                         if tok.sub_sent_position != last:
                             if last:
-                                subs.append(Sentence(raw_input[sub_start:last_end], sub_start, last_end, sub_toks if return_tokens else None, None))
+                                subs.append(Sentence(raw_input[sub_start:last_end], sub_start, last_end, _filter_tokens(sub_toks) if return_tokens else None, None))
                                 sub_toks = []
                             sub_start = tok.start
                         if tok.sub_sent_position:
