@@ -354,11 +354,6 @@ def test_extract_words():
     ret = kiwi.extract_words(FileReader(curpath + '/test_corpus/constitution.txt'), min_cnt=2)
     print(ret)
 
-def test_perform():
-    kiwi = Kiwi()
-    for res in kiwi.perform(FileReader(curpath + '/test_corpus/constitution.txt'), min_cnt=2):
-        print(res)
-        break
 
 def test_tweet():
     kiwi = Kiwi()
