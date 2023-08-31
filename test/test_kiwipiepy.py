@@ -82,6 +82,11 @@ def test_pretokenized():
     assert res[12].form == "패트와매트"
     assert res[12].span == (27, 32)
 
+    res = kiwi.tokenize(text, pretokenized=[
+        (3, 5, PretokenizedToken('페트', 'NNB', 0, 2)),
+    ])
+    assert res[1].form == '페트'
+
 def test_re_word():
     text = '{평만경(平滿景)}이 사람을 시켜 {침향(沈香)} 10냥쭝을 바쳤으므로'
 
