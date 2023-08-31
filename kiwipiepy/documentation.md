@@ -297,14 +297,11 @@ kiwi.tokenize('고마움에 건강히 지내시라고 눈을 반짝거리며 인
   Token(form='다', tag='EF', start=27, len=1)]
 ```
 
-0.10.0 버전 변경사항
+iterable한 입력을 받는 메소드
 --------------------
-0.10.0 버전에서는 일부 불편한 메소드들이 좀 더 편한 형태로 개량되었습니다. 
-변경된 메소드들은 `analyze` , `perform` , `extract_words` , `extract_filter_words` , `extract_add_words` 입니다.
-그리고 `async_analyze` 함수는 `analyze` 함수의 멀티스레딩 버전으로 통합되어 제거되었습니다.
-또한 `prepare` 함수를 별도로 호출할 필요가 없도록 변경되었습니다. 이전 버전의 사용법에 대해서는 이전 버전의 문서를 참조하십시오.
+`analyze`, `tokenize`, `extract_words`, `extract_add_words`는 iterable str을 입력받을 수 있습니다.
 
-**0.10.0 이후 버전의 analyze, perform 사용법**
+**analyze의 사용법**
 ```python
 from kiwipiepy import Kiwi
 
@@ -313,43 +310,26 @@ kiwi.load_user_dictionary('userDict.txt')
 with open('result.txt', 'w', encoding='utf-8') as out:
     for res in kiwi.analyze(open('test.txt', encoding='utf-8')):
         score, tokens = res[0] # top-1 결과를 가져옴
-        print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
+        print(*(token.tagged_form for token in tokens), file=out)
 
-# perform 함수의 경우
-'''
-perform 함수의 입력은 여러 번 순회 가능해야합니다.
-따라서 str의 list 형태이거나 iterable을 반환하도록 입력을 넣어주어야 합니다.
-'''
-inputs = list(open('test.txt', encoding='utf-8'))
+# tokenize 메소드를 사용하면 위와 동일한 동작을 수행하되 더 간결한 코드도 가능합니다.
 with open('result.txt', 'w', encoding='utf-8') as out:
-    for res in kiwi.perform(inputs):
-        score, tokens = res[0] # top-1 결과를 가져옴
-        print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
-
-'''
-list(open('test.txt', encoding='utf-8'))의 경우 
-모든 입력을 미리 list로 저장해두므로
-test.txt 파일이 클 경우 많은 메모리를 소모할 수 있습니다.
-그 대신 파일에서 필요한 부분만 가져와 사용하도록(streaming) 할 수도 있습니다.
-'''
-
-class IterableTextFile:
-    def __init__(self, path):
-        self.path = path
-
-    def __iter__(self):
-        yield from open(path, encoding='utf-8')
-
-with open('result.txt', 'w', encoding='utf-8') as out:
-    for res in kiwi.perform(IterableTextFile('test.txt')):
-        score, tokens = res[0] # top-1 결과를 가져옴
-        print(' '.join(map(lambda x:x.form + '/' + x.tag, tokens), file=out)
+    for tokens in kiwi.tokenize(open('test.txt', encoding='utf-8')):
+        print(*(token.tagged_form for token in tokens), file=out)
 ```
-`extract_words` , `extract_add_words` 역시 `perform`과 마찬가지로 str의 list를 입력하거나
-위의 예시의 `IterableTextFile` 처럼 str의 iterable을 반환하는 객체를 만들어 사용하면 됩니다.
-
-**0.10.0 이후 버전의 extract_words의 사용법**
+**extract_words의 사용법**
+`extract_words` , `extract_add_words`의 경우 메소드 내에서 입력된 str을 여러번 순회하는 작업이 수행합니다.
+따라서 단순히 str의 iterable를 입력하는 것은 안되며, 이를 list로 변환하거나 `IterableTextFile` 처럼 str의 iterable을 반환하는 객체를 만들어 사용해야 합니다.
 ```python
+# 다음 코드는 test.txt의 내용을 한 번만 순회 가능하기 때문에 오류가 발생합니다.
+kiwi.extract_words(open('test.txt'), 10, 10, 0.25)
+
+# list로 변환하면 여러 번 순회가 가능하여 정상적으로 작동합니다.
+kiwi.extract_words(list(open('test.txt')), 10, 10, 0.25) 
+
+# test.txt 파일의 크기가 수 GB 이상으로 큰 경우 전체를 메모리에 올리는 것이 비효율적일 수 있습니다.
+# 이 경우 다음과 같이 `IterableTextFile`를 정의하여 파일 내용을 여러 번 순회가능한 객체를 사용하면
+# 메모리 효율적인 방법으로 extract_words를 사용할 수 있습니다.
 class IterableTextFile:
     def __init__(self, path):
         self.path = path
@@ -358,7 +338,6 @@ class IterableTextFile:
         yield from open(path, encoding='utf-8')
 
 kiwi.extract_words(IterableTextFile('test.txt'), 10, 10, 0.25)
-# 아니면 그냥 str의 list를 입력해도 됩니다.
 ```
 
 사용자 정의 사전 포맷
@@ -560,6 +539,19 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.16.0 (2023-08-31)
+    * Kiwi 0.16.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.16.0 )이 반영되었습니다.
+        * PretokenizedSpan과 관련된 기능 추가
+        * 순서 있는 글머리 기호를 나타내는 SB 태그 추가. `가.`, `나.`, `다.` 등의 글머리 기호가 별도의 문장으로 분리되지 않도록 개선
+        * 사용자지정 태그로 사용할 수 있는 USER0 ~ USER4 태그 추가
+    * 정규표현식 기반으로 형태소를 사전에 추가하는 `Kiwi.add_re_word` 메소드 추가
+    * `Token.span` 추가
+    * `Token.user_value` 추가 및 user_value를 설정할 수 있도록 `Kiwi.add_user_word` 계열의 메소드에 `user_value` 인자 추가
+    * deprecated 되었던 메소드들 제거
+    * `Kiwi.add_pre_analyzed_word`에서 시작위치/끝위치를 지정하지 않았지만 그 값이 자명한 경우, 자동으로 채워넣는 기능 추가
+    * `Kiwi.split_into_sents`에 `stopwords` 인자 추가
+
+
 * 0.15.2 (2023-06-14)
     * Kiwi 0.15.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.15.2 )이 반영되었습니다.
         * 매우 긴 텍스트를 분석할 때 시작 지점이 잘못 나오는 버그 수정

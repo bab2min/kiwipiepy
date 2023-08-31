@@ -82,6 +82,11 @@ def test_pretokenized():
     assert res[12].form == "패트와매트"
     assert res[12].span == (27, 32)
 
+    res = kiwi.tokenize(text, pretokenized=[
+        (3, 5, PretokenizedToken('페트', 'NNB', 0, 2)),
+    ])
+    assert res[1].form == '페트'
+
 def test_re_word():
     text = '{평만경(平滿景)}이 사람을 시켜 {침향(沈香)} 10냥쭝을 바쳤으므로'
 
@@ -354,11 +359,6 @@ def test_extract_words():
     ret = kiwi.extract_words(FileReader(curpath + '/test_corpus/constitution.txt'), min_cnt=2)
     print(ret)
 
-def test_perform():
-    kiwi = Kiwi()
-    for res in kiwi.perform(FileReader(curpath + '/test_corpus/constitution.txt'), min_cnt=2):
-        print(res)
-        break
 
 def test_tweet():
     kiwi = Kiwi()
@@ -475,6 +475,14 @@ def test_add_pre_analyzed_word():
     assert res[1].form == "었" and res[1].tag == "EP" and res[1].start == 1 and res[1].end == 2
     assert res[2].form == "어" and res[2].tag == "EF" and res[2].start == 2 and res[2].end == 3
     assert res[3].form == "..." and res[3].tag == "SF" and res[3].start == 3 and res[3].end == 6
+
+    kiwi.add_pre_analyzed_word('격자판', [('격자', 'NNG'), ('판','NNG')], 100)
+
+    res = kiwi.tokenize("바둑판 모양의 격자판을 펴")
+    assert res[3].form == "격자"
+    assert res[3].span == (8, 10)
+    assert res[4].form == "판"
+    assert res[4].span == (10, 11)
 
 def test_space_tolerance():
     kiwi = Kiwi()

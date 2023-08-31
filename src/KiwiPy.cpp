@@ -336,7 +336,6 @@ struct KiwiObject : py::CObject<KiwiObject>
 	py::UniqueObj extractAddWords(PyObject* sentences, size_t minCnt = 10, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true);
 	py::UniqueObj extractWords(PyObject* sentences, size_t minCnt, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true) const;
 	size_t loadUserDictionary(const char* path);
-	py::UniqueObj perform(PyObject* sentences, size_t topN = 1, Match matchOptions = Match::all, size_t minCnt = 10, size_t maxWordLen = 10, float minScore = 0.25, float posScore = -3, bool lmFilter = true) const;
 	py::UniqueObj getMorpheme(size_t id) const;
 	std::string join(PyObject* morphs, bool lm_search = true);
 	py::UniqueObj makeHSDataset(PyObject* inputPathes, size_t batchSize, size_t windowSize, size_t numWorkers, float dropout = 0, PyObject* tokenFilter = nullptr, float splitRatio = 0, size_t seed = 42) const;
@@ -437,7 +436,6 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ gModule, [](PyTypeObject& obj)
 		{ "load_user_dictionary", PY_METHOD(&KiwiObject::loadUserDictionary), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "extract_words", PY_METHOD(&KiwiObject::extractWords), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "extract_add_words", PY_METHOD(&KiwiObject::extractAddWords), METH_VARARGS | METH_KEYWORDS, "" },
-		{ "perform", PY_METHOD(&KiwiObject::perform), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "analyze", PY_METHOD(&KiwiObject::analyze), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "morpheme", PY_METHOD(&KiwiObject::getMorpheme), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "join", PY_METHOD(&KiwiObject::join), METH_VARARGS | METH_KEYWORDS, "" },
@@ -1795,20 +1793,6 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOption
 		}
 		return ret;
 	}
-}
-
-py::UniqueObj KiwiObject::perform(PyObject* sentences, size_t topN, Match matchOptions, size_t minCnt, size_t maxWordLen, float minScore, float posScore, bool lmFilter) const
-{
-	auto tBuilder = builder;
-	auto reader = obj2reader(sentences);
-	tBuilder.extractAddWords(reader, minCnt, maxWordLen, minScore, posScore, lmFilter);
-	auto tKiwi = tBuilder.build();
-	py::UniqueObj ret{ PyList_New(0) };
-	tKiwi.analyze(topN, reader(), [&](vector<TokenResult>&& res)
-	{
-		PyList_Append(ret.get(), resToPyList(move(res), this).get());
-	}, matchOptions);
-	return ret;
 }
 
 py::UniqueObj KiwiObject::getMorpheme(size_t id) const

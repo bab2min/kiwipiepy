@@ -8,7 +8,7 @@ from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset, _MorphemeSet
 from kiwipiepy._c_api import Token
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
-from kiwipiepy.const import Match, Option
+from kiwipiepy.const import Match
 
 Sentence = NamedTuple('Sentence', [('text', str), ('start', int), ('end', int), ('tokens', Optional[List[Token]]), ('subs', Optional[List['Sentence']])])
 Sentence.__doc__ = '문장 분할 결과를 담기 위한 `namedtuple`입니다.'
@@ -23,6 +23,11 @@ Sentence.subs.__doc__ = '''.. versionadded:: 0.14.0
 
 POSTag = NewType('POSTag', str)
 PretokenizedToken = NamedTuple('PretokenizedToken', [('form', str), ('tag', POSTag), ('start', int), ('end', int)])
+PretokenizedToken.__doc__ = '''미리 분석된 형태소를 나타내는 데 사용하는 `namedtuple`입니다.'''
+PretokenizedToken.form.__doc__ = '형태소의 형태'
+PretokenizedToken.tag.__doc__ = '형태소의 품사 태그'
+PretokenizedToken.start.__doc__ = '주어진 구간에서 형태소가 시작하는 시작 위치 (문자 단위)'
+PretokenizedToken.end.__doc__ = '주어진 구간에서 형태소가 끝나는 시작 위치 (문자 단위)'
 PretokenizedTokenList = List[Union[Tuple[int, int], Tuple[int, int, POSTag], Tuple[int, int, PretokenizedToken], Tuple[int, int, List[PretokenizedToken]]]]
 
 @dataclass
@@ -44,7 +49,7 @@ condition: str
 
 Notes
 -----
-`orig`나 `error`는 완전한 음절 혹은 모음이나 자음을 포함할 수 있습니다. 자음의 경우 종성은 '\\'로 escape해주어야 합니다.
+`orig`나 `error`는 완전한 음절 혹은 모음이나 자음을 포함할 수 있습니다. 자음의 경우 종성은 '\\\\'로 escape해주어야 합니다.
 
 ```python
 TypoDefinition(['개'], ['게'], 1.0) # '개'를 '게'로 교체
@@ -108,18 +113,18 @@ Notes
 -----
 이 클래스의 인스턴스를 Kiwi 생성시의 typos 인자로 주면 Kiwi의 오타 교정 기능이 활성화됩니다.
 ```python
->> from kiwipiepy import Kiwi, TypoTransformer, TypoDefinition
->> typos = TypoTransformer([
+>>> from kiwipiepy import Kiwi, TypoTransformer, TypoDefinition
+>>> typos = TypoTransformer([
     TypoDefinition(["ㅐ", "ㅔ"], ["ㅐ", "ㅔ"], 1.), # ㅐ 혹은 ㅖ를 ㅐ 혹은 ㅖ로 교체하여 오타를 생성. 생성 비용은 1
     TypoDefinition(["ㅔ"], ["ㅖ"], 2.), # ㅔ를 ㅖ로 교체하여 오타를 생성. 생성 비용은 2
 ])
->> typos.generate('과제', 1.) # 생성 비용이 1.0이하인 오타들을 생성
+>>> typos.generate('과제', 1.) # 생성 비용이 1.0이하인 오타들을 생성
 [('과제', 0.0), ('과재', 1.0)]
->> typos.generate('과제', 2.) # 생성 비용이 2.0이하인 오타들을 생성
+>>> typos.generate('과제', 2.) # 생성 비용이 2.0이하인 오타들을 생성
 [('과제', 0.0), ('과재', 1.0), ('과졔', 2.0)]
 
->> kiwi = Kiwi(typos=typos, typo_cost_threshold=2.) # typos에 정의된 오타들을 교정 후보로 삼는 Kiwi 생성.
->> kiwi.tokenize('과재를 했다') 
+>>> kiwi = Kiwi(typos=typos, typo_cost_threshold=2.) # typos에 정의된 오타들을 교정 후보로 삼는 Kiwi 생성.
+>>> kiwi.tokenize('과재를 했다') 
 [Token(form='과제', tag='NNG', start=0, len=2), 
  Token(form='를', tag='JKO', start=2, len=1), 
  Token(form='하', tag='VV', start=4, len=1), 
@@ -167,7 +172,7 @@ class HSDataset(_HSDataset):
 class MorphemeSet(_MorphemeSet):
     '''.. versionadded:: 0.15.0
 
-    형태소 집합을 정의합니다. 정의된 형태소 집합은 `Kiwi.analyze`, `Kiwi.tokenize`에서 blocklist 인자로 사용될 수 있습니다.
+    형태소 집합을 정의합니다. 정의된 형태소 집합은 `Kiwi.analyze`, `Kiwi.tokenize`, `Kiwi.split_into_sents`에서 blocklist 인자로 사용될 수 있습니다.
 
 Parameters
 ----------
@@ -183,7 +188,7 @@ Notes
 ```python
 morphset = MorphemeSet([
     '고마움' # 형태만을 사용해 표현. 형태가 '고마움'인 모든 형태소가 이 집합에 포함됨
-    '고마움/NNG' # 형태와 품사 태그를 이용해 표현. 형태가 '고마움'인 일반 명사가 이 집합에 포함됨
+    '고마움/NNG' # 형태와 품사 태그를 이용해 표현. 형태가 '고마움'인 일반 명사만 이 집합에 포함됨
     ('고마움', 'NNG') # tuple로 분리해서 표현하는 것도 가능
 ])
 ```
@@ -227,13 +232,9 @@ Parameters
 ----------
 num_workers: int
     내부적으로 멀티스레딩에 사용할 스레드 개수. 0으로 설정시 시스템 내 가용한 모든 코어 개수만큼 스레드가 생성됩니다.
-    멀티스레딩은 extract 계열 함수에서 단어 후보를 탐색할 때와 perform, analyze 함수에서만 사용됩니다.
+    멀티스레딩은 extract 계열 함수에서 단어 후보를 탐색할 때와 analyze 함수에서만 사용됩니다.
 model_path: str
     읽어들일 모델 파일의 경로. 모델 파일의 위치를 옮긴 경우 이 값을 지정해주어야 합니다.
-options: int
-    Kiwi 생성시의 옵션을 설정합니다. 옵션에 대해서는 `kiwipiepy.const.Option`을 확인하십시오.
-    .. deprecated:: 0.10.0
-        차기 버전에서 제거될 예정입니다. `options` 대신 `integrate_allormoph` 및 `load_default_dict`를 사용해주세요.
 
 integrate_allormoph: bool
     True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다. 기본값은 True입니다.
@@ -262,7 +263,6 @@ typo_cost_threshold: float
     def __init__(self, 
         num_workers: Optional[int] = None,
         model_path: Optional[str] = None,
-        options: Optional[int] = None,
         integrate_allomorph: Optional[bool] = None,
         load_default_dict: Optional[bool] = None,
         load_typo_dict: Optional[bool] = None,
@@ -273,18 +273,10 @@ typo_cost_threshold: float
         if num_workers is None:
             num_workers = 0
         
-        if options is None:
-            options = 3
-        else:
-            warnings.warn(
-                "Argument `options` will be removed in future version. Use `integrate_allomorph` or `load_default_dict` instead.",
-                DeprecationWarning                
-            )
-        
         if integrate_allomorph is None:
-            integrate_allomorph = bool(options & Option.INTEGRATE_ALLOMORPH)
+            integrate_allomorph = True
         if load_default_dict is None:
-            load_default_dict = bool(options & Option.LOAD_DEFAULT_DICTIONARY)
+            load_default_dict = True
         if load_typo_dict is None:
             load_typo_dict = True
 
@@ -353,13 +345,17 @@ tag: str
 score: float
     추가할 형태소의 가중치 점수. 
     해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
-orig_word : str
+orig_word: str
     .. versionadded:: 0.11.0
 
     추가할 형태소의 원본 형태소.
     추가할 형태소가 특정 형태소의 변이형인 경우 이 인자로 원본 형태소를 넘겨줄 수 있습니다. 없는 경우 생략할 수 있습니다.
     `orig_word`가 주어진 경우 현재 사전 내에 `orig_word`/`tag` 조합의 형태소가 반드시 존재해야 하며, 그렇지 않으면 `ValueError` 예외를 발생시킵니다.
-
+user_value: Any
+    .. versionadded:: 0.16.0
+    
+    추가할 형태소의 사용자 지정값. 이 값은 형태소 분석 결과를 담는 `Token` 클래스의 `Token.user_value`값에 반영됩니다.
+    또한 만약 `{'tag':'SPECIAL'}`와 같이 dict형태로 'tag'인 key를 제공하는 경우, 형태소 분석 결과의 tag값이 SPECIAL로 덮어씌워져서 출력됩니다.
 Returns
 -------
 inserted: bool
@@ -372,7 +368,7 @@ inserted: bool
     
     def add_pre_analyzed_word(self,
         form:str,
-        analyzed:Iterable[Tuple[str, POSTag]],
+        analyzed:Iterable[Union[Tuple[str, POSTag], Tuple[str, POSTag, int, int]]],
         score:float = 0.,
     ) -> bool:
         '''.. versionadded:: 0.11.0
@@ -383,7 +379,7 @@ Parameters
 ----------
 form: str
     추가할 형태
-analyzed: Iterable[Tuple[str, str]]
+analyzed: Iterable[Union[Tuple[str, POSTag], Tuple[str, POSTag, int, int]]]
     `form`의 형태소 분석 결과.
     이 값은 (형태, 품사) 모양의 tuple, 혹은 (형태, 품사, 시작지점, 끝지점) 모양의 tuple로 구성된 Iterable이어야합니다.
     이 값으로 지정되는 형태소는 현재 사전 내에 반드시 존재해야 하며, 그렇지 않으면 `ValueError` 예외를 발생시킵니다.
@@ -409,6 +405,17 @@ kiwi.add_pre_analyzed_word('사겼다', [('사귀', 'VV', 0, 2), ('었', 'EP', 1
 후자의 경우 분석 결과의 각 형태소가 원본 문자열에서 차지하는 위치를 정확하게 지정해줌으로써, 
 Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나오도록 합니다.
         '''
+        analyzed = list(analyzed)
+        if all(len(a) == 2 for a in analyzed) and ''.join(a[0] for a in analyzed) == form:
+            new_analyzed = []
+            cursor = 0
+            for f, t in analyzed:
+                p = form.index(f, cursor)
+                if p < 0: break
+                new_analyzed.append((f, t, p, p + len(f)))
+                cursor = p
+            if len(new_analyzed) == len(analyzed):
+                analyzed = new_analyzed
         return super().add_pre_analyzed_word(form, analyzed, score)
     
     def add_re_word(self,
@@ -416,12 +423,122 @@ Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나�
         pretokenized:Union[Callable[['re.Match'], Union[PretokenizedToken, List[PretokenizedToken]]], POSTag, PretokenizedToken, List[PretokenizedToken]],
         user_value:Optional[Any] = None,
     ) -> None:
+        '''.. versionadded:: 0.16.0
+
+현재 모델에 정규표현식 기반의 패턴 매칭을 사용한 형태소 목록을 삽입합니다.
+
+Parameters
+----------
+pattern: Union[str, re.Pattern]
+    정규표현식 문자열 혹은 `re.compile`로 컴파일된 정규표현식 객체. 형태소 분석시 이 정규표현식에 일치하는 패턴을 발견하면 항상 `pretokenized`에 따라 분석합니다.
+pretokenized: Union[Callable[['re.Match'], Union[PretokenizedToken, List[PretokenizedToken]]], POSTag, PretokenizedToken, List[PretokenizedToken]]
+    정규표현식으로 지정된 패턴이 분석될 형태를 지정합니다.
+    POSTag, `PretokenizedToken`, `PretokenizedToken`의 리스트 또는 `re.Match`를 입력받아 `PretokenizedToken`의 리스트를 반환하는 콜백 함수 중 하나로 지정할 수 있습니다.
+
+    이 값을 POSTag로 지정한 경우, 전체 패턴은 단 하나의 형태소로 분석되며 그때의 품사태그는 POSTag로 지정한 값을 따릅니다.
+    PretokenizedToken로 지정한 경우, 전체 패턴은 단 하나의 형태소로 분석되며, 그때의 형태/품사태그/시작위치/끝위치는 PretokenizedToken로 지정한 값을 따릅니다.
+    PretokenizedToken의 리스트로 지정한 경우, 전체 패턴읜 리스트에서 제시한 형태소 개수에 분할되어 분석되며, 각각의 형태소 정보는 리스트에 포함된 PretokenizedToken 값들을 따릅니다.
+    마지막으로 콜백 함수로 지정한 경우, `pattern.search`의 결과가 함수의 인자로 제공되며, 이 인자를 처리한뒤 콜백 함수에서 반환하는 PretokenizedToken 값을 따라 형태소 분석 결과가 생성됩니다.
+user_value: Any
+    추가할 형태소의 사용자 지정값. 이 값은 형태소 분석 결과를 담는 `Token` 클래스의 `Token.user_value`값에 반영됩니다.
+    또한 만약 `{'tag':'SPECIAL'}`와 같이 dict형태로 'tag'인 key를 제공하는 경우, 형태소 분석 결과의 tag값이 SPECIAL로 덮어씌워져서 출력됩니다.
+
+Notes
+-----
+이 메소드는 분석할 텍스트 내에 분할되면 안되는 텍스트 영역이 있거나, 이미 분석된 결과가 포함된 텍스트를 분석하는 데에 유용합니다.
+
+참고로 이 메소드는 형태소 분석에 앞서 전처리 단계에서 패턴 매칭을 수행하므로, 이를 통해 지정한 규칙들은 형태소 분석 모델보다 먼저 우선권을 갖습니다.
+따라서 이 규칙으로 지정한 조건을 만족하는 문자열 패턴은 항상 이 규칙에 기반하여 처리되므로 맥락에 따라 다른 처리를 해야하는 경우 이 메소드를 사용하는 것을 권장하지 않습니다.
+
+```python
+>>> kiwi = Kiwi()
+>>> text = '<평만경(平滿景)>이 사람을 시켜 <침향(沈香)> 10냥쭝을 바쳤으므로'
+# <>로 둘러싸인 패턴은 전체를 NNP 태그로 분석하도록 설정
+>>> kiwi.add_re_word(r'<[^>]+>', 'NNP') 
+>>> kiwi.tokenize(text)
+[Token(form='<평만경(平滿景)>', tag='NNP', start=0, len=10),
+ Token(form='이', tag='JKS', start=10, len=1), 
+ Token(form='사람', tag='NNG', start=12, len=2), 
+ Token(form='을', tag='JKO', start=14, len=1), 
+ Token(form='시키', tag='VV', start=16, len=2), 
+ Token(form='어', tag='EC', start=17, len=1), 
+ Token(form='<침향(沈香)>', tag='NNP', start=19, len=8), 
+ Token(form='10', tag='SN', start=28, len=2), 
+ Token(form='냥', tag='NNB', start=30, len=1), 
+ Token(form='쭝', tag='NNG', start=31, len=1), 
+ Token(form='을', tag='JKO', start=32, len=1), 
+ Token(form='바치', tag='VV', start=34, len=2), 
+ Token(form='었', tag='EP', start=35, len=1), 
+ Token(form='으므로', tag='EC', start=36, len=3)]
+
+>>> kiwi.clear_re_words() # 패턴 제거
+# callback 함수를 입력하여 세부적인 조절이 가능
+# 추출되는 패턴의 첫번째 괄호그룹을 형태소의 형태로 사용하도록 하여
+# 분석 결과에 <, >가 포함되지 않도록 한다
+>>> kiwi.add_re_word(r'<([^>]+)>', lambda m:PretokenizedToken(m.group(1), 'NNP', m.span(1)[0] - m.span(0)[0], m.span(1)[1] - m.span(0)[0]))
+>>> kiwi.tokenize(text)
+[Token(form='평만경(平滿景)', tag='NNP', start=0, len=10),
+ Token(form='이', tag='MM', start=10, len=1), 
+ Token(form='사람', tag='NNG', start=12, len=2), 
+ Token(form='을', tag='JKO', start=14, len=1), 
+ Token(form='시키', tag='VV', start=16, len=2), 
+ Token(form='어', tag='EC', start=17, len=1), 
+ Token(form='침향(沈香)', tag='NNP', start=19, len=8), 
+ Token(form='10', tag='SN', start=28, len=2), 
+ Token(form='냥', tag='NNB', start=30, len=1), 
+ Token(form='쭝', tag='NNG', start=31, len=1), 
+ Token(form='을', tag='JKO', start=32, len=1), 
+ Token(form='바치', tag='VV', start=34, len=2), 
+ Token(form='었', tag='EP', start=35, len=1), 
+ Token(form='으므로', tag='EC', start=36, len=3)]
+
+# 숫자 + 단위를 하나의 형태로 분석하도록 하는데에도 용이
+>>> kiwi.add_re_word(r'[0-9]+냥쭝', 'NNG')
+>>> kiwi.tokenize(text)
+[Token(form='평만경(平滿景)', tag='NNP', start=0, len=10), 
+ Token(form='이', tag='MM', start=10, len=1), 
+ Token(form='사람', tag='NNG', start=12, len=2), 
+ Token(form='을', tag='JKO', start=14, len=1), 
+ Token(form='시키', tag='VV', start=16, len=2), 
+ Token(form='어', tag='EC', start=17, len=1), 
+ Token(form='침향(沈香)', tag='NNP', start=19, len=8), 
+ Token(form='10냥쭝', tag='NNG', start=28, len=4), 
+ Token(form='을', tag='NNG', start=32, len=1), 
+ Token(form='바치', tag='VV', start=34, len=2), 
+ Token(form='었', tag='EP', start=35, len=1), 
+ Token(form='으므로', tag='EC', start=36, len=3)]
+
+# 코드 영역의 분석을 방지하는 용도로도 사용이 가능
+>>> import re
+>>> text = """마크다운 코드가 섞인 문자열
+```python
+import kiwipiepy\\n```
+입니다."""
+>>> pat = re.compile(r'^```python\\n.*?^```', flags=re.DOTALL | re.MULTILINE)
+# user_value를 지정하여 해당 패턴의 태그를 CODE로 덮어쓰기
+>>> kiwi.add_re_word(pat, 'USER0', {'tag':'CODE'})
+>>> kiwi.tokenize(text)
+[Token(form='마크다운', tag='NNP', start=0, len=4),
+ Token(form='코드', tag='NNG', start=5, len=2), 
+ Token(form='가', tag='JKS', start=7, len=1), 
+ Token(form='섞이', tag='VV', start=9, len=2), 
+ Token(form='ᆫ', tag='ETM', start=10, len=1), 
+ Token(form='문자열', tag='NNP', start=12, len=3), 
+ Token(form='```python\\nimport kiwipiepy\\n```', tag='CODE', start=16, len=30), 
+ Token(form='이', tag='VCP', start=47, len=1), 
+ Token(form='ᆸ니다', tag='EF', start=47, len=3)]
+```
+        '''
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
             
         self._pretokenized_pats.append((pattern, pretokenized, user_value))
 
     def clear_re_words(self):
+        '''.. versionadded:: 0.16.0
+
+`add_re_word`로 추가했던 정규표현식 패턴 기반 처리 규칙을 모두 삭제합니다.
+        '''
         self._pretokenized_pats.clear()
 
     def add_rule(self,
@@ -445,7 +562,11 @@ replacer: Callable[[str], str]
 score: float
     추가할 변형된 형태소의 가중치 점수. 
     해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
-
+user_value: Any
+    .. versionadded:: 0.16.0
+    
+    추가할 형태소의 사용자 지정값. 이 값은 형태소 분석 결과를 담는 `Token` 클래스의 `Token.user_value`값에 반영됩니다.
+    또한 만약 `{'tag':'SPECIAL'}`와 같이 dict형태로 'tag'인 key를 제공하는 경우, 형태소 분석 결과의 tag값이 SPECIAL로 덮어씌워져서 출력됩니다.
 Returns
 -------
 inserted_forms: List[str]
@@ -480,7 +601,11 @@ repl: Union[str, Callable]
 score: float
     추가할 변형된 형태소의 가중치 점수. 
     해당 형태에 부합하는 형태소 조합이 여러 개가 있는 경우, 이 점수가 높을 단어가 더 우선권을 가집니다.
-
+user_value: Any
+    .. versionadded:: 0.16.0
+    
+    추가할 형태소의 사용자 지정값. 이 값은 형태소 분석 결과를 담는 `Token` 클래스의 `Token.user_value`값에 반영됩니다.
+    또한 만약 `{'tag':'SPECIAL'}`와 같이 dict형태로 'tag'인 key를 제공하는 경우, 형태소 분석 결과의 tag값이 SPECIAL로 덮어씌워져서 출력됩니다.
 Returns
 -------
 inserted_forms: List[str]
@@ -576,18 +701,6 @@ result: List[Tuple[str, float, int, float]]
             lm_filter,
         )
     
-    def extract_filter_words(self, *args, **kwargs):
-        '''.. deprecated:: 0.10.0
-    이 메소드의 기능은 `kiwipiepy.Kiwi.extract_words`로 통합되었습니다. 
-    현재 이 메소드를 호출하는 것은 `kiwipiepy.Kiwi.extract_words`를 호출하는 것과 동일하게 처리됩니다.
-        '''
-
-        warnings.warn(
-            "`extract_filter_words` has same effect to `extract_words` and will be removed in future version.",
-            DeprecationWarning
-        )
-        return self.extract_words(*args, **kwargs)
-    
     def extract_add_words(self,
         texts,
         min_cnt:int = 10,
@@ -632,103 +745,6 @@ result: List[Tuple[str, float, int, float]]
             min_score,
             pos_score,
             lm_filter,
-        )
-    
-    def perform(self,
-        texts,
-        top_n:int = 1,
-        match_options:int = Match.ALL,
-        min_cnt:int = 10,
-        max_word_len:int = 10,
-        min_score:float = 0.25,
-        pos_score:float = -3.,
-        lm_filter:bool = True,
-    ):
-        '''현재 모델의 사본을 만들어
-`kiwipiepy.Kiwi.extract_add_words`메소드로 말뭉치에서 단어를 추출하여 추가하고, `kiwipiepy.Kiwi.analyze`로 형태소 분석을 실시합니다.
-이 메소드 호출 후 모델의 사본은 파괴되므로, 말뭉치에서 추출된 단어들은 다시 모델에서 제거되고, 메소드 실행 전과 동일한 상태로 돌아갑니다.
-
-.. versionchanged:: 0.10.0
-    입력을 단순히 문자열의 리스트로 주고, 분석 결과 역시 별도의 `receiver`로 받지 않고 바로 메소드의 리턴값으로 받게 변경되었습니다.
-    자세한 내용은 <a href="#0100">여기</a>를 확인해주세요.
-
-.. deprecated:: 0.10.1
-    추후 버전에서 변경, 혹은 제거될 가능성이 있는 메소드입니다.
-
-Parameters
-----------
-texts: Iterable[str]
-    분석할 문자열의 리스트, 혹은 Iterable입니다.
-top_n: int
-    분석 결과 후보를 상위 몇 개까지 생성할 지 설정합니다.
-match_options: kiwipiepy.const.Match
-    .. versionadded:: 0.8.0
-
-    추출한 특수 문자열 패턴을 지정합니다. `kiwipiepy.const.Match`의 조합으로 설정할 수 있습니다.
-min_cnt: int
-    추출할 단어의 최소 출현 빈도입니다. 이 빈도보다 적게 등장한 문자열은 단어 후보에서 제외됩니다.
-max_word_len: int
-    추출할 단어 후보의 최대 길이입니다. 이 길이보다 긴 단어 후보는 탐색되지 않습니다.
-min_score: float
-    단어 후보의 최소 점수입니다. 이 점수보다 낮은 단어 후보는 고려되지 않습니다.
-pos_score: float
-    단어 후보의 품사 점수입니다. 품사 점수가 이 값보다 낮은 경우 후보에서 제외됩니다.
-
-Returns
--------
-results: Iterable[List[Tuple[List[kiwipiepy.Token], float]]]
-    반환값은 `kiwipiepy.Kiwi.analyze`의 results와 동일합니다.
-        '''
-
-        warnings.warn(
-            "`perform()` will be removed in future version.",
-            DeprecationWarning
-        )
-        return super().perform(
-            texts,
-            top_n,
-            match_options,
-            min_cnt,
-            max_word_len,
-            min_score,
-            pos_score,
-            lm_filter,
-        )
-    
-    def set_cutoff_threshold(self,
-        threshold:float
-    ):
-        '''Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 값이 클 수록 더 많은 후보를 탐색하게 되므로 분석 속도가 느려지지만 정확도가 올라갑니다.
-반대로 이 값을 낮추면 더 적은 후보를 탐색하여 속도가 빨라지지만 정확도는 낮아집니다. 초기값은 5입니다.
-
-.. versionadded:: 0.9.0
-    초기값이 8에서 5로 변경되었습니다.
-
-.. deprecated:: 0.10.0
-    차기 버전에서 제거될 예정입니다.
-    이 메소드 대신 `Kiwi.cutoff_threshold`를 직접 수정하십시오.
-
-Parameters
-----------
-threshold: float
-    0 보다 큰 실수
-        '''
-
-        warnings.warn(
-            "`set_cutoff_threshold(v)` will be removed in future version. Use `Kiwi.cutoff_threshold = v` instead.",
-            DeprecationWarning
-        )
-        self._cutoff_threshold = threshold
-    
-    def prepare(self):
-        '''.. deprecated:: 0.10.0
-    0.10.0버전부터 내부적으로 prepare()가 필요한 순간에 스스로 처리를 하도록 변경되어서 이제 이 메소드를 직접 호출할 필요가 없습니다.
-    차기 버전에서 제거될 예정입니다.
-        '''
-
-        warnings.warn(
-            "`prepare()` has no effect and will be removed in future version.",
-            DeprecationWarning
         )
     
     def _make_pretokenized_spans(self, override_pretokenized, text:str):
@@ -787,7 +803,8 @@ split_complex: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 blocklist: Union[Iterable[str], MorphemeSet]
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
-
+pretokenized: Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 
 Returns
 -------
@@ -846,71 +863,10 @@ with open('result.txt', 'w', encoding='utf-8') as output:
 
         return super().analyze(text, top_n, match_options, False, blocklist, pretokenized)
     
-    def get_option(self,
-        option:int,
-    ):
-        '''현재 모델의 설정값을 가져옵니다.
-
-.. deprecated:: 0.10.0
-    차기 버전에서 제거될 예정입니다. 
-    이 메소드 대신 `Kiwi.integrate_allomorph`값을 직접 읽으십시오.
-
-Parameters
-----------
-option: kiwipiepy.const.Option
-    검사할 옵션의 열거값. 현재는 `kiwipiepy.const.Option.INTEGRATE_ALLOMORPH`만 지원합니다.
-
-Returns
--------
-value: int
-    해당 옵션이 설정되어 있는 경우 1, 아닌 경우 0을 반환합니다.
-        '''
-
-        warnings.warn(
-            "`get_option()` will be removed in future version.",
-            DeprecationWarning
-        )
-        if option != Option.INTEGRATE_ALLOMORPH: raise ValueError("Wrong `option` value: {}".format(option))
-        return int(self._integrate_allomorph)
-    
-    def set_option(self, 
-        option:int,
-        value:int,
-    ):
-        '''현재 모델의 설정값을 변경합니다.
-
-.. deprecated:: 0.10.0
-    차기 버전에서 제거될 예정입니다. 
-    이 메소드 대신 `Kiwi.integrate_allomorph`값을 직접 수정하십시오.
-
-Parameters
-----------
-option: kiwipiepy.const.Option
-    변경할 옵션의 열거값. 현재는 `kiwipiepy.const.Option.INTEGRATE_ALLOMORPH`만 지원합니다.
-value: int
-    0으로 설정할 경우 해당 옵션을 해제, 0이 아닌 값으로 설정할 경우 해당 옵션을 설정합니다.
-        '''
-
-        warnings.warn(
-            "`set_option()` will be removed in future version.",
-            DeprecationWarning
-        )
-        if option != Option.INTEGRATE_ALLOMORPH: raise ValueError("Wrong `option` value: {}".format(option))
-        self._integrate_allomorph = bool(value)
-    
     def morpheme(self,
         idx:int,
     ):
         return super().morpheme(idx)
-    
-    @property
-    def version(self):
-        '''Kiwi의 버전을 반환합니다. 
-.. deprecated:: 0.10.0
-    차기 버전에서 제거될 예정입니다. 대신 `kiwipiepy.__version__`을 사용하십시오.
-        '''
-
-        return __version__
     
     def _on_build(self):
         self._integrate_allomorph = self._ns_integrate_allomorph
@@ -1150,39 +1106,45 @@ blocklist: Union[MorphemeSet, Iterable[str]]
     split_complex의 예시에서처럼 '고마움을 전하다'가 `고맙/VA-I 음/ETN 을/JKO 전하/VV 다/EF`처럼 분석되도록 강요할 수 있습니다.
     blocklist는 `MorphemeSet` 혹은 `set`으로 지정할 수 있으며, 
     동일한 blocklist가 반복적으로 사용되는 경우 사전에 `MorphemeSet`을 만들고 이를 재사용하는게 효율적입니다.
+pretokenized: Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]
 
+    .. versionadded:: 0.16.0
+
+    형태소 분석에 앞서 텍스트 내 특정 구간의 형태소 분석 결과를 미리 정의합니다. 이 값에 의해 정의된 텍스트 구간은 항상 해당 방법으로만 토큰화됩니다.
+    이 값은 str을 입력 받아 `PretokenizedTokenList`를 반환하는 `Callable`로 주어지거나, `PretokenizedTokenList` 값 단독으로 주어질 수 있습니다.
+    `text`가 `Iterable[str]`인 경우 `pretokenized`는 None 혹은 `Callable`로 주어져야 합니다. 자세한 것은 아래 Notes의 예시를 참조하십시오.
 Returns
 -------
 result: List[Token]
-    split_sents == False일때 text를 str으로 준 경우.
+    `split_sents=False`일때 text를 str으로 준 경우.
     `Token`의 리스트를 반환합니다.
 
 results: Iterable[List[Token]]
-    split_sents == False일때 text를 Iterable[str]으로 준 경우.
+    `split_sents=False`일때 text를 Iterable[str]으로 준 경우.
     반환값은 `result`의 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 
 results_with_echo: Iterable[Tuple[List[Token], str]]
-    split_sents == False이고 echo=True일때 text를 Iterable[str]으로 준 경우.
+    `split_sents=False`이고 `echo=True`일때 text를 Iterable[str]으로 준 경우.
     반환값은 (`result`의 iterator, `raw_input`)으로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 
 result_by_sent: List[List[Token]]
-    split_sents == True일때 text를 str으로 준 경우.
+    `split_sents=True`일때 text를 str으로 준 경우.
     형태소 분석 결과가 문장별로 묶여서 반환됩니다.
     즉, 전체 문장이 n개라고 할 때, `result_by_sent[0] ~ result_by_sent[n-1]`에는 각 문장별 분석 결과가 들어갑니다.
 
 results_by_sent: Iterable[List[List[Token]]]
-    split_sents == True일때 text를 Iterable[str]으로 준 경우.
+    `split_sents=True`일때 text를 Iterable[str]으로 준 경우.
     반환값은 `result_by_sent`의 iterator로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 
 results_by_sent_with_echo: Iterable[Tuple[List[List[Token]], str]]
-    split_sents == True이고 echo=True일때 text를 Iterable[str]으로 준 경우.
+    `split_sents=True`이고 `echo=True`일때 text를 Iterable[str]으로 준 경우.
     반환값은 (`result_by_sent`의 iterator, `raw_input`)으로 주어집니다. iterator가 차례로 반환하는 분석결과 값은 입력으로 준 text의 순서와 동일합니다.
 
 Notes
 -----
 
 ```python
->> kiwi.tokenize("안녕하세요 형태소 분석기 키위입니다.")
+>>> kiwi.tokenize("안녕하세요 형태소 분석기 키위입니다.")
 [Token(form='안녕', tag='NNG', start=0, len=2),
  Token(form='하', tag='XSA', start=2, len=1),
  Token(form='시', tag='EP', start=4, len=1),
@@ -1197,7 +1159,7 @@ Notes
 
 # normalize_coda 옵션을 사용하면 
 # 덧붙은 받침 때문에 분석이 깨지는 경우를 방지할 수 있습니다.
->> kiwi.tokenize("ㅋㅋㅋ 이런 것도 분석이 될까욬ㅋㅋ?", normalize_coda=True)
+>>> kiwi.tokenize("ㅋㅋㅋ 이런 것도 분석이 될까욬ㅋㅋ?", normalize_coda=True)
 [Token(form='ㅋㅋㅋ', tag='SW', start=0, len=3),
  Token(form='이런', tag='MM', start=4, len=2),
  Token(form='것', tag='NNB', start=7, len=1),
@@ -1210,15 +1172,55 @@ Notes
  Token(form='?', tag='SF', start=19, len=1)]
 
 # Stopwords 클래스를 바로 적용하여 불용어를 걸러낼 수 있습니다.
->> from kiwipiepy.utils import Stopwords
->> stopwords = Stopwords()
->> kiwi.tokenize("분석 결과에서 불용어만 제외하고 출력할 수도 있다.", stopwords=stopwords)
+>>> from kiwipiepy.utils import Stopwords
+>>> stopwords = Stopwords()
+>>> kiwi.tokenize("분석 결과에서 불용어만 제외하고 출력할 수도 있다.", stopwords=stopwords)
 [Token(form='분석', tag='NNG', start=0, len=2),
  Token(form='결과', tag='NNG', start=3, len=2),
  Token(form='불', tag='XPN', start=8, len=1),
  Token(form='용어', tag='NNG', start=9, len=2),
  Token(form='제외', tag='NNG', start=13, len=2),
  Token(form='출력', tag='NNG', start=18, len=2)]
+
+# pretokenized 값을 지정해 특정 구간의 분석 결과를 직접 설정할 수 있습니다.
+>>> text = "드디어패트와 매트가 2017년에 국내 개봉했다."
+>>> kiwi.tokenize(text, pretokenized=[
+        (3, 9), # 시작지점과 끝지점만 지정
+        (11, 16, 'NNG'), #  시작지점과 끝지점, 품사 태그를 지정
+    ])
+[Token(form='드디어', tag='MAG', start=0, len=3), 
+ Token(form='패트와 매트', tag='NNP', start=3, len=6), 
+ Token(form='가', tag='JKS', start=9, len=1), 
+ Token(form='2017년', tag='NNG', start=11, len=5), 
+ Token(form='에', tag='JKB', start=16, len=1), 
+ Token(form='국내', tag='NNG', start=18, len=2), 
+ Token(form='개봉', tag='NNG', start=21, len=2), 
+ Token(form='하', tag='XSV', start=23, len=1), 
+ Token(form='었', tag='EP', start=23, len=1), 
+ Token(form='다', tag='EF', start=24, len=1), 
+ Token(form='.', tag='SF', start=25, len=1)]
+# 시작지점과 끝지점만 지정한 경우 해당 구간은 한 덩어리로 묶여서 분석되며, 
+#  그때의 품사태그는 모델이 알아서 선택합니다.
+# 시작지점, 끝지점에 품사 태그까지 지정한 경우, 해당 구간은 반드시 그 품사태그로 분석됩니다.
+
+# 각 구간의 분석 결과를 PretokenizedToken를 이용해 더 구체적으로 명시하는 것도 가능합니다.
+>>> res = kiwi.tokenize(text, pretokenized=[
+        (3, 5, PretokenizedToken('페트', 'NNB', 0, 2)),
+        (21, 24, [PretokenizedToken('개봉하', 'VV', 0, 3), PretokenizedToken('었', 'EP', 2, 3)])
+    ])
+[Token(form='드디어', tag='MAG', start=0, len=3), 
+ Token(form='페트', tag='NNB', start=3, len=2), 
+ Token(form='와', tag='JC', start=5, len=1), 
+ Token(form='매트', tag='NNG', start=7, len=2), 
+ Token(form='가', tag='JKS', start=9, len=1), 
+ Token(form='2017', tag='SN', start=11, len=4), 
+ Token(form='년', tag='NNB', start=15, len=1), 
+ Token(form='에', tag='JKB', start=16, len=1), 
+ Token(form='국내', tag='NNG', start=18, len=2), 
+ Token(form='개봉하', tag='VV', start=21, len=3), 
+ Token(form='었', tag='EP', start=23, len=1), 
+ Token(form='다', tag='EF', start=24, len=1), 
+ Token(form='.', tag='SF', start=25, len=1)]
 ```
         '''
         return self._tokenize(text, match_options, normalize_coda, z_coda, split_complex, split_sents, stopwords, echo, 
@@ -1232,6 +1234,7 @@ Notes
         normalize_coda:bool = False,
         z_coda:bool = True,
         split_complex:bool = False,
+        stopwords:Optional[Stopwords] = None,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
         return_tokens:bool = False,
         return_sub_sents:bool = True,
@@ -1254,6 +1257,11 @@ normalize_coda: bool
 z_coda: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 split_complex: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+stopwords: Stopwords
+
+    .. versionadded:: 0.16.0
+
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 blocklist: Union[Iterable[str], MorphemeSet]
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
@@ -1283,11 +1291,11 @@ Notes
 문장 분리 후 따로 형태소 분석을 수행하는 것보다 효율적입니다.
 
 ```python
->> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘")
+>>> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘")
 [Sentence(text='여러 문장으로 구성된 텍스트네', start=0, end=16, tokens=None, subs=[]),
  Sentence(text='이걸 분리해줘', start=17, end=24, tokens=None, subs=[])]
 
->> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘", return_tokens=True)
+>>> kiwi.split_into_sents("여러 문장으로 구성된 텍스트네 이걸 분리해줘", return_tokens=True)
 [Sentence(text='여러 문장으로 구성된 텍스트네', start=0, end=16, tokens=[
   Token(form='여러', tag='MM', start=0, len=2), 
   Token(form='문장', tag='NNG', start=3, len=2), 
@@ -1310,7 +1318,7 @@ Notes
  ], subs=[])]
 
 # 0.14.0 버전부터는 문장 안에 또 다른 문장이 포함된 경우도 처리 가능
->> kiwi.split_into_sents("회사의 정보 서비스를 책임지고 있는 로웬버그John Loewenberg는" 
+>>> kiwi.split_into_sents("회사의 정보 서비스를 책임지고 있는 로웬버그John Loewenberg는" 
      "<서비스 산업에 있어 종이는 혈관내의 콜레스트롤과 같다. 나쁜 종이는 동맥을 막는 내부의 물질이다.>"
      "라고 말한다.")
 [Sentence(text='회사의 정보 서비스를 책임지고 있는 로웬버그John Loewenberg는' 
@@ -1321,13 +1329,16 @@ Notes
 ])]
 ```
         '''
+        def _filter_tokens(tokens):
+            return tokens if stopwords is None else stopwords.filter(tokens)
+
         def _make_result(arg):
             sents, raw_input = arg
             ret = []
             for sent in sents:
                 start = sent[0].start
                 end = sent[-1].end
-                tokens = sent if return_tokens else None
+                tokens = _filter_tokens(sent) if return_tokens else None
                 subs = None
                 if return_sub_sents:
                     subs = []
@@ -1336,7 +1347,7 @@ Notes
                     for tok in sent:
                         if tok.sub_sent_position != last:
                             if last:
-                                subs.append(Sentence(raw_input[sub_start:last_end], sub_start, last_end, sub_toks if return_tokens else None, None))
+                                subs.append(Sentence(raw_input[sub_start:last_end], sub_start, last_end, _filter_tokens(sub_toks) if return_tokens else None, None))
                                 sub_toks = []
                             sub_start = tok.start
                         if tok.sub_sent_position:
@@ -1388,13 +1399,13 @@ Notes
 이 메소드의 공백 자동 삽입 기능은 형태소 분석에 기반합니다. 
 
 ```python
->> kiwi.glue([
+>>> kiwi.glue([
     "그러나  알고보니 그 봉",
     "지 안에 있던 것은 바로",
     "레몬이었던 것이다."])
 "그러나  알고보니 그 봉지 안에 있던 것은 바로 레몬이었던 것이다."
 
->> kiwi.glue([
+>>> kiwi.glue([
     "그러나  알고보니 그 봉",
     "지 안에 있던 것은 바로",
     "레몬이었던 것이다."], return_space_insertions=True)
@@ -1487,14 +1498,14 @@ Notes
 `reset_whitespace=True`로 설정하여 아예 기존 공백을 무시하고 띄어쓰기를 하도록 하면 결과를 개선할 수 있습니다.
 
 ```python
->> kiwi.space("띄어쓰기없이작성된텍스트네이걸교정해줘")
+>>> kiwi.space("띄어쓰기없이작성된텍스트네이걸교정해줘")
 "띄어쓰기 없이 작성된 텍스트네 이걸 교정해 줘."
->> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다")
+>>> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다")
 "띄어 쓰기 문 제 가 있 습 니 다"
->> kiwi.space_tolerance = 2 # 형태소 내 공백을 최대 2개까지 허용
->> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다")
+>>> kiwi.space_tolerance = 2 # 형태소 내 공백을 최대 2개까지 허용
+>>> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다")
 "띄어 쓰기 문제가 있습니다"
->> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다", reset_whitespace=True) # 기존 공백 전부 무시
+>>> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다", reset_whitespace=True) # 기존 공백 전부 무시
 "띄어쓰기 문제가 있습니다"
 ```
         '''
@@ -1579,49 +1590,49 @@ Notes
 
 
 ```python
->> kiwi.join([('덥', 'VA'), ('어', 'EC')])
+>>> kiwi.join([('덥', 'VA'), ('어', 'EC')])
 '더워'
->> tokens = kiwi.tokenize("분석된결과를 다시합칠수있다!")
+>>> tokens = kiwi.tokenize("분석된결과를 다시합칠수있다!")
 # 형태소 분석 결과를 복원. 
 # 복원 시 공백은 규칙에 의해 삽입되므로 원문 텍스트가 그대로 복원되지는 않음.
->> kiwi.join(tokens)
+>>> kiwi.join(tokens)
 '분석된 결과를 다시 합칠 수 있다!'
->> tokens[3]
+>>> tokens[3]
 Token(form='결과', tag='NNG', start=4, len=2)
->> tokens[3] = ('내용', 'NNG') # 4번째 형태소를 결과->내용으로 교체
->> kiwi.join(tokens) # 다시 join하면 결과를->내용을 로 교체된 걸 확인 가능
+>>> tokens[3] = ('내용', 'NNG') # 4번째 형태소를 결과->내용으로 교체
+>>> kiwi.join(tokens) # 다시 join하면 결과를->내용을 로 교체된 걸 확인 가능
 '분석된 내용을 다시 합칠 수 있다!'
 
 # 불규칙 활용여부가 모호한 경우 lm_search=True인 경우 맥락을 고려해 최적의 후보를 선택합니다.
->> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV'), ('어요', 'EF')])
+>>> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV'), ('어요', 'EF')])
 '길을 물어요'
->> kiwi.join([('흙', 'NNG'), ('이', 'JKS'), ('묻', 'VV'), ('어요', 'EF')])
+>>> kiwi.join([('흙', 'NNG'), ('이', 'JKS'), ('묻', 'VV'), ('어요', 'EF')])
 '흙이 묻어요'
 # lm_search=False이면 탐색을 실시하지 않습니다.
->> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV'), ('어요', 'EF')], lm_search=False)
+>>> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV'), ('어요', 'EF')], lm_search=False)
 '길을 묻어요'
->> kiwi.join([('흙', 'NNG'), ('이', 'JKS'), ('묻', 'VV'), ('어요', 'EF')], lm_search=False)
+>>> kiwi.join([('흙', 'NNG'), ('이', 'JKS'), ('묻', 'VV'), ('어요', 'EF')], lm_search=False)
 '흙이 묻어요'
 # 동사/형용사 품사 태그 뒤에 -R(규칙 활용), -I(불규칙 활용)을 덧붙여 활용법을 직접 명시할 수 있습니다.
->> kiwi.join([('묻', 'VV-R'), ('어요', 'EF')])
+>>> kiwi.join([('묻', 'VV-R'), ('어요', 'EF')])
 '묻어요'
->> kiwi.join([('묻', 'VV-I'), ('어요', 'EF')])
+>>> kiwi.join([('묻', 'VV-I'), ('어요', 'EF')])
 '물어요'
 
 # 0.15.2버전부터는 Tuple의 세번째 요소로 띄어쓰기 유무를 지정할 수 있습니다. 
 # True일 경우 강제로 띄어쓰기, False일 경우 강제로 붙여쓰기를 수행합니다.
->> kiwi.join([('길', 'NNG'), ('을', 'JKO', True), ('묻', 'VV'), ('어요', 'EF')])
+>>> kiwi.join([('길', 'NNG'), ('을', 'JKO', True), ('묻', 'VV'), ('어요', 'EF')])
 '길 을 물어요'
->> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV', False), ('어요', 'EF')])
+>>> kiwi.join([('길', 'NNG'), ('을', 'JKO'), ('묻', 'VV', False), ('어요', 'EF')])
 '길을물어요'
 
 # 과거형 선어말어미를 제거하는 예시
->> remove_past = lambda s: kiwi.join(t for t in kiwi.tokenize(s) if t.tagged_form != '었/EP')
->> remove_past('먹었다')
+>>> remove_past = lambda s: kiwi.join(t for t in kiwi.tokenize(s) if t.tagged_form != '었/EP')
+>>> remove_past('먹었다')
 '먹다'
->> remove_past('먼 길을 걸었다')
+>>> remove_past('먼 길을 걸었다')
 '먼 길을 걷다'
->> remove_past('전화를 걸었다.')
+>>> remove_past('전화를 걸었다.')
 '전화를 걸다.'
 ```
         '''

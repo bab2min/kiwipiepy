@@ -29,7 +29,7 @@ class Token:
 
     @property
     def span(self) -> Tuple[int, int]:
-        '''.. versionadded:: 0.15.3
+        '''.. versionadded:: 0.16.0
         
 형태소의 입력 텍스트 내 시작 및 끝 위치 (문자 단위)'''
         ...
@@ -146,4 +146,7 @@ form과 tag를 `형태/품사태그`꼴로 합쳐서 반환합니다.'''
 
     @property
     def user_value(self):
+        '''.. versionadded:: 0.16.0
+
+사용자가 사전에 직접 형태소를 추가할 때 `user_value`로 입력한 값. 별도의 `user_value`를 입력하지 않은 경우 None을 반환합니다.'''
         ...
