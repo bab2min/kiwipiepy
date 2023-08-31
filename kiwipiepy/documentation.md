@@ -551,7 +551,6 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
     * `Kiwi.add_pre_analyzed_word`에서 시작위치/끝위치를 지정하지 않았지만 그 값이 자명한 경우, 자동으로 채워넣는 기능 추가
     * `Kiwi.split_into_sents`에 `stopwords` 인자 추가
 
-
 * 0.15.2 (2023-06-14)
     * Kiwi 0.15.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.15.2 )이 반영되었습니다.
         * 매우 긴 텍스트를 분석할 때 시작 지점이 잘못 나오는 버그 수정
