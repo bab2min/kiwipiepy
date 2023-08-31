@@ -476,6 +476,14 @@ def test_add_pre_analyzed_word():
     assert res[2].form == "어" and res[2].tag == "EF" and res[2].start == 2 and res[2].end == 3
     assert res[3].form == "..." and res[3].tag == "SF" and res[3].start == 3 and res[3].end == 6
 
+    kiwi.add_pre_analyzed_word('격자판', [('격자', 'NNG'), ('판','NNG')], 100)
+
+    res = kiwi.tokenize("바둑판 모양의 격자판을 펴")
+    assert res[3].form == "격자"
+    assert res[3].span == (8, 10)
+    assert res[4].form == "판"
+    assert res[4].span == (10, 11)
+
 def test_space_tolerance():
     kiwi = Kiwi()
     s = "띄 어 쓰 기 문 제 가 있 습 니 다"

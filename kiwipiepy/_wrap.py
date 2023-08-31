@@ -369,7 +369,7 @@ inserted: bool
     
     def add_pre_analyzed_word(self,
         form:str,
-        analyzed:Iterable[Tuple[str, POSTag]],
+        analyzed:Iterable[Union[Tuple[str, POSTag], Tuple[str, POSTag, int, int]]],
         score:float = 0.,
     ) -> bool:
         '''.. versionadded:: 0.11.0
@@ -380,7 +380,7 @@ Parameters
 ----------
 form: str
     추가할 형태
-analyzed: Iterable[Tuple[str, str]]
+analyzed: Iterable[Union[Tuple[str, POSTag], Tuple[str, POSTag, int, int]]]
     `form`의 형태소 분석 결과.
     이 값은 (형태, 품사) 모양의 tuple, 혹은 (형태, 품사, 시작지점, 끝지점) 모양의 tuple로 구성된 Iterable이어야합니다.
     이 값으로 지정되는 형태소는 현재 사전 내에 반드시 존재해야 하며, 그렇지 않으면 `ValueError` 예외를 발생시킵니다.
@@ -406,6 +406,17 @@ kiwi.add_pre_analyzed_word('사겼다', [('사귀', 'VV', 0, 2), ('었', 'EP', 1
 후자의 경우 분석 결과의 각 형태소가 원본 문자열에서 차지하는 위치를 정확하게 지정해줌으로써, 
 Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나오도록 합니다.
         '''
+        analyzed = list(analyzed)
+        if all(len(a) == 2 for a in analyzed) and ''.join(a[0] for a in analyzed) == form:
+            new_analyzed = []
+            cursor = 0
+            for f, t in analyzed:
+                p = form.index(f, cursor)
+                if p < 0: break
+                new_analyzed.append((f, t, p, p + len(f)))
+                cursor = p
+            if len(new_analyzed) == len(analyzed):
+                analyzed = new_analyzed
         return super().add_pre_analyzed_word(form, analyzed, score)
     
     def add_re_word(self,
