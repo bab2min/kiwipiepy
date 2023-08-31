@@ -50,7 +50,7 @@ condition: str
 
 Notes
 -----
-`orig`나 `error`는 완전한 음절 혹은 모음이나 자음을 포함할 수 있습니다. 자음의 경우 종성은 '\\'로 escape해주어야 합니다.
+`orig`나 `error`는 완전한 음절 혹은 모음이나 자음을 포함할 수 있습니다. 자음의 경우 종성은 '\\\\'로 escape해주어야 합니다.
 
 ```python
 TypoDefinition(['개'], ['게'], 1.0) # '개'를 '게'로 교체

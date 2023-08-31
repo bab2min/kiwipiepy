@@ -539,6 +539,19 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.16.0 (2023-08-31)
+    * Kiwi 0.16.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.16.0 )이 반영되었습니다.
+        * PretokenizedSpan과 관련된 기능 추가
+        * 순서 있는 글머리 기호를 나타내는 SB 태그 추가. `가.`, `나.`, `다.` 등의 글머리 기호가 별도의 문장으로 분리되지 않도록 개선
+        * 사용자지정 태그로 사용할 수 있는 USER0 ~ USER4 태그 추가
+    * 정규표현식 기반으로 형태소를 사전에 추가하는 `Kiwi.add_re_word` 메소드 추가
+    * `Token.span` 추가
+    * `Token.user_value` 추가 및 user_value를 설정할 수 있도록 `Kiwi.add_user_word` 계열의 메소드에 `user_value` 인자 추가
+    * deprecated 되었던 메소드들 제거
+    * `Kiwi.add_pre_analyzed_word`에서 시작위치/끝위치를 지정하지 않았지만 그 값이 자명한 경우, 자동으로 채워넣는 기능 추가
+    * `Kiwi.split_into_sents`에 `stopwords` 인자 추가
+
+
 * 0.15.2 (2023-06-14)
     * Kiwi 0.15.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.15.2 )이 반영되었습니다.
         * 매우 긴 텍스트를 분석할 때 시작 지점이 잘못 나오는 버그 수정
