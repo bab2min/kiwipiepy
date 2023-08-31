@@ -2,17 +2,30 @@
 ## https://github.com/konlpy/konlpy/blob/master/docs/morph.py 
 
 from time import time
+from functools import partial
+
 from konlpy import tag
 from konlpy.corpus import kolaw
 from konlpy.utils import pprint
 import kiwipiepy
 
 class Kiwi():
-    def __init__(self):
-        self.k = kiwipiepy.Kiwi()
+    def __init__(self, model_type='knlm'):
+        self.model_type = model_type
+        self.k = kiwipiepy.Kiwi(model_type=model_type)
+
+    @property
+    def name(self):
+        return f'Kiwi({self.model_type})'
 
     def pos(self, text):
         return [(t.form, t.tag) for t in self.k.tokenize(text)]
+
+def get_tagger_name(tagger_inst):
+    try:
+        return tagger_inst.name
+    except:
+        return type(tagger_inst).__name__
 
 def measure_time(taggers, mult=6):
     doc = kolaw.open('constitution.txt').read()*6
@@ -20,18 +33,18 @@ def measure_time(taggers, mult=6):
     data = [['n', 'load'] + [10**i for i in range(mult)]]
     times = [time()]
     for tagger in taggers:
-        diffs = [tagger.__name__]
         inst = tagger()
+        diffs = [get_tagger_name(inst)]
         inst.pos("가")
         times.append(time())
         diffs.append(times[-1] - times[-2])
-        print('%s\t로딩\t%gs' % (tagger.__name__,  diffs[-1]))
+        print('%s\t로딩\t%gs' % (get_tagger_name(inst),  diffs[-1]))
         for i in range(mult):
             doclen = 10 ** i
             r = inst.pos(doc[:doclen])
             times.append(time())
             diffs.append(times[-1] - times[-2])
-            print('%s\t%d\t%gs\t(Result Len: %d)' % (tagger.__name__, doclen, diffs[-1], len(r)))
+            print('%s\t%d\t%gs\t(Result Len: %d)' % (get_tagger_name(inst), doclen, diffs[-1], len(r)))
             pprint(r[:5])
         data.append(diffs)
         print()
@@ -42,10 +55,11 @@ def measure_accuracy(taggers, text):
     print('\n%s' % text)
     result = []
     for tagger in taggers:
-        print(tagger.__name__,)
-        r = tagger().pos(text)
+        inst = tagger()
+        print(get_tagger_name(inst))
+        r = inst.pos(text)
         pprint(r)
-        result.append([tagger.__name__] + list(map(lambda s: ' / '.join(s), r)))
+        result.append([get_tagger_name(inst)] + list(map(lambda s: ' / '.join(s), r)))
     return result
 
 if __name__=='__main__':
@@ -55,7 +69,7 @@ if __name__=='__main__':
             u'나는 밥을 먹는다', u'하늘을 나는 자동차', # 중의성 해소
             u'아이폰 기다리다 지쳐 애플공홈에서 언락폰질러버렸다 6+ 128기가실버ㅋ'] # 속어
 
-    taggers = [Kiwi, tag.Hannanum, tag.Kkma, tag.Komoran, tag.Okt, tag.Mecab]
+    taggers = [Kiwi, partial(Kiwi, model_type='sbg'), tag.Hannanum, tag.Kkma, tag.Komoran, tag.Okt, tag.Mecab]
 
     # Time
     data = measure_time(taggers, mult=MULT)
