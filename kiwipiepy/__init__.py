@@ -12,6 +12,7 @@ Kiwi.__module__ = 'kiwipiepy'
 TypoTransformer.__module__ = 'kiwipiepy'
 TypoDefinition.__module__ = 'kiwipiepy'
 Sentence.__module__ = 'kiwipiepy'
+PretokenizedToken.__module__ = 'kiwipiepy'
 HSDataset.__module__ = 'kiwipiepy'
 MorphemeSet.__module__ = 'kiwipiepy'
 
