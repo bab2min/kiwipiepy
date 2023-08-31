@@ -28,7 +28,6 @@ PretokenizedToken.form.__doc__ = '형태소의 형태'
 PretokenizedToken.tag.__doc__ = '형태소의 품사 태그'
 PretokenizedToken.start.__doc__ = '주어진 구간에서 형태소가 시작하는 시작 위치 (문자 단위)'
 PretokenizedToken.end.__doc__ = '주어진 구간에서 형태소가 끝나는 시작 위치 (문자 단위)'
-
 PretokenizedTokenList = List[Union[Tuple[int, int], Tuple[int, int, POSTag], Tuple[int, int, PretokenizedToken], Tuple[int, int, List[PretokenizedToken]]]]
 
 @dataclass
