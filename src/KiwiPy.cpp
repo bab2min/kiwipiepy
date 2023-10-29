@@ -1755,7 +1755,7 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOption
 			updatePretokenizedSpanToU16(pretokenizedSpans.first, so);
 		}
 
-		auto res = kiwi.analyze(so.str, max(topN, (size_t)10), matchOptions, morphs, pretokenizedSpans.first);
+		auto res = kiwi.analyze(so.str, topN, matchOptions, morphs, pretokenizedSpans.first);
 		if (res.size() > topN) res.erase(res.begin() + topN, res.end());
 		return resToPyList(move(res), this, move(pretokenizedSpans.second));
 	}
