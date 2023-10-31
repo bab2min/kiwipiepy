@@ -220,8 +220,13 @@ jobs:
         env: |
           TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
-        run: |          
-          for cp in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312
+        run: |
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            export CPS="cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312"
+          else
+            export CPS="cp39-cp39 cp310-cp310 cp311-cp311"
+          fi
+          for cp in $CPS
           do
             /opt/python/${cp}/bin/python -m pip install --upgrade pip setuptools
             /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
