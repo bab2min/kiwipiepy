@@ -612,8 +612,11 @@ inline size_t hashTokenInfo(const vector<TokenInfo>& tokens)
 py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, vector<py::UniqueObj>&& userValues = {})
 {
 	auto& kiwi = kiwiObj->kiwi;
-	static py::UniqueObj userValuesAttr = py::buildPyValue("_user_values"), tagAttr = py::buildPyValue("tag");
-	py::UniqueObj userValuesObj{ PyObject_GetAttr((PyObject*)kiwiObj, userValuesAttr.get()) };
+	// set the following objects semi-immortal. (they are neither freed nor managed)
+	// it prevents crashes at Python3.12
+	static PyObject* userValuesAttr = py::buildPyValue("_user_values").release();
+	static PyObject* tagAttr = py::buildPyValue("tag").release();
+	py::UniqueObj userValuesObj{ PyObject_GetAttr((PyObject*)kiwiObj, userValuesAttr) };
 	PyErr_Clear();
 	py::UniqueObj retList{ PyList_New(res.size()) };
 	size_t idx = 0;
@@ -703,7 +706,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			if (PyDict_Check(tItem->_userValue.get()))
 			{
 				// tag override
-				auto v = PyDict_GetItem(tItem->_userValue.get(), tagAttr.get());
+				auto v = PyDict_GetItem(tItem->_userValue.get(), tagAttr);
 				if (v)
 				{
 					tItem->_tag = PyUnicode_AsUTF8(v);
