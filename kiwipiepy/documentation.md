@@ -543,6 +543,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 ----
 * 0.16.1 (2023-11-04)
     * Kiwi 0.16.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.16.1 )이 반영되었습니다.
+        * `-다.` 형태로 끝나는 문장어미가 SB로 과도하게 오분석되던 버그가 수정되었습니다.
     * 한국어 템플릿을 위한 편의 기능인 `Kiwi.template`이 추가되었습니다.
 
 * 0.16.0 (2023-08-31)
