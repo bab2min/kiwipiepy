@@ -546,6 +546,7 @@ Kiwi.split_into_sents(text, match_options=Match.ALL, normalize_coda=False, z_cod
 Kiwi.glue(text_chunks, insert_new_lines=None, return_space_insertions=False)
 Kiwi.space(text, reset_whitespace=False)
 Kiwi.join(morphs, lm_search=True)
+Kiwi.template(format_str, cache=True)
 ``` 
 
 <details>
@@ -778,6 +779,74 @@ Token(form='결과', tag='NNG', start=4, len=2)
 '먼 길을 걷다'
 >> remove_past('전화를 걸었다.')
 '전화를 걸다.'
+```
+</details>
+<hr>
+<details>
+<summary><code>template(format_str, cache=True)</code></summary>
+형태소들을 결합하여 문장으로 복원합니다. 조사나 어미는 앞 형태소에 맞춰 적절한 형태로 변경됩니다.
+
+* `format_str`: 템플릿 문자열입니다. Python의 `str.format`(https://docs.python.org/ko/3/library/string.html#formatstrings )과 동일한 문법을 사용합니다.
+* `cache`: 템플릿의 캐시 여부입니다.
+
+이 메소드는 다음과 같이 `Kiwi.join`의 형태소 결합 기능을 더욱 간편하게 사용할 수 있게 도와줍니다.
+
+```python
+# 빈칸은 {}로 표시합니다. 
+# 이 자리에 형태소 혹은 기타 Python 객체가 들어가서 문자열을 완성시키게 됩니다.
+>>> tpl = kiwi.template("{}가 {}을 {}었다.")
+
+# template 객체는 format 메소드를 제공합니다. 
+# 이 메소드를 통해 빈 칸을 채울 수 있습니다.
+# 형태소는 `kiwipiepy.Token` 타입이거나 
+# (형태, 품사) 혹은 (형태, 품사, 왼쪽 띄어쓰기 유무)로 구성된 tuple 타입이어야 합니다.
+>>> tpl.format(("나", "NP"), ("공부", "NNG"), ("하", "VV"))
+'내가 공부를 했다.'
+
+>>> tpl.format(("너", "NP"), ("밥", "NNG"), ("먹", "VV"))
+'네가 밥을 먹었다.'
+
+>>> tpl.format(("우리", "NP"), ("길", "NNG"), ("묻", "VV-I"))
+'우리가 길을 물었다.'
+
+# 형태소가 아닌 Python 객체가 입력되는 경우 `str.format`과 동일하게 동작합니다.
+>>> tpl.format(5, "str", {"dict":"dict"})
+"5가 str를 {'dict': 'dict'}었다."
+
+# 입력한 객체가 형태소가 아닌 Python 객체로 처리되길 원하는 경우 !s 변환 플래그를 사용합니다.
+>>> tpl = kiwi.template("{!s}가 {}을 {}었다.")
+>>> tpl.format(("나", "NP"), ("공부", "NNG"), ("하", "VV"))
+"('나', 'NP')가 공부를 했다."
+
+# Python 객체에 대해서는 `str.format`과 동일한 서식 지정자를 사용할 수 있습니다.
+>>> tpl = kiwi.template("{:.5f}가 {!r}을 {}었다.")
+>>> tpl.format(5, "str", {"dict":"dict"})
+"5.00000가 'str'를 {'dict': 'dict'}었다."
+
+# 서식 지정자가 주어진 칸에 형태소를 대입할 경우 ValueError가 발생합니다.
+>>> tpl.format(("우리", "NP"), "str", ("묻", "VV-I"))
+ValueError: cannot specify format specifier for Kiwi Token
+
+# 치환 필드에 index나 name을 지정하여 대입 순서를 설정할 수 있습니다.
+>>> tpl = kiwi.template("{0}가 {obj}를 {verb}\ㄴ다. {1}는 {obj}를 안 {verb}었다.")
+>>> tpl.format(
+    [("우리", "NP"), ("들", "XSN")], 
+    [("너희", "NP"), ("들", "XSN")], 
+    obj=("길", "NNG"), 
+    verb=("묻", "VV-I")
+)
+'우리들이 길을 묻는다. 너희들은 길을 안 물었다.'
+
+# 위의 예시처럼 종성 자음은 호환용 자모 코드 앞에 \\로 이스케이프를 사용해야합니다.
+# 그렇지 않으면 종성이 아닌 초성으로 인식됩니다.
+>>> tpl = kiwi.template("{0}가 {obj}를 {verb}ㄴ다. {1}는 {obj}를 안 {verb}었다.")
+>>> tpl.format(
+    [("우리", "NP"), ("들", "XSN")], 
+    [("너희", "NP"), ("들", "XSN")], 
+    obj=("길", "NNG"), 
+    verb=("묻", "VV-I")
+)
+'우리들이 길을 묻 ᄂ이다. 너희들은 길을 안 물었다.'
 ```
 </details>
 <hr>
