@@ -9,6 +9,7 @@ from kiwipiepy._c_api import Token
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match
+from kiwipiepy.template import Template
 
 Sentence = NamedTuple('Sentence', [('text', str), ('start', int), ('end', int), ('tokens', Optional[List[Token]]), ('subs', Optional[List['Sentence']])])
 Sentence.__doc__ = '문장 분할 결과를 담기 위한 `namedtuple`입니다.'
@@ -88,7 +89,8 @@ def _convert_consonant(s):
             elif c in _c_to_onset:
                 raise ValueError("Wrong consonant '\\{}'".format(c))
             else:
-                raise ValueError("Wrong escape chr '\\{}'".format(c))
+                ret.append('\\')
+                ret.append(c)
             prev_escape = False
         else:
             if c == '\\': prev_escape = True
@@ -313,6 +315,7 @@ typo_cost_threshold: float
         self._typos = typos
         self._pretokenized_pats : List[Tuple['re.Pattern', str, Any]] = []
         self._user_values : Dict[int, Any] = {}
+        self._template_cache : Dict[str, Template] = {}
 
     def __repr__(self):
         return (
@@ -1649,3 +1652,100 @@ Token(form='결과', tag='NNG', start=4, len=2)
         prefix:List[int],
     ):
         raise NotImplementedError
+
+    def template(self,
+        format_str:str,
+        cache:bool = True,
+    ) -> Template:
+        '''..versionadded:: 0.16.1
+
+한국어 형태소를 고려한 문자열 템플릿을 생성합니다. 
+이를 사용하면 Python의 `str.format`과 거의 동일한 문법을 사용하여 빈 칸에 문자열을 채우는 것이 가능합니다.
+
+Parameters
+----------
+format_str: str
+    템플릿 문자열입니다. 이 문자열은 치환 필드를 {}로 나타냅니다. 템플릿 문자열의 구체적인 문법에 대해서는
+    https://docs.python.org/ko/3/library/string.html#formatstrings 를 참고하세요.
+cache: bool
+    True인 경우 같은 포맷 문자열에 대해 이 메소드가 반환하는 템플릿 객체를 보관해둡니다.
+    이 경우 동일한 템플릿 객체를 여러 번 생성할 때 더 빠른 속도로 생성이 가능해집니다. 기본값은 True입니다.
+
+Returns
+-------
+template: kiwipiepy.Template
+    템플릿 객체를 반환합니다.
+
+Notes
+-----
+이 메소드는 한국어로 구성된 템플릿의 빈 칸을 채우는 데에 유용하게 사용될 수 있습니다.
+특히 빈 칸 뒤에 조사나 어미가 오는 경우, 이 메소드를 사용하면 조사나 어미가 앞 형태소에 맞춰 적절히 조정됩니다.
+
+```python
+>>> kiwi = Kiwi()
+# 빈칸은 {}로 표시합니다. 
+# 이 자리에 형태소 혹은 기타 Python 객체가 들어가서 문자열을 완성시키게 됩니다.
+>>> tpl = kiwi.template("{}가 {}을 {}었다.")
+
+# template 객체는 format 메소드를 제공합니다. 
+# 이 메소드를 통해 빈 칸을 채울 수 있습니다.
+# 형태소는 `kiwipiepy.Token` 타입이거나 
+# (형태, 품사) 혹은 (형태, 품사, 왼쪽 띄어쓰기 유무)로 구성된 tuple 타입이어야 합니다.
+>>> tpl.format(("나", "NP"), ("공부", "NNG"), ("하", "VV"))
+'내가 공부를 했다.'
+
+>>> tpl.format(("너", "NP"), ("밥", "NNG"), ("먹", "VV"))
+'네가 밥을 먹었다.'
+
+>>> tpl.format(("우리", "NP"), ("길", "NNG"), ("묻", "VV-I"))
+'우리가 길을 물었다.'
+
+# 형태소가 아닌 Python 객체가 입력되는 경우 `str.format`과 동일하게 동작합니다.
+>>> tpl.format(5, "str", {"dict":"dict"})
+"5가 str를 {'dict': 'dict'}었다."
+
+# 입력한 객체가 형태소가 아닌 Python 객체로 처리되길 원하는 경우 !s 변환 플래그를 사용합니다.
+>>> tpl = kiwi.template("{!s}가 {}을 {}었다.")
+>>> tpl.format(("나", "NP"), ("공부", "NNG"), ("하", "VV"))
+"('나', 'NP')가 공부를 했다."
+
+# Python 객체에 대해서는 `str.format`과 동일한 서식 지정자를 사용할 수 있습니다.
+>>> tpl = kiwi.template("{:.5f}가 {!r}을 {}었다.")
+>>> tpl.format(5, "str", {"dict":"dict"})
+"5.00000가 'str'를 {'dict': 'dict'}었다."
+
+# 서식 지정자가 주어진 칸에 형태소를 대입할 경우 ValueError가 발생합니다.
+>>> tpl.format(("우리", "NP"), "str", ("묻", "VV-I"))
+ValueError: cannot specify format specifier for Kiwi Token
+
+# 치환 필드에 index나 name을 지정하여 대입 순서를 설정할 수 있습니다.
+>>> tpl = kiwi.template("{0}가 {obj}를 {verb}\ㄴ다. {1}는 {obj}를 안 {verb}었다.")
+>>> tpl.format(
+    [("우리", "NP"), ("들", "XSN")], 
+    [("너희", "NP"), ("들", "XSN")], 
+    obj=("길", "NNG"), 
+    verb=("묻", "VV-I")
+)
+'우리들이 길을 묻는다. 너희들은 길을 안 물었다.'
+
+# 위의 예시처럼 종성 자음은 호환용 자모 코드 앞에 \\로 이스케이프를 사용해야합니다.
+# 그렇지 않으면 종성이 아닌 초성으로 인식됩니다.
+>>> tpl = kiwi.template("{0}가 {obj}를 {verb}ㄴ다. {1}는 {obj}를 안 {verb}었다.")
+>>> tpl.format(
+    [("우리", "NP"), ("들", "XSN")], 
+    [("너희", "NP"), ("들", "XSN")], 
+    obj=("길", "NNG"), 
+    verb=("묻", "VV-I")
+)
+'우리들이 길을 묻 ᄂ이다. 너희들은 길을 안 물었다.'
+```
+
+        '''
+        if not cache:
+            return Template(self, format_str)
+        
+        try:
+            return self._template_cache[format_str]
+        except KeyError:
+            self._template_cache[format_str] = ret = Template(self, format_str)
+            return ret
