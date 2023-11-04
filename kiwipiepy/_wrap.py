@@ -9,6 +9,7 @@ from kiwipiepy._c_api import Token
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match
+from kiwipiepy.template import Template
 
 Sentence = NamedTuple('Sentence', [('text', str), ('start', int), ('end', int), ('tokens', Optional[List[Token]]), ('subs', Optional[List['Sentence']])])
 Sentence.__doc__ = '문장 분할 결과를 담기 위한 `namedtuple`입니다.'
@@ -88,7 +89,8 @@ def _convert_consonant(s):
             elif c in _c_to_onset:
                 raise ValueError("Wrong consonant '\\{}'".format(c))
             else:
-                raise ValueError("Wrong escape chr '\\{}'".format(c))
+                ret.append('\\')
+                ret.append(c)
             prev_escape = False
         else:
             if c == '\\': prev_escape = True
@@ -313,6 +315,7 @@ typo_cost_threshold: float
         self._typos = typos
         self._pretokenized_pats : List[Tuple['re.Pattern', str, Any]] = []
         self._user_values : Dict[int, Any] = {}
+        self._template_cache : Dict[str, Template] = {}
 
     def __repr__(self):
         return (
@@ -1649,3 +1652,18 @@ Token(form='결과', tag='NNG', start=4, len=2)
         prefix:List[int],
     ):
         raise NotImplementedError
+
+    def template(self,
+        format_str:str,
+        cache:bool = True,
+    ) -> Template:
+        '''
+        '''
+        if not cache:
+            return Template(self, format_str)
+        
+        try:
+            return self._template_cache[format_str]
+        except KeyError:
+            self._template_cache[format_str] = ret = Template(self, format_str)
+            return ret
