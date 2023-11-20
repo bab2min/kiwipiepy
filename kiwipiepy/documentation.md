@@ -541,6 +541,9 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.16.2 (2023-11-20)
+    * `Stopwords`와 `blocklist`를 동시에 사용할 때 종종 크래시가 발생하던 문제가 수정되었습니다.
+
 * 0.16.1 (2023-11-04)
     * Kiwi 0.16.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.16.1 )이 반영되었습니다.
         * `-다.` 형태로 끝나는 문장어미가 SB로 과도하게 오분석되던 버그가 수정되었습니다.
