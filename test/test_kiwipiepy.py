@@ -663,3 +663,11 @@ def test_template():
     tpl = kiwi.template("{}가 {}를 {}\ㄴ다.")
     res = tpl.format([("우리", "NP"), ("들", "XSN")], ("길", "NNG"), ("묻", "VV-I"))
     assert res == "우리들이 길을 묻는다."
+
+def test_issue_145():
+    kiwi = Kiwi()
+    stopwords = Stopwords()
+    kiwi.add_user_word('팔이', 'XSV', 10)
+    text = "루쉰(노신)의 「아Q정전」은 주인공을 통해 중국민족의 병폐,노예근성을 기탄없이 지적한 작품이다. 날품팔이를 하며 그럭저럭 살아가는 떠돌이 농민 아Q는 자기도 모르는 사이에 혁명의 와중에 휘말려 반란죄로 체포되고 사형선고를 받는다.까닭도 모르고 사형집행 서류에 서명을 하게 되지만 글자를 쓸줄 모르는 일자무식 아Q는 온 힘을 기울여 동그라미를 겨우 그린 후.."
+    tokens = kiwi.tokenize(text, split_sents= True, stopwords = stopwords, blocklist = ['껌팔이/NNG','품팔이/NNG', '날품팔이/NNG'])
+    assert tokens

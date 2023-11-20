@@ -755,6 +755,7 @@ struct MorphemeSetObject : py::CObject<MorphemeSetObject>
 	MorphemeSetObject(py::UniqueCObj<KiwiObject>&& _kiwi)
 	{
 		kiwi = std::move(_kiwi);
+		kiwi->doPrepare();
 	}
 
 	void update(PyObject* morphs)
