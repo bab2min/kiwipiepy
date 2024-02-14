@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import tempfile
 
 from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken
 from kiwipiepy.utils import Stopwords
@@ -37,6 +38,28 @@ def test_morpheme_set():
     ms = MorphemeSet(kiwi, ["먹/VV", "사람", ("고맙", "VA")])
     print(repr(ms))
     assert len(ms) == 3
+
+def test_load_user_dictionary():
+    kiwi = Kiwi()
+    try:
+        raised = False
+        kiwi.load_user_dictionary('non-existing-file.txt')
+    except OSError as e:
+        raised = True
+        print(e)
+    finally:
+        assert raised
+
+    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as f:
+        f.write('잘못된 포맷의 파일입니다\n')
+    try:
+        raised = False
+        kiwi.load_user_dictionary(f.name)
+    except ValueError as e:
+        raised = True
+        print(e)
+    finally:
+        assert raised
 
 def test_blocklist():
     kiwi = Kiwi()
