@@ -1563,7 +1563,8 @@ Notes
 
     def join(self, 
         morphs:Iterable[Tuple[str, str]],
-        lm_search:bool = True
+        lm_search:bool = True,
+        return_positions:bool = False,
     ) -> str:
         '''..versionadded:: 0.12.0
 
@@ -1579,12 +1580,19 @@ morphs: Iterable[Union[Token, Tuple[str, str], Tuple[str, str, bool]]]
 lm_search: bool
     둘 이상의 형태로 복원 가능한 모호한 형태소가 있는 경우, 이 값이 True면 언어 모델 탐색을 통해 최적의 형태소를 선택합니다.
     False일 경우 탐색을 실시하지 않지만 더 빠른 속도로 복원이 가능합니다.
+return_positions: bool
+    ..versionadded:: 0.16.3
 
+    True인 경우, 각 형태소의 시작 위치와 끝 위치를 `List[Tuple[int, int]]`로 반환합니다.
+    
 Returns
 -------
 result: str
     입력 형태소의 결합 결과를 반환합니다.
-
+positions: List[Tuple[int, int]]
+    이 값은 `return_positions=True`인 경우에만 반환됩니다.
+    결합된 문자열 상에서 각 형태소의 시작 위치와 끝 위치를 알려줍니다.
+    
 Notes
 -----
 `Kiwi.join`은 형태소를 결합할 때 `Kiwi.space`에서 사용하는 것과 유사한 규칙을 사용하여 공백을 적절히 삽입합니다.
@@ -1639,7 +1647,7 @@ Token(form='결과', tag='NNG', start=4, len=2)
 '전화를 걸다.'
 ```
         '''
-        return super().join(morphs, lm_search)
+        return super().join(morphs, lm_search, return_positions)
 
     def evaluate(self,
         sequences:List[List[int]],

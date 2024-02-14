@@ -573,6 +573,12 @@ def test_join():
         == "왜 저한테물어요"
     )
 
+def test_join_with_positions():
+    kiwi = Kiwi()
+    joined, positions = kiwi.join([('🐥', 'SW'), ('하', 'VV'), ('었', 'EP'), ('는데', 'EF')], return_positions=True)
+    assert joined == '🐥했는데'
+    assert positions == [(0, 1), (1, 2), (1, 2), (2, 4)]
+
 def test_join_edge_cases():
     kiwi = Kiwi()
     for c in [
