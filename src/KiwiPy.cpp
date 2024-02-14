@@ -540,7 +540,7 @@ struct TokenObject : py::CObject<TokenObject>
 
 	u16string lemma() const
 	{
-		if (_tag[0] == 'V') return _form + u'다';
+		if (_tag[0] == 'V') return _form + u'\uB2E4';
 		else return _form;
 	}
 
