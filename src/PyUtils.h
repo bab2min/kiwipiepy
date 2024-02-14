@@ -2031,7 +2031,7 @@ namespace py
 					throw TypeError{ "function takes positional arguments only" };
 				}
 
-				return func(toCpp<Arg<idx>>(PyTuple_GET_ITEM(args, idx))...);
+				return func(toCpp<std::remove_const_t<std::remove_reference_t<Arg<idx>>>>(PyTuple_GET_ITEM(args, idx))...);
 			}
 		};
 
@@ -2062,7 +2062,7 @@ namespace py
 					throw TypeError{ "function takes positional arguments only" };
 				}
 
-				return func(toCpp<Arg<idx>>(PyTuple_GET_ITEM(args, idx))...);
+				return func(toCpp<std::remove_const_t<std::remove_reference_t<Arg<idx>>>>(PyTuple_GET_ITEM(args, idx))...);
 			}
 		};
 
@@ -2093,7 +2093,7 @@ namespace py
 					throw TypeError{ "function takes positional arguments only" };
 				}
 
-				return (self->*func)(toCpp<Arg<idx>>(PyTuple_GET_ITEM(args, idx))...);
+				return (self->*func)(toCpp<std::remove_const_t<std::remove_reference_t<Arg<idx>>>>(PyTuple_GET_ITEM(args, idx))...);
 			}
 
 			template<Type func, size_t _nargs = nargs>
@@ -2157,7 +2157,7 @@ namespace py
 					throw TypeError{ "function takes positional arguments only" };
 				}
 
-				return (self->*func)(toCpp<Arg<idx>>(PyTuple_GET_ITEM(args, idx))...);
+				return (self->*func)(toCpp<std::remove_const_t<std::remove_reference_t<Arg<idx>>>>(PyTuple_GET_ITEM(args, idx))...);
 			}
 
 			template<Type func, size_t _nargs = nargs>

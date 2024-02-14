@@ -1,4 +1,4 @@
-﻿#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
+#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
 
 #include <stdexcept>
 #include <fstream>
@@ -273,7 +273,15 @@ struct KiwiObject : py::CObject<KiwiObject>
 
 	KiwiObject() = default;
 
-	KiwiObject(size_t numThreads, std::optional<const char*> modelPath = {}, bool integrateAllomorph = true, bool loadDefaultDict = true, bool loadTypoDict = true, bool sbg = false, PyObject* _typos = nullptr, float _typoCostThreshold = 2.5f)
+	KiwiObject(size_t numThreads, 
+		std::optional<const char*> modelPath = {}, 
+		bool integrateAllomorph = true, 
+		bool loadDefaultDict = true, 
+		bool loadTypoDict = true, 
+		bool sbg = false, 
+		PyObject* _typos = nullptr, 
+		float _typoCostThreshold = 2.5f
+	)
 	{
 		if (_typos == nullptr || _typos == Py_None)
 		{
@@ -336,8 +344,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 	py::UniqueObj extractAddWords(PyObject* sentences, size_t minCnt = 10, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true);
 	py::UniqueObj extractWords(PyObject* sentences, size_t minCnt, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true) const;
 	size_t loadUserDictionary(const char* path);
-	py::UniqueObj getMorpheme(size_t id) const;
-	std::string join(PyObject* morphs, bool lm_search = true);
+	py::UniqueObj getMorpheme(size_t id);
+	py::UniqueObj join(PyObject* morphs, bool lmSearch = true, bool returnPositions = false);
 	py::UniqueObj makeHSDataset(PyObject* inputPathes, size_t batchSize, size_t windowSize, size_t numWorkers, float dropout = 0, PyObject* tokenFilter = nullptr, float splitRatio = 0, size_t seed = 42) const;
 
 	float getCutOffThreshold() const
@@ -532,7 +540,7 @@ struct TokenObject : py::CObject<TokenObject>
 
 	u16string lemma() const
 	{
-		if (_tag[0] == 'V') return _form + u'다';
+		if (_tag[0] == 'V') return _form + u'\uB2E4';
 		else return _form;
 	}
 
@@ -601,12 +609,40 @@ py::TypeWrapper<TokenObject> _TokenSetter{ gModule, [](PyTypeObject& obj)
 
 inline size_t hashTokenInfo(const vector<TokenInfo>& tokens)
 {
-	size_t ret = 0;
+	size_t ret = 1;
 	for (auto& t : tokens)
 	{
-		ret = (ret << 3) | (ret >> (sizeof(size_t) * 8 - 3)) | hash<u16string>{}(t.str);
+		ret = ((ret << 3) | (ret >> (sizeof(size_t) * 8 - 3))) ^ hash<u16string>{}(t.str);
 	}
 	return ret;
+}
+
+inline const char* getTagStr(const POSTag tag, const u16string& form)
+{
+	const bool regularity = !isIrregular(tag);
+	const auto stag = clearIrregular(tag);
+	if (stag == POSTag::vv || stag == POSTag::va || stag == POSTag::vx || stag == POSTag::xsa)
+	{
+		size_t coda = (form.back() - 0xAC00) % 28;
+		if (coda == 7 || coda == 17 || coda == 19 || form == u"이르")
+		{
+			if (regularity)
+			{
+				switch (stag)
+				{
+				case POSTag::vv:
+					return "VV-R";
+				case POSTag::va:
+					return "VA-R";
+				case POSTag::vx:
+					return "VX-R";
+				case POSTag::xsa:
+					return "XSA-R";
+				}
+			}
+		}
+	}
+	return tagToString(tag);
 }
 
 py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, vector<py::UniqueObj>&& userValues = {})
@@ -638,46 +674,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			tItem->_form = move(q.str);
 			tItem->_regularity = !isIrregular(q.tag);
 			tItem->resultHash = resultHash;
-			POSTag tag = clearIrregular(q.tag);
-			if (tag == POSTag::vv || tag == POSTag::va || tag == POSTag::vx || tag == POSTag::xsa)
-			{
-				size_t coda = (tItem->_form.back() - 0xAC00) % 28;
-				if (coda == 7 || coda == 17 || coda == 19 || tItem->_form == u"이르")
-				{
-					if (tItem->_regularity)
-					{
-						switch (tag)
-						{
-						case POSTag::vv:
-							tItem->_tag = "VV-R";
-							break;
-						case POSTag::va:
-							tItem->_tag = "VA-R";
-							break;
-						case POSTag::vx:
-							tItem->_tag = "VX-R";
-							break;
-						case POSTag::xsa:
-							tItem->_tag = "XSA-R";
-							break;
-						default:
-							break;
-						}
-					}
-					else
-					{
-						tItem->_tag = tagToString(q.tag);
-					}
-				}
-				else
-				{
-					tItem->_tag = tagToString(tag);
-				}
-			}
-			else
-			{
-				tItem->_tag = tagToString(tag);
-			}
+			tItem->_tag = getTagStr(q.tag, tItem->_form);
 			tItem->_pos = q.position - u32offset;
 			tItem->_len = q.length - u32chrs;
 			tItem->_wordPosition = q.wordPosition;
@@ -1799,24 +1796,25 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOption
 	}
 }
 
-py::UniqueObj KiwiObject::getMorpheme(size_t id) const
+py::UniqueObj KiwiObject::getMorpheme(size_t id)
 {
-	py::UniqueObj ret{ PyObject_CallFunctionObjArgs((PyObject*)py::Type<TokenObject>, nullptr) };
-	auto* obj = (TokenObject*)ret.get();
+	auto ret = py::makeNewObject<TokenObject>();
+	doPrepare();
 	auto* morph = kiwi.idToMorph(id);
 	if (!morph) throw py::ValueError{ "out of range" };
-	auto& form = morph->getForm();
-	obj->_form = u16string{ form.begin(), form.end() };
-	obj->_tag = tagToString(morph->tag);
-	obj->_morph = morph;
-	obj->_morphId = id;
+	auto joinedForm = joinHangul(morph->getForm());
+	ret->_form = move(joinedForm);
+	ret->_tag = getTagStr(morph->tag, ret->_form);
+	ret->_baseMorph = ret->_morph = morph;
+	ret->_morphId = id;
+	ret->_regularity = !isIrregular(morph->tag);
 	return ret;
 }
 
-std::string KiwiObject::join(PyObject* morphs, bool lm_search)
+py::UniqueObj KiwiObject::join(PyObject* morphs, bool lmSearch, bool returnPositions)
 {
 	doPrepare();
-	auto joiner = kiwi.newJoiner(!!lm_search);
+	auto joiner = kiwi.newJoiner(!!lmSearch);
 	size_t prevHash = 0;
 	size_t prevEnd = 0;
 	py::foreach<PyObject*>(morphs, [&](PyObject* item)
@@ -1865,7 +1863,33 @@ std::string KiwiObject::join(PyObject* morphs, bool lm_search)
 			throw py::ConversionFail{ "`morphs` must be an iterable of `Tuple[str, str]`." };
 		}
 	}, "`morphs` must be an iterable of `Tuple[str, str]`.");
-	return joiner.getU8();
+	
+	if (returnPositions)
+	{
+		vector<pair<uint32_t, uint32_t>> positions;
+		auto ret = joiner.getU16(&positions);
+		// adjust positions for u16 surrogate pairs
+		vector<size_t> surrogates(ret.size() + 1);
+		size_t acc = 0;
+		for (size_t i = 0; i < ret.size(); ++i)
+		{
+			surrogates[i] = acc;
+			acc += ((ret[i] & 0xFC00) == 0xD800 ? 1 : 0);
+		}
+		surrogates.back() = acc;
+
+		for (auto& p : positions)
+		{
+			p.first -= surrogates[p.first];
+			p.second -= surrogates[p.second];
+		}
+
+		return py::buildPyTuple(ret, py::buildPyValue(positions, py::force_list));
+	}
+	else
+	{
+		return py::buildPyValue(joiner.getU16());
+	}
 }
 
 py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, size_t batchSize, size_t windowSize, size_t numWorkers, float dropout, PyObject* tokenFilter, float splitRatio, size_t seed) const
