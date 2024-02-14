@@ -16,6 +16,8 @@
 #include <optional>
 #include <variant>
 #include <numeric>
+#include <typeinfo>
+#include <typeindex>
 
 #ifdef _DEBUG
 #undef _DEBUG
@@ -993,8 +995,8 @@ namespace py
 			}
 			else
 			{
-				return false;
 			}
+			return false;
 		}
 	};
 
@@ -1829,6 +1831,53 @@ namespace py
 		return true;
 	}
 
+	class CustomExcHandler
+	{
+		static std::unordered_map<std::type_index, PyObject*> handlers;
+
+	public:
+		template<class CustomExc, class PyExc>
+		static void add()
+		{
+			handlers[std::type_index(typeid(CustomExc))] = PyExc{ "" }.pytype();
+		}
+
+		static const std::unordered_map<std::type_index, PyObject*>& get()
+		{
+			return handlers;
+		}
+	};
+
+	std::unordered_map<std::type_index, PyObject*> CustomExcHandler::handlers;
+
+	namespace detail
+	{
+		inline void setPyError(PyObject* errType, const char* errMsg)
+		{
+			if (PyErr_Occurred())
+			{
+				PyObject* exc, * val, * tb, * val2;
+				PyErr_Fetch(&exc, &val, &tb);
+				PyErr_NormalizeException(&exc, &val, &tb);
+				if (tb)
+				{
+					PyException_SetTraceback(val, tb);
+					Py_DECREF(tb);
+				}
+				Py_DECREF(exc);
+				PyObject* et = errType;
+				val2 = PyObject_CallFunctionObjArgs(et, py::UniqueObj{ buildPyValue(errMsg) }.get(), nullptr);
+				PyException_SetCause(val2, val);
+				PyErr_SetObject(et, val2);
+				Py_DECREF(val2);
+			}
+			else
+			{
+				PyErr_SetString(errType, errMsg);
+			}
+		}
+	}
+
 	template<typename _Fn>
 	PY_STRONG_INLINE auto handleExc(_Fn&& fn)
 		-> typename std::enable_if<std::is_pointer<decltype(fn())>::value, decltype(fn())>::type
@@ -1842,27 +1891,17 @@ namespace py
 		}
 		catch (const BaseException& e)
 		{
-			if (PyErr_Occurred())
+			detail::setPyError(e.pytype(), e.what());
+		}
+		catch (const std::exception& e)
+		{
+			auto customHandlers = CustomExcHandler{}.get();
+			auto it = customHandlers.find(std::type_index(typeid(e)));
+			if (it == customHandlers.end())
 			{
-				PyObject* exc, * val, * tb, * val2;
-				PyErr_Fetch(&exc, &val, &tb);
-				PyErr_NormalizeException(&exc, &val, &tb);
-				if (tb)
-				{
-					PyException_SetTraceback(val, tb);
-					Py_DECREF(tb);
-				}
-				Py_DECREF(exc);
-				PyObject* et = e.pytype();
-				val2 = PyObject_CallFunctionObjArgs(et, py::UniqueObj{ buildPyValue(e.what()) }.get(), nullptr);
-				PyException_SetCause(val2, val);
-				PyErr_SetObject(et, val2);
-				Py_DECREF(val2);
+				throw;
 			}
-			else
-			{
-				PyErr_SetString(e.pytype(), e.what());
-			}
+			detail::setPyError(it->second, e.what());
 		}
 		/*catch (const std::exception& e)
 		{
@@ -1885,27 +1924,17 @@ namespace py
 		}
 		catch (const BaseException& e)
 		{
-			if (PyErr_Occurred())
+			detail::setPyError(e.pytype(), e.what());
+		}
+		catch (const std::exception& e)
+		{
+			auto customHandlers = CustomExcHandler{}.get();
+			auto it = customHandlers.find(std::type_index(typeid(e)));
+			if (it == customHandlers.end())
 			{
-				PyObject* exc, * val, * tb, * val2;
-				PyErr_Fetch(&exc, &val, &tb);
-				PyErr_NormalizeException(&exc, &val, &tb);
-				if (tb)
-				{
-					PyException_SetTraceback(val, tb);
-					Py_DECREF(tb);
-				}
-				Py_DECREF(exc);
-				PyObject* et = e.pytype();
-				val2 = PyObject_CallFunctionObjArgs(et, py::UniqueObj{ buildPyValue(e.what()) }.get(), nullptr);
-				PyException_SetCause(val2, val);
-				PyErr_SetObject(et, val2);
-				Py_DECREF(val2);
+				throw;
 			}
-			else
-			{
-				PyErr_SetString(e.pytype(), e.what());
-			}
+			detail::setPyError(it->second, e.what());
 		}
 		/*catch (const std::exception& e)
 		{
@@ -1928,27 +1957,17 @@ namespace py
 		}
 		catch (const BaseException& e)
 		{
-			if (PyErr_Occurred())
+			detail::setPyError(e.pytype(), e.what());
+		}
+		catch (const std::exception& e)
+		{
+			auto customHandlers = CustomExcHandler{}.get();
+			auto it = customHandlers.find(std::type_index(typeid(e)));
+			if (it == customHandlers.end())
 			{
-				PyObject* exc, * val, * tb, * val2;
-				PyErr_Fetch(&exc, &val, &tb);
-				PyErr_NormalizeException(&exc, &val, &tb);
-				if (tb)
-				{
-					PyException_SetTraceback(val, tb);
-					Py_DECREF(tb);
-				}
-				Py_DECREF(exc);
-				PyObject* et = e.pytype();
-				val2 = PyObject_CallFunctionObjArgs(et, py::UniqueObj{ buildPyValue(e.what()) }.get(), nullptr);
-				PyException_SetCause(val2, val);
-				PyErr_SetObject(et, val2);
-				Py_DECREF(val2);
+				throw;
 			}
-			else
-			{
-				PyErr_SetString(e.pytype(), e.what());
-			}
+			detail::setPyError(it->second, e.what());
 		}
 		/*catch (const std::exception& e)
 		{

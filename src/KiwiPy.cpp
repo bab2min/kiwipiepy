@@ -1639,16 +1639,10 @@ bool KiwiObject::addPreAnalyzedWord(const char* form, PyObject* oAnalyzed, float
 	{
 		throw py::ValueError{ "All items of `analyzed` must be in the type `Tuple[str, str]` or `Tuple[str, str, int, int]`."};
 	}
-	try 
-	{
-		auto added = builder.addPreAnalyzedWord(utf8To16(form), analyzed, positions, score);
-		if (added) kiwi = Kiwi{};
-		return added;
-	}
-	catch (const UnknownMorphemeException& e)
-	{
-		throw py::ValueError{ e.what() };
-	}
+
+	auto added = builder.addPreAnalyzedWord(utf8To16(form), analyzed, positions, score);
+	if (added) kiwi = Kiwi{};
+	return added;
 }
 
 std::vector<std::pair<uint32_t, std::u16string>> KiwiObject::addRule(const char* tag, PyObject* replacer, float score)
@@ -1930,5 +1924,11 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, size_t batchSize,
 PyMODINIT_FUNC PyInit__kiwipiepy()
 {
 	import_array();
+	py::CustomExcHandler::add<kiwi::IOException, py::OSError>();
+	py::CustomExcHandler::add<kiwi::FormatException, py::ValueError>();
+	py::CustomExcHandler::add<kiwi::UnicodeException, py::ValueError>();
+	py::CustomExcHandler::add<kiwi::UnknownMorphemeException, py::ValueError>();
+	py::CustomExcHandler::add<kiwi::SwTokenizerException, py::ValueError>();
+	py::CustomExcHandler::add<kiwi::Exception, py::Exception>();
 	return gModule.init();
 }
