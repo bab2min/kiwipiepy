@@ -190,7 +190,7 @@ num_workers: int
         num_workers: Optional[int] = None,
     ):
         if kiwi is None:
-            kiwi = Kiwi(num_workers=num_workers)
+            kiwi = Kiwi(num_workers=num_workers, load_multi_dict=False)
         elif num_workers is not None:
             raise ValueError("You cannot specify `num_workers` value if you give `kiwi` value.")
 
@@ -625,7 +625,7 @@ Notes
 ```
         '''
         if kiwi is None:
-            kiwi = Kiwi(num_workers=num_workers)
+            kiwi = Kiwi(num_workers=num_workers, load_multi_dict=False)
         elif num_workers is not None:
             raise ValueError("You cannot specify `num_workers` value if you give `kiwi` value.")
                 
