@@ -120,13 +120,13 @@ jobs:
           fi
         done
 
-  build_macos_11:
-    name: Build for macOS 11
-    runs-on: macOS-11
+  build_macos_13:
+    name: Build for macOS 13
+    runs-on: macOS-13
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.8, 3.9, "3.10", 3.11] # 3.12 isn't supported by GitHub Actions yet
+        python-version: [3.8, 3.9, "3.10", 3.11, 3.12]
 
     steps:
     - uses: actions/checkout@v2
