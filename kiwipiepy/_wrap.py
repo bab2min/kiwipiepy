@@ -246,6 +246,10 @@ load_typo_dict: bool
     .. versionadded:: 0.14.0
     
     True일 경우 인스턴스 생성시 자동으로 내장 오타 사전을 불러옵니다. 오타 사전은 자주 틀리는 오타 일부와 인터넷에서 자주 쓰이는 변형된 종결 어미로 구성되어 있습니다. 기본값은 True입니다.
+load_multi_dict: bool
+    .. versionadded:: 0.17.0
+    
+    True일 경우 인스턴스 생성시 자동으로 내장 다어절 사전을 불러옵니다. 다어절 사전은 WikiData에 등재된 고유 명사들로 구성되어 있습니다. 기본값은 True입니다.
 model_type: str
     .. versionadded:: 0.13.0
 
@@ -268,6 +272,7 @@ typo_cost_threshold: float
         integrate_allomorph: Optional[bool] = None,
         load_default_dict: Optional[bool] = None,
         load_typo_dict: Optional[bool] = None,
+        load_multi_dict: Optional[bool] = None,
         model_type: str = 'knlm',
         typos: Optional[Union[str, TypoTransformer]] = None,
         typo_cost_threshold: float = 2.5,
@@ -281,6 +286,8 @@ typo_cost_threshold: float
             load_default_dict = True
         if load_typo_dict is None:
             load_typo_dict = True
+        if load_multi_dict is None:
+            load_multi_dict = True
 
         if model_type not in ('knlm', 'sbg'):
             raise ValueError("`model_type` should be one of ('knlm', 'sbg'), but {}".format(model_type))
@@ -295,6 +302,7 @@ typo_cost_threshold: float
             integrate_allomorph,
             load_default_dict,
             load_typo_dict,
+            load_multi_dict,
             (model_type=='sbg'),
             typos,
             typo_cost_threshold,
@@ -1587,7 +1595,7 @@ lm_search: bool
     둘 이상의 형태로 복원 가능한 모호한 형태소가 있는 경우, 이 값이 True면 언어 모델 탐색을 통해 최적의 형태소를 선택합니다.
     False일 경우 탐색을 실시하지 않지만 더 빠른 속도로 복원이 가능합니다.
 return_positions: bool
-    ..versionadded:: 0.16.3
+    ..versionadded:: 0.17.0
 
     True인 경우, 각 형태소의 시작 위치와 끝 위치를 `List[Tuple[int, int]]`로 반환합니다.
     

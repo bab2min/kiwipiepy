@@ -267,6 +267,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 		bool,
 		bool,
 		bool,
+		bool,
 		PyObject*,
 		float
 	>;
@@ -278,6 +279,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 		bool integrateAllomorph = true, 
 		bool loadDefaultDict = true, 
 		bool loadTypoDict = true, 
+		bool loadMultiDict = true,
 		bool sbg = false, 
 		PyObject* _typos = nullptr, 
 		float _typoCostThreshold = 2.5f
@@ -301,6 +303,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 		boptions |= integrateAllomorph ? BuildOption::integrateAllomorph : BuildOption::none;
 		boptions |= loadDefaultDict ? BuildOption::loadDefaultDict : BuildOption::none;
 		boptions |= loadTypoDict ? BuildOption::loadTypoDict : BuildOption::none;
+		boptions |= loadMultiDict ? BuildOption::loadMultiDict : BuildOption::none;
 
 		string spath;
 		if (modelPath)
@@ -685,7 +688,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			tItem->_typoCost = q.typoCost;
 			tItem->_morph = q.morph;
 			tItem->_morphId = q.morph ? kiwi.morphToId(q.morph) : -1;
-			tItem->_baseMorph = q.morph ? kiwi.idToMorph(q.morph->lmMorphemeId) : nullptr;
+			tItem->_baseMorph = q.morph ? kiwi.idToMorph(q.morph->origMorphemeId ? q.morph->origMorphemeId : q.morph->lmMorphemeId) : nullptr;
 			tItem->_raw_form = q.typoCost ? kiwi.getTypoForm(q.typoFormId) : tItem->_form;
 			tItem->_pairedToken = q.pairedToken;
 
