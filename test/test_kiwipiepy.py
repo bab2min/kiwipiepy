@@ -124,6 +124,33 @@ def test_pretokenized():
     ])
     assert res[1].form == '페트'
 
+    try:
+        is_raised = False
+        kiwi.tokenize("some text", pretokenized=[(-1, 0)])
+    except ValueError as e:
+        is_raised = True
+        print(e)
+    finally:
+        assert is_raised
+
+    try:
+        is_raised = False
+        kiwi.tokenize("some text", pretokenized=[(0, 1000)])
+    except ValueError as e:
+        is_raised = True
+        print(e)
+    finally:
+        assert is_raised
+
+    try:
+        is_raised = False
+        kiwi.tokenize("some text", pretokenized=[(1, 0)])
+    except ValueError as e:
+        is_raised = True
+        print(e)
+    finally:
+        assert is_raised
+
 def test_re_word():
     text = '{평만경(平滿景)}이 사람을 시켜 {침향(沈香)} 10냥쭝을 바쳤으므로'
 
