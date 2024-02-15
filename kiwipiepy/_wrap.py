@@ -766,10 +766,16 @@ result: List[Tuple[str, float, int, float]]
 
         if callable(override_pretokenized):
             spans = override_pretokenized(text)
-            if spans: span_groups.append(spans)
+            if spans: 
+                if not all(0 <= s <= e <= len(text) for s, e, *_ in spans):
+                    raise ValueError("All spans must be valid range of text")
+                span_groups.append(spans)
         elif override_pretokenized is not None:
             spans = override_pretokenized
-            if spans: span_groups.append(spans)
+            if spans: 
+                if not all(0 <= s <= e <= len(text) for s, e, *_ in spans):
+                    raise ValueError("All spans must be valid range of text")
+                span_groups.append(spans)
         
         return span_groups
 
