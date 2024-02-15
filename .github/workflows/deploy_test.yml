@@ -117,7 +117,7 @@ jobs:
         TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
       run: |
-        python -m pip install twine wheel numpy==`python .github/workflows/numpy_version.py`
+        python -m pip install twine wheel numpy==`python .github/workflows/numpy_version.py` setuptools
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py bdist_wheel
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 python setup.py bdist_wheel
         twine upload --repository testpypi dist/*

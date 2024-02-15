@@ -145,7 +145,7 @@ jobs:
         mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
         mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
         
-        python -m pip install numpy==`python .github/workflows/numpy_version.py`
+        python -m pip install numpy==`python .github/workflows/numpy_version.py` setuptools
 
         cd model
         python setup.py build install
