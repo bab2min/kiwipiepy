@@ -156,7 +156,7 @@ jobs:
     - name: Archive binary
       uses: actions/upload-artifact@v2
       with:
-        name: macOS Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
+        name: macOS Binary ${{ matrix.python-version }}
         path: |
           build/*
     - name: Test kiwipiepy
