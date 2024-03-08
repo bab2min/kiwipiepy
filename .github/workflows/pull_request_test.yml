@@ -55,7 +55,7 @@ jobs:
         /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_kiwipiepy.py
     - name: Test transformers_addon
       run: |
-        for v in {12..28}
+        for v in {12..38}
         do
           echo "Test with transformers 4.$v ..."
           if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then

@@ -1,4 +1,5 @@
 {
     "model_max_length": 512,
-    "tokenizer_class": "KiwiTokenizer"
+    "tokenizer_class": "KiwiTokenizer",
+    "added_tokens_decoder": {}
 }
