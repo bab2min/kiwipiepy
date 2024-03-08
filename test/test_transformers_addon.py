@@ -93,7 +93,7 @@ def test_tokenize():
     assert t == ["맞/V", "습니다/E", "요/J", "!"]
 
 def test_save_pretrained():
-    path = tempfile.NamedTemporaryFile(delete_on_close=False).name
+    path = tempfile.gettempdir() + '/test_tokenizer'
     tokenizer.save_pretrained(path)
     new_tokenizer = AutoTokenizer.from_pretrained(path)
     assert new_tokenizer.get_vocab() == tokenizer.get_vocab()
