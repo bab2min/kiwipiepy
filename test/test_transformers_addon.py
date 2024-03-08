@@ -1,8 +1,9 @@
+import tempfile
+
+from transformers import AutoTokenizer
+import kiwipiepy.transformers_addon
 
 def test_init():
-    from transformers import AutoTokenizer
-    import kiwipiepy.transformers_addon
-
     global tokenizer
     tokenizer = AutoTokenizer.from_pretrained('test/sample_tokenizer')
 
@@ -90,6 +91,12 @@ def test_decode():
 def test_tokenize():
     t = tokenizer.tokenize("맞습니다요!")
     assert t == ["맞/V", "습니다/E", "요/J", "!"]
+
+def test_save_pretrained():
+    path = tempfile.NamedTemporaryFile(delete_on_close=False).name
+    tokenizer.save_pretrained(path)
+    new_tokenizer = AutoTokenizer.from_pretrained(path)
+    assert new_tokenizer.get_vocab() == tokenizer.get_vocab()
 
 if __name__ == '__main__':
     for k, v in locals().copy().items():

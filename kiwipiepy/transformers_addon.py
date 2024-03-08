@@ -66,11 +66,13 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
     vocab_files_names = {"tokenizer_file": "tokenizer.json"}
 
     def __init__(self, tokenizer_file=None, **kwargs):
-        super().__init__(**kwargs)
         if tokenizer_file is None:
             raise ValueError(f"Cannot instantiate tokenizer from {tokenizer_file!r}")
         
         self._tokenizer = SwTokenizer(tokenizer_file)
+        
+        super().__init__(**kwargs)
+
         self._post_processor = self._tokenizer.config.additional.get('post_processor') if isinstance(self._tokenizer.config.additional, dict) else None
         if self._post_processor not in (None, 'bert'):
             raise ValueError(f"Unknown post_processor `{self._post_processor!r}`")
@@ -502,5 +504,9 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
         file_names = file_names + (tokenizer_file,)
 
         return file_names
+
+    @property
+    def added_tokens_decoder(self):
+        return {}
 
 AutoTokenizer.register('KiwiTokenizer', None, KiwiTokenizer)
