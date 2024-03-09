@@ -61,6 +61,9 @@ def test_load_user_dictionary():
     finally:
         assert raised
 
+def test_issue_158():
+    print(len(Kiwi().tokenize('보통' * 40000)))
+
 def test_blocklist():
     kiwi = Kiwi()
     tokens = kiwi.tokenize("고마움을")
@@ -233,6 +236,77 @@ def test_user_value():
     assert tokens[0].tag == 'SPECIAL'
     assert tokens[0].user_value == {'tag':'SPECIAL'}
     assert sum(1 for t in tokens if t.user_value is not None) == 1
+
+def test_words_with_space():
+    kiwi = Kiwi()
+    
+    assert kiwi.add_user_word('대학생 선교회', 'NNP')
+    res1 = kiwi.tokenize('대학생 선교회')
+    res2 = kiwi.tokenize('대학생선교회')
+    res3 = kiwi.tokenize('대학생 \t 선교회')
+    res4 = kiwi.tokenize('대 학생선교회')
+    res5 = kiwi.tokenize('대 학생 선교회')
+    res6 = kiwi.tokenize('대학 생선 교회')
+    assert len(res1) == 1
+    assert len(res2) == 1
+    assert len(res3) == 1
+    assert len(res4) != 1
+    assert len(res5) != 1
+    assert len(res6) != 1
+    assert res1[0].form == '대학생 선교회'
+    assert res2[0].form == '대학생 선교회'
+    assert res3[0].form == '대학생 선교회'
+    assert res4[0].form != '대학생 선교회'
+    assert res5[0].form != '대학생 선교회'
+    assert res6[0].form != '대학생 선교회'
+
+    kiwi.space_tolerance = 1
+    res1 = kiwi.tokenize('대학생 선교회')
+    res2 = kiwi.tokenize('대학생선교회')
+    res3 = kiwi.tokenize('대학생 \t 선교회')
+    res4 = kiwi.tokenize('대 학생선교회')
+    res5 = kiwi.tokenize('대 학생 선교회')
+    res6 = kiwi.tokenize('대학 생선 교회')
+    assert len(res1) == 1
+    assert len(res2) == 1
+    assert len(res3) == 1
+    assert len(res4) == 1
+    assert len(res5) == 1
+    assert len(res6) != 1
+
+    kiwi.space_tolerance = 0
+    assert kiwi.add_user_word('농협 용인 육가공 공장', 'NNP')
+    res1 = kiwi.tokenize('농협 용인 육가공 공장')
+    res2 = kiwi.tokenize('농협용인 육가공 공장')
+    res3 = kiwi.tokenize('농협 용인육가공 공장')
+    res4 = kiwi.tokenize('농협 용인 육가공공장')
+    res5 = kiwi.tokenize('농협용인육가공공장')
+    res6 = kiwi.tokenize('농협용 인육 가공 공장')
+    assert res1[0].form == '농협 용인 육가공 공장'
+    assert res2[0].form == '농협 용인 육가공 공장'
+    assert res3[0].form == '농협 용인 육가공 공장'
+    assert res4[0].form == '농협 용인 육가공 공장'
+    assert res5[0].form == '농협 용인 육가공 공장'
+    assert res6[0].form != '농협 용인 육가공 공장'
+    
+    kiwi.space_tolerance = 1
+    res2 = kiwi.tokenize('농협용인육 가공 공장')
+    res3 = kiwi.tokenize('농협용 인육 가공 공장')
+    res4 = kiwi.tokenize('농협용 인육 가공공장')
+    assert res2[0].form == '농협 용인 육가공 공장'
+    assert res3[0].form != '농협 용인 육가공 공장'
+    assert res4[0].form != '농협 용인 육가공 공장'
+
+    kiwi.space_tolerance = 2
+    res3 = kiwi.tokenize('농협용 인육 가공 공장')
+    res4 = kiwi.tokenize('농협용 인육 가공공장')
+    assert res3[0].form == '농협 용인 육가공 공장'
+    assert res4[0].form == '농협 용인 육가공 공장'
+
+    res5 = kiwi.tokenize('농협용\n인육 가공\n공장에서')
+    assert res5[0].form == '농협 용인 육가공 공장'
+    assert res5[0].line_number == 0
+    assert res5[1].line_number == 2
 
 def test_swtokenizer():
     tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')

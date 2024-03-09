@@ -163,6 +163,7 @@ next(result_iter) # 종료된 파일에서 분석해야할 다음 텍스트를 �
 ```
 
 **normalize_coda**
+
 0.10.2버전부터 `normalize_coda` 기능이 추가되었습니다. 이 기능은 웹이나 채팅 텍스트 데이터에서 자주 쓰이는 
 ㅋㅋㅋ, ㅎㅎㅎ와 같은 초성체가 어절 뒤에 붙는 경우 분석에 실패하는 경우를 막아줍니다.
 
@@ -185,6 +186,7 @@ kiwi.tokenize("안 먹었엌ㅋㅋ", normalize_coda=True)
 ```
 
 **z_coda**
+
 0.15.0버전부터 `z_coda` 기능이 추가되었습니다. 이 기능은 조사 및 어미에 덧붙은 받침을 분리해줍니다. 
 기본적으로 True로 설정되어 있으며, 이 기능을 사용하지 않으려면 인자로 z_coda=False를 주어야 합니다.
 
@@ -212,6 +214,7 @@ kiwi.tokenize("우리집에성 먹었어욥", z_coda=True) # 기본값이 True�
 ```
 
 **split_complex**
+
 0.15.0버전부터 `split_complex` 기능이 추가되었습니다. 이 기능은 더 잘게 분할 가능한 형태소들을 최대한 분할하도록 합니다.
 이런 형태소에는 '고마움(고맙 + 음)'과 같은 파생 명사, '건강히(건강 + 히)'와 같은 파생 부사, '반짝거리다(반짝 + 거리다)', '걸어다니다(걸어 + 다니다)'와 같은 파생 동/형용사 등이 포함됩니다.
 ```python
@@ -257,6 +260,7 @@ kiwi.tokenize('고마움에 건강히 지내시라고 눈을 반짝거리며 인
 ```
 
 **blocklist**
+
 0.15.0부터 `split_complex` 와 더불어 `blocklist` 기능도 추가되었습니다. 이 기능은 `split_complex` 와는 다르게 세부적으로 분석 결과에 등장하면 안되는 형태소 목록을 지정할 수 있습니다.
 ```python
 from kiwipiepy import Kiwi
@@ -295,6 +299,51 @@ kiwi.tokenize('고마움에 건강히 지내시라고 눈을 반짝거리며 인
   Token(form='하', tag='XSV', start=26, len=1), 
   Token(form='었', tag='EP', start=26, len=1), 
   Token(form='다', tag='EF', start=27, len=1)]
+```
+
+**공백이 포함된 단어의 분석**
+
+0.17.0 버전부터 공백을 포함한 단어를 사전에 추가하는 것이 가능해졌습니다. 사전에 등록된 다어절 단어는 등록한 형태와 동일한 위치에 공백이 있는 경우뿐만 아니라 공백이 없는 경우에도 일치가 됩니다. 그러나 공백이 없는 지점에 공백이 들어간 텍스트에는 일치가 되지 않습니다.
+```python
+>>> from kiwipiepy import Kiwi
+>>> kiwi = Kiwi()
+# '대학생 선교회'라는 단어를 등록합니다.
+>>> kiwi.add_user_word('대학생 선교회', 'NNP')
+True
+
+# 등록한 것과 동일한 형태에서는
+# 당연히 잘 분석됩니다.
+>>> kiwi.tokenize('대학생 선교회에서') 
+[Token(form='대학생 선교회', tag='NNP', start=0, len=7),
+ Token(form='에서', tag='JKB', start=7, len=2)]
+
+# 추가로 공백이 없는 형태에도 일치가 가능합니다.
+>>> kiwi.tokenize('대학생선교회에서') 
+kiwi.tokenize('대학생선교회에서')  
+[Token(form='대학생 선교회', tag='NNP', start=0, len=6),
+ Token(form='에서', tag='JKB', start=6, len=2)]
+
+# 탭 문자나 줄바꿈 문자 등이 들어가도 일치가 가능합니다.
+# 연속한 공백 문자는 공백 1번과 동일하게 처리합니다.
+>>> kiwi.tokenize('대학생 \t \n 선교회에서') 
+[Token(form='대학생 선교회', tag='NNP', start=0, len=11),
+ Token(form='에서', tag='JKB', start=11, len=2)]
+
+# 그러나 사전 등재 시 공백이 없던 지점에
+# 공백이 있는 경우에는 일치가 불가능합니다.
+>>> kiwi.tokenize('대학 생선 교회에서')      
+[Token(form='대학', tag='NNG', start=0, len=2),
+ Token(form='생선', tag='NNG', start=3, len=2),
+ Token(form='교회', tag='NNG', start=6, len=2),
+ Token(form='에서', tag='JKB', start=8, len=2)]
+
+# space_tolerance를 2로 설정하여
+# 공백이 두 개까지 틀린 경우를 허용하도록 하면
+# '대학 생선 교회'에도 '대학생 선교회'가 일치하게 됩니다.
+>>> kiwi.space_tolerance = 2
+>>> kiwi.tokenize('대학 생선 교회에서')
+[Token(form='대학생 선교회', tag='NNP', start=0, len=8),
+ Token(form='에서', tag='JKB', start=8, len=2)]
 ```
 
 iterable한 입력을 받는 메소드
@@ -541,6 +590,13 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.17.0 (2024-03-10)
+    * Kiwi 0.17.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.17.0 )이 반영되었습니다.
+        * 공백이 포함된 단어를 사전에 등록할 수 있도록 개선되었습니다.
+        * 기본 다어절 명사 사전이 추가되었습니다. `Kiwi.__init__()`의 `load_multi_dict` 인자를 통해 기본 다어절 명사 사전의 로드 유무를 설정할 수 있습니다.
+        * 공백이 없는 긴 문자열을 분석할 때 크래시가 발생하거나 속도가 느려지는 버그를 수정했습니다.
+    * `Kiwi.join()`에 `return_positions` 인자가 추가되었습니다. 이 인자를 통해 각 형태소들의 결합 후 위치를 구할 수 있습니다.
+
 * 0.16.2 (2023-11-20)
     * `Stopwords`와 `blocklist`를 동시에 사용할 때 종종 크래시가 발생하던 문제가 수정되었습니다.
 
