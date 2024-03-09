@@ -688,7 +688,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			tItem->_typoCost = q.typoCost;
 			tItem->_morph = q.morph;
 			tItem->_morphId = q.morph ? kiwi.morphToId(q.morph) : -1;
-			tItem->_baseMorph = q.morph ? kiwi.idToMorph(q.morph->origMorphemeId ? q.morph->origMorphemeId : q.morph->lmMorphemeId) : nullptr;
+			tItem->_baseMorph = q.morph ? (q.morph->origMorphemeId ?  kiwi.idToMorph(q.morph->origMorphemeId) : q.morph) : nullptr;
 			tItem->_raw_form = q.typoCost ? kiwi.getTypoForm(q.typoFormId) : tItem->_form;
 			tItem->_pairedToken = q.pairedToken;
 
