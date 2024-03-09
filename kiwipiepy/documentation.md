@@ -596,6 +596,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
         * 기본 다어절 명사 사전이 추가되었습니다. `Kiwi.__init__()`의 `load_multi_dict` 인자를 통해 기본 다어절 명사 사전의 로드 유무를 설정할 수 있습니다.
         * 공백이 없는 긴 문자열을 분석할 때 크래시가 발생하거나 속도가 느려지는 버그를 수정했습니다.
     * `Kiwi.join()`에 `return_positions` 인자가 추가되었습니다. 이 인자를 통해 각 형태소들의 결합 후 위치를 구할 수 있습니다.
+    * `Kiwi.load_user_dictionary()`를 비롯한 일부 메소드에서 잘못된 값이 입력된 경우 크래시가 발생하던 버그가 수정되었습니다.
 
 * 0.16.2 (2023-11-20)
     * `Stopwords`와 `blocklist`를 동시에 사용할 때 종종 크래시가 발생하던 문제가 수정되었습니다.
