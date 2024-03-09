@@ -371,8 +371,23 @@ Returns
 -------
 inserted: bool
     사용자 정의 형태소가 정상적으로 삽입된 경우 True, 이미 동일한 형태소가 존재하여 삽입되지 않은 경우 False를 반환합니다.
+
+Notes
+-----
+공백을 포함하는 단어의 경우 단어 시작과 끝의 공백은 제거되며, 중간에 1개 이상의 공백이 연속하는 경우 공백 문자 하나로 정규화됩니다.
+줄바꿈 문자, 탭 문자 등도 공백 문자로 취급되어 정규화됩니다.
+예를 들어 `복합 명사`, ` 복합 명사 `, `복합   명사`, `복합\\n명사`는 모두 `복합 명사`로 정규화되어 동일하게 처리됩니다.
+```python
+>>> kiwi.add_user_word('복합 명사', 'NNP')
+True
+>>> kiwi.add_user_word(' 복합 명사 ', 'NNP') # 동일한 단어가 이미 삽입되어 있으므로 False 반환
+False
+>>> kiwi.add_user_word('복합   명사', 'NNP')
+False
+>>> kiwi.add_user_word('복합\\n명사', 'NNP')
+False
+```
         '''
-        if re.search(r'\s', word): raise ValueError("Whitespace characters are not allowed at `word`")
         mid, inserted = super().add_user_word(word, tag, score, orig_word)
         self._user_values[mid] = user_value
         return inserted
