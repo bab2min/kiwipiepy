@@ -347,6 +347,9 @@ typo_cost_threshold: float
     ) -> bool:
         '''현재 모델에 사용자 정의 형태소를 추가합니다.
 
+..versionchanged:: 0.17.0
+    0.17.0버전부터 공백이 포함된 단어(복합 명사 등)를 추가할 수 있게 되었습니다.        
+        
 Parameters
 ----------
 word: str
