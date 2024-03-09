@@ -61,6 +61,9 @@ def test_load_user_dictionary():
     finally:
         assert raised
 
+def test_issue_158():
+    print(len(Kiwi().tokenize('보통' * 40000)))
+
 def test_blocklist():
     kiwi = Kiwi()
     tokens = kiwi.tokenize("고마움을")
