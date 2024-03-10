@@ -323,6 +323,46 @@ True
  Token(form='되', tag='VV', start=24, len=1), 
  Token(form='엇', tag='EP', start=24, len=1), 
  Token(form='다', tag='EF', start=25, len=1)]
+
+# 0.17.0 버전부터는 사용자 사전에 공백이 있는 단어를 추가할 수 있습니다.
+>>> kiwi = Kiwi()
+# '대학생 선교회'라는 단어를 등록합니다.
+>>> kiwi.add_user_word('대학생 선교회', 'NNP')
+True
+
+# 등록한 것과 동일한 형태에서는
+# 당연히 잘 분석됩니다.
+>>> kiwi.tokenize('대학생 선교회에서') 
+[Token(form='대학생 선교회', tag='NNP', start=0, len=7),
+ Token(form='에서', tag='JKB', start=7, len=2)]
+
+# 추가로 공백이 없는 형태에도 일치가 가능합니다.
+>>> kiwi.tokenize('대학생선교회에서') 
+kiwi.tokenize('대학생선교회에서')  
+[Token(form='대학생 선교회', tag='NNP', start=0, len=6),
+ Token(form='에서', tag='JKB', start=6, len=2)]
+
+# 탭 문자나 줄바꿈 문자 등이 들어가도 일치가 가능합니다.
+# 연속한 공백 문자는 공백 1번과 동일하게 처리합니다.
+>>> kiwi.tokenize('대학생 \t \n 선교회에서') 
+[Token(form='대학생 선교회', tag='NNP', start=0, len=11),
+ Token(form='에서', tag='JKB', start=11, len=2)]
+
+# 그러나 사전 등재 시 공백이 없던 지점에
+# 공백이 있는 경우에는 일치가 불가능합니다.
+>>> kiwi.tokenize('대학 생선 교회에서')      
+[Token(form='대학', tag='NNG', start=0, len=2),
+ Token(form='생선', tag='NNG', start=3, len=2),
+ Token(form='교회', tag='NNG', start=6, len=2),
+ Token(form='에서', tag='JKB', start=8, len=2)]
+
+# space_tolerance를 2로 설정하여
+# 공백이 두 개까지 틀린 경우를 허용하도록 하면
+# '대학 생선 교회'에도 '대학생 선교회'가 일치하게 됩니다.
+>>> kiwi.space_tolerance = 2
+>>> kiwi.tokenize('대학 생선 교회에서')
+[Token(form='대학생 선교회', tag='NNP', start=0, len=8),
+ Token(form='에서', tag='JKB', start=8, len=2)]
 ```
 
 ## 시작하기
