@@ -12,6 +12,7 @@ class Model:
         if name == 'hannanum': return HannanumModel()
         if name == 'mecab': return MecabModel()
         if name == 'okt': return OktModel()
+        if name == 'khaiii': return KhaiiiModel()
 
     def _convert(self, morph):
         raise NotImplementedError()
@@ -108,6 +109,18 @@ class OktModel(Model):
     def _tokenize(self, text):
         return self._mdl.pos(text, stem=True)
 
+class KhaiiiModel(Model):
+    def __init__(self):
+        from khaiii import KhaiiiApi
+        self._mdl = KhaiiiApi()
+        print("Initialize khaiii ({})".format(self._mdl.version()), file=sys.stderr)
+    
+    def _convert(self, morph):
+        return morph.form, (morph.tag[:2] if morph.tag.startswith('V') else morph.tag[:1])
+
+    def _tokenize(self, text):
+        return [(morph.lex, morph.tag) for word in self._mdl.analyze(text) for morph in word.morphs]
+
 def load_dataset(path):
     ret = []
     for line in open(path, encoding='utf-8'):
@@ -165,7 +178,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('datasets', nargs='+')
-    parser.add_argument('--target', default='kiwi', help='kiwi,komoran,mecab,kkma,hannanum,okt')
+    parser.add_argument('--target', default='kiwi', help='kiwi,komoran,mecab,kkma,hannanum,okt,khaiii')
     parser.add_argument('--error_output_dir')
     parser.add_argument('--print_all_results', default=False, action='store_true')
     parser.add_argument('--kiwi_model_path')
