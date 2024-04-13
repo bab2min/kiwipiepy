@@ -506,7 +506,7 @@ Kiwi는 최적의 형태소 조합을 탐색하기 위해 내부적으로 언어
  Token(form='었', tag='EP', start=7, len=1), 
  Token(form='다', tag='EF', start=8, len=1)]
 
- # 연철 오타 예제
+# 연철 오타 예제
 >>> kiwi = Kiwi(typos='continual')
 >>> kiwi.tokenize('오늘사무시레서')
 [Token(form='오늘', tag='NNG', start=0, len=2),
@@ -621,6 +621,11 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.17.1 (2024-04-13)
+    * Kiwi 0.17.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.17.1 )이 반영되었습니다.
+        * 연철 오타를 교정하는 기능이 추가되었습니다.
+        * 문장 분리 정확도가 향상되었습니다.
+
 * 0.17.0 (2024-03-10)
     * Kiwi 0.17.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.17.0 )이 반영되었습니다.
         * 공백이 포함된 단어를 사전에 등록할 수 있도록 개선되었습니다.

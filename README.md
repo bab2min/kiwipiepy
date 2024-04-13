@@ -324,6 +324,29 @@ True
  Token(form='엇', tag='EP', start=24, len=1), 
  Token(form='다', tag='EF', start=25, len=1)]
 
+# 0.17.1에서는 연철에 대한 오타 교정이 추가되었습니다.
+# 받침 + 초성 ㅇ/ㅎ 꼴을 잘못 이어적은 경우에 대해 교정이 가능합니다.
+>>> kiwi = Kiwi(typos='continual')
+>>> kiwi.tokenize('오늘사무시레서')
+[Token(form='오늘', tag='NNG', start=0, len=2),
+ Token(form='사무실', tag='NNG', start=2, len=4),
+ Token(form='에서', tag='JKB', start=5, len=2)]
+>>> kiwi.tokenize('지가캤어요')
+[Token(form='지각', tag='NNG', start=0, len=3),
+ Token(form='하', tag='XSV', start=2, len=1),
+ Token(form='었', tag='EP', start=2, len=1),
+ Token(form='어요', tag='EF', start=3, len=2)]
+
+# 기본 오타 교정에 연철 오타 교정까지 함께 사용할 수도 있습니다.
+>>> kiwi = Kiwi(typos='basic_with_continual')
+>>> kiwi.tokenize('웨 지가캤니?')
+[Token(form='왜', tag='MAG', start=0, len=1),
+ Token(form='지각', tag='NNG', start=2, len=3),
+ Token(form='하', tag='XSV', start=4, len=1),
+ Token(form='었', tag='EP', start=4, len=1),
+ Token(form='니', tag='EC', start=5, len=1),
+ Token(form='?', tag='SF', start=6, len=1)]
+
 # 0.17.0 버전부터는 사용자 사전에 공백이 있는 단어를 추가할 수 있습니다.
 >>> kiwi = Kiwi()
 # '대학생 선교회'라는 단어를 등록합니다.
