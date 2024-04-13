@@ -734,6 +734,22 @@ def test_typo_correction():
     assert ret[3].form == 'ᆫ대'
     print(ret)
 
+def test_continual_typo():
+    kiwi = Kiwi(typos='continual')
+    tokens = kiwi.tokenize('오늘사무시레서')
+    assert tokens[1].form == '사무실'
+    assert tokens[2].form == '에서'
+
+    tokens = kiwi.tokenize('지가캤어요')
+    assert tokens[0].form == '지각'
+    assert tokens[1].form == '하'
+
+    kiwi = Kiwi(typos='basic_with_continual')
+    tokens = kiwi.tokenize('웨 지가캤니?')
+    assert tokens[0].form == '왜'
+    assert tokens[1].form == '지각'
+    assert tokens[2].form == '하'
+
 def test_sbg():
     kiwi = Kiwi(model_type='knlm')
     print(kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.'))
