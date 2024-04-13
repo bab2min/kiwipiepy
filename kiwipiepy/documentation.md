@@ -468,18 +468,27 @@ Kiwi는 최적의 형태소 조합을 탐색하기 위해 내부적으로 언어
 ---------
 연속적인 문자열을 처리하는 모델의 경우, 특정 지점에서 분석 오류가 발생하면 그 오류 때문에 뒤따르는 분석 결과들이 전부 틀려버리는 경우가 종종 있습니다.
 이를 개선하기 위해 0.13.0버전부터 간단한 수준의 오타를 자동으로 교정하는 기능이 추가되었습니다. 
-오타 교정을 위해서는 특정 형태소가 어떤 식으로 오타로 변형되는지 정의한, 오타 정의자가 필요합니다. 패키지에 내장된 기본 오타 정의자인 `kiwipiepy.basic_typos` 혹은 `'basic'` 를 사용해도 되고, 직접 오타를 정의할 수도 있습니다.
+오타 교정을 위해서는 특정 형태소가 어떤 식으로 오타로 변형되는지 정의한, 오타 정의자가 필요합니다. 패키지에는 다음과 같이 세 종류의 기본 오타 정의자가 내장되어 있습니다.
+
+* `kiwipiepy.basic_typos` (`'basic'`): 형태소 내의 오타를 교정하는 기본적인 오타 정의자입니다.
+* `kiwipiepy.continual_typos` (`'continual'`): 형태소 간의 연철 오타를 교정하는 오타 정의자입니다. (v0.17.1부터 지원)
+* `kiwipiepy.basic_typos_with_continual` (`'basic_with_continual'`): 위 두 오타 정의자를 합친 오타 정의자입니다. (v0.17.1부터 지원)
+
+위의 기본 오타 정의자를 사용하거나 혹은 직접 오타 정의자를 정의하여 사용할 수 있습니다.
 ```python
->> from kiwipiepy import Kiwi, TypoTransformer, TypoDefinition, basic_typo
->> kiwi = Kiwi(typos=basic_typo) # basic_typo 대신 str으로 'basic'이라고 입력해도 됨
->> kiwi.tokenize('외않됀대?') # 초기에는 로딩 시간으로 5~10초 정도 소요됨
+>>> from kiwipiepy import Kiwi, TypoTransformer, TypoDefinition
+# 'basic' 대신 kiwipiepy.basic_typos이라고 입력해도 됨
+>>> kiwi = Kiwi(typos='basic')
+# 초기에는 로딩 시간으로 5~10초 정도 소요됨
+>>> kiwi.tokenize('외않됀대?') 
 [Token(form='왜', tag='MAG', start=0, len=1),
  Token(form='안', tag='MAG', start=1, len=1),
  Token(form='되', tag='VV', start=2, len=1),
  Token(form='ᆫ대', tag='EF', start=2, len=2),
  Token(form='?', tag='SF', start=4, len=1)]
->> kiwi.typo_cost_weight = 6 # 오타 교정 비용을 변경할 수 있음. 기본값은 6
->> kiwi.tokenize('일정표를 게시했다')
+# 오타 교정 비용을 변경할 수 있음. 기본값은 6
+>>> kiwi.typo_cost_weight = 6 
+>>> kiwi.tokenize('일정표를 게시했다')
 [Token(form='일정표', tag='NNG', start=0, len=3),
  Token(form='를', tag='JKO', start=3, len=1), 
  Token(form='게시', tag='NNG', start=5, len=2), 
@@ -487,17 +496,39 @@ Kiwi는 최적의 형태소 조합을 탐색하기 위해 내부적으로 언어
  Token(form='었', tag='EP', start=7, len=1), 
  Token(form='다', tag='EF', start=8, len=1)]
 
->> kiwi.typo_cost_weight = 2 # 교정 비용을 낮추면 더 적극적으로 교정을 수행함. 맞는 표현도 과도교정될 수 있으니 주의
->> kiwi.tokenize('일정표를 게시했다')
+ # 교정 비용을 낮추면 더 적극적으로 교정을 수행함. 맞는 표현도 과도교정될 수 있으니 주의
+>>> kiwi.typo_cost_weight = 2
+>>> kiwi.tokenize('일정표를 게시했다')
 [Token(form='일정표', tag='NNG', start=0, len=3),
  Token(form='를', tag='JKO', start=3, len=1), 
  Token(form='개시', tag='NNG', start=5, len=2), # '게시'가 맞는 표현이지만 '개시'로 잘못 교정되었음
  Token(form='하', tag='XSV', start=7, len=1), 
  Token(form='었', tag='EP', start=7, len=1), 
  Token(form='다', tag='EF', start=8, len=1)]
+
+ # 연철 오타 예제
+>>> kiwi = Kiwi(typos='continual')
+>>> kiwi.tokenize('오늘사무시레서')
+[Token(form='오늘', tag='NNG', start=0, len=2),
+ Token(form='사무실', tag='NNG', start=2, len=4),
+ Token(form='에서', tag='JKB', start=5, len=2)]
+>>> kiwi.tokenize('지가캤어요')
+[Token(form='지각', tag='NNG', start=0, len=3),
+ Token(form='하', tag='XSV', start=2, len=1),
+ Token(form='었', tag='EP', start=2, len=1),
+ Token(form='어요', tag='EF', start=3, len=2)]
+
+# basic_with_continual 사용 예시
+>>> kiwi = Kiwi(typos='basic_with_continual')
+>>> kiwi.tokenize('웨 지가캤니?')
+[Token(form='왜', tag='MAG', start=0, len=1),
+ Token(form='지각', tag='NNG', start=2, len=3),
+ Token(form='하', tag='XSV', start=4, len=1),
+ Token(form='었', tag='EP', start=4, len=1),
+ Token(form='니', tag='EC', start=5, len=1),
+ Token(form='?', tag='SF', start=6, len=1)]
 ```
 오타 정의자를 직접 정의하는 방법에 대해서는 `kiwipiepy.TypoTransformer` 를 참조하십시오. 
-현재 Kiwi에서 수행하는 오타 교정은 각각의 형태소를 경계로 적용되기에 여러 형태소를 넘나드는 오타는 교정하지 못합니다.
 
 오타 교정 기능을 사용할 경우 Kiwi 초기화 시에 약 5~10초 정도의 시간이 추가로 소요되며, 문장 당 처리시간은 2배 정도로 늘어납니다. 메모리 사용량은 약 2~3배 정도 증가합니다.
 
