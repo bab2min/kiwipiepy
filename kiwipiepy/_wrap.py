@@ -110,7 +110,11 @@ Parameters
 ----------
 defs: List[TypoDefinition]
     오타 생성 규칙을 정의하는 TypoDefinition의 List입니다.
+continual_typo_cost: float
+    .. versionadded:: 0.17.1
 
+    연철에 대한 교정 비용. 기본값은 0입니다.
+    
 Notes
 -----
 이 클래스의 인스턴스를 Kiwi 생성시의 typos 인자로 주면 Kiwi의 오타 교정 기능이 활성화됩니다.
@@ -136,11 +140,14 @@ Notes
     '''
 
     def __init__(self,
-        defs: List[TypoDefinition]
+        defs: List[TypoDefinition],
+        continual_typo_cost: float = 0,
     ):
         self._defs = list(defs)
+        self._continual_typo_cost = continual_typo_cost
         super().__init__(
-            ((list(map(_convert_consonant, d.orig)), list(map(_convert_consonant, d.error)), d.cost, d.condition) for d in self._defs)
+            ((list(map(_convert_consonant, d.orig)), list(map(_convert_consonant, d.error)), d.cost, d.condition) for d in self._defs),
+            continual_typo_cost
         )
 
     def generate(self, text:str, cost_threshold:float = 2.5) -> List[Tuple[str, float]]:
@@ -258,7 +265,12 @@ model_type: str
 typos: Union[str, TypoTransformer]
     .. versionadded:: 0.13.0
 
-    교정에 사용할 오타 정보입니다. 기본값은 `None`으로 이 경우 오타 교정을 사용하지 않습니다. `'basic'`으로 입력시 내장된 기본 오타 정보를 이용합니다.
+    교정에 사용할 오타 정보입니다. 기본값은 `None`으로 이 경우 오타 교정을 사용하지 않습니다. `TypoTransformer` 인스턴스를 입력하거나 약어로 다음 문자열을 입력할 수 있습니다.
+
+    * `'basic'`: 기본 오타 정보(`kiwipiepy.basic_typos`)
+    * `'continual'`: 연철 오타 정보(`kiwipiepy.continual_typos`)
+    * `'basic_with_continual'`: 기본 오타 정보와 연철 함께 사용(`kiwipiepy.basic_typos_with_continual`)
+
     이에 대한 자세한 내용은 `kiwipiepy.TypoTransformer` 및 <a href='#_5'>여기</a>를 참조하세요.
 typo_cost_threshold: float
     .. versionadded:: 0.13.0
@@ -292,9 +304,13 @@ typo_cost_threshold: float
         if model_type not in ('knlm', 'sbg'):
             raise ValueError("`model_type` should be one of ('knlm', 'sbg'), but {}".format(model_type))
         
+        import kiwipiepy
         if typos == 'basic': 
-            import kiwipiepy
             typos = kiwipiepy.basic_typos
+        elif typos == 'continual':
+            typos = kiwipiepy.continual_typos
+        elif typos == 'basic_with_continual':
+            typos = kiwipiepy.basic_typos_with_continual
 
         super().__init__(
             num_workers,
@@ -1789,3 +1805,8 @@ ValueError: cannot specify format specifier for Kiwi Token
         except KeyError:
             self._template_cache[format_str] = ret = Template(self, format_str)
             return ret
+
+    def list_senses(self,
+        form:Optional[str] = None,
+    ):
+        return super().list_senses(form or '')

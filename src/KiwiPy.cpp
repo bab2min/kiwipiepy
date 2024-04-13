@@ -27,12 +27,16 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 	TypoTransformer tt;
 	PreparedTypoTransformer ptt;
 
-	using _InitArgs = std::tuple<PyObject*>;
+	using _InitArgs = std::tuple<PyObject*, float>;
 
 	TypoTransformerObject() = default;
 
-	TypoTransformerObject(PyObject* defs)
+	TypoTransformerObject(PyObject* defs, float continualTypoCost)
 	{
+		if (continualTypoCost)
+		{
+			tt.setContinualTypoCost(continualTypoCost);
+		}
 		py::foreach<PyObject*>(defs, [&](PyObject* item)
 		{
 			auto orig = py::toCpp<std::vector<std::string>>(PyTuple_GET_ITEM(item, 0));
@@ -327,7 +331,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 	void doPrepare()
 	{
 		if (kiwi.ready()) return;
-		kiwi = builder.build(typos ? typos->tt : withoutTypo, typoCostThreshold);
+		kiwi = builder.build(typos ? typos->tt : getDefaultTypoSet(DefaultTypoSet::withoutTypo), typoCostThreshold);
 		py::UniqueObj handler{ PyObject_GetAttrString((PyObject*)this, "_on_build") };
 		if (handler)
 		{
