@@ -18,11 +18,11 @@
 Kiwi가 다른 형태소 분석기에 비해 압도적으로 높은 정확도를 보임을 확인할 수 있습니다.
 
 ## 직접 평가 실행해보기
-다른 형태소 분석기를 테스트하기 위해서는 konlpy가 필요합니다. 
+다른 형태소 분석기를 테스트하기 위해서는 konlpy 혹은 khaiii를 설치해야합니다.
 특히 Mecab 이용시 split_inflect 기능 패치가 추가된 [konlpy 버전](https://github.com/konlpy/konlpy/commit/d9206305195583c08400cb2237c837cc42df2e65)이 필요합니다.
 
 ```console
-$ python disambiguate.py testset/*.txt --target=kiwi,kiwi_sbg,komoran,mecab,kkma,hannanum,okt --error_output_dir=errors/
+$ python disambiguate.py testset/*.txt --target=kiwi,kiwi_sbg,komoran,mecab,kkma,hannanum,okt,khaiii --error_output_dir=errors/
 Initialize kiwipiepy (0.17.1)
 Initialize kiwipiepy (0.17.1)
 Initialize Komoran from konlpy (0.6.0)
