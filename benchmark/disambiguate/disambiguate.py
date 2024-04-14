@@ -5,14 +5,16 @@ class Model:
     disambiguate_verb_adj = True
 
     @staticmethod
-    def from_name(name, kiwi_model_path=None, kiwi_model_type='knlm'):
-        if name == 'kiwi': return KiwiModel(kiwi_model_path, kiwi_model_type)
+    def from_name(name, kiwi_model_path=None):
+        if name == 'kiwi': return KiwiModel(kiwi_model_path, 'knlm')
+        if name == 'kiwi_sbg': return KiwiModel(kiwi_model_path, 'sbg')
         if name == 'komoran': return KomoranModel()
         if name == 'kkma': return KkmaModel()
         if name == 'hannanum': return HannanumModel()
         if name == 'mecab': return MecabModel()
         if name == 'okt': return OktModel()
         if name == 'khaiii': return KhaiiiModel()
+        raise ValueError(f'Unknown model name: {name}')
 
     def _convert(self, morph):
         raise NotImplementedError()
@@ -153,7 +155,7 @@ def evaluate(dataset, model, error_output=None, print_all_results=False):
 
 def main(args):
     model_names = args.target.split(',')
-    models = [Model.from_name(n, kiwi_model_path=args.kiwi_model_path, kiwi_model_type=args.kiwi_model_type) for n in model_names]
+    models = [Model.from_name(n, kiwi_model_path=args.kiwi_model_path) for n in model_names]
 
     if args.error_output_dir:
         os.makedirs(args.error_output_dir, exist_ok=True)
@@ -179,9 +181,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('datasets', nargs='+')
-    parser.add_argument('--target', default='kiwi', help='kiwi,komoran,mecab,kkma,hannanum,okt,khaiii')
+    parser.add_argument('--target', default='kiwi', help='kiwi,kiwi_sbg,komoran,mecab,kkma,hannanum,okt,khaiii')
     parser.add_argument('--error_output_dir')
     parser.add_argument('--print_all_results', default=False, action='store_true')
     parser.add_argument('--kiwi_model_path')
-    parser.add_argument('--kiwi_model_type', default='knlm', choices=['knlm', 'sbg'])
     main(parser.parse_args())
