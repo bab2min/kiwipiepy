@@ -18,22 +18,24 @@
 Kiwi가 다른 형태소 분석기에 비해 압도적으로 높은 정확도를 보임을 확인할 수 있습니다.
 
 ## 직접 평가 실행해보기
-다른 형태소 분석기를 테스트하기 위해서는 konlpy가 필요합니다. 
-특히 Mecab을 이용시 split_inflect 기능 패치가 추가된 [konlpy 버전](https://github.com/konlpy/konlpy/commit/d9206305195583c08400cb2237c837cc42df2e65)이 필요합니다.
+다른 형태소 분석기를 테스트하기 위해서는 konlpy 혹은 khaiii를 설치해야합니다.
+특히 Mecab 이용시 split_inflect 기능 패치가 추가된 [konlpy 버전](https://github.com/konlpy/konlpy/commit/d9206305195583c08400cb2237c837cc42df2e65)이 필요합니다.
 
 ```console
-$ python disambiguate.py testset/*.txt --target=kiwi,komoran,mecab,kkma,hannanum,okt --error_output_dir=errors/
-Initialize kiwipiepy (0.11.0)
+$ python disambiguate.py testset/*.txt --target=kiwi,kiwi_sbg,komoran,mecab,kkma,hannanum,okt,khaiii --error_output_dir=errors/
+Initialize kiwipiepy (0.17.1)
+Initialize kiwipiepy (0.17.1)
 Initialize Komoran from konlpy (0.6.0)
 Initialize Mecab from konlpy (0.6.0)
 Initialize Kkma from konlpy (0.6.0)
 Initialize Hannanum from konlpy (0.6.0)
 Initialize Okt from konlpy (0.6.0)
-                      kiwi  komoran  mecab   kkma   hannanum  okt
-irregular_verbs.txt  0.776   0.463   0.463   0.522   0.463   0.463
-verb_vs_adj.txt      0.907   0.407   0.537   0.463   -       -
-nouns.txt            0.891   0.545   0.600   0.709   0.473   0.527
-distant.txt          0.613   0.419   0.548   0.419   -       -
+Initialize khaiii (0.4)
+                        kiwi   kiwi_sbg komoran mecab   kkma   hannanum  okt    khaiii
+distant.txt             0.581   0.774   0.419   0.548   0.419   -       -       0.484
+irregular_verbs.txt     0.821   0.896   0.463   0.463   0.522   0.463   0.463   0.552
+nouns.txt               0.891   0.891   0.545   0.600   0.709   0.473   0.527   0.673
+verb_vs_adj.txt         0.907   0.907   0.407   0.537   0.463   -       -       0.611
 ```
 
 `Hannanum`과 `Okt`의 경우 동사와 형용사를 별도로 구분하는 기능이 없어서 `verb_vs_adj`이나 `distant` 평가에서 점수를 매기지 않습니다.
