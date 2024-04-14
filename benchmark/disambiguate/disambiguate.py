@@ -116,7 +116,8 @@ class KhaiiiModel(Model):
         print("Initialize khaiii ({})".format(self._mdl.version()), file=sys.stderr)
     
     def _convert(self, morph):
-        return morph.form, (morph.tag[:2] if morph.tag.startswith('V') else morph.tag[:1])
+        form, tag = morph
+        return form, (tag[:2] if tag.startswith('V') else tag[:1])
 
     def _tokenize(self, text):
         return [(morph.lex, morph.tag) for word in self._mdl.analyze(text) for morph in word.morphs]
