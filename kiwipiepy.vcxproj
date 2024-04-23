@@ -33,7 +33,7 @@
     <None Include="kiwipiepy\__main__.py" />
     <None Include="README.md" />
     <None Include="setup.py" />
-    <None Include="test.py" />
+    <None Include="test\test_kiwipiepy.py" />
     <None Include="x64\Debug\test.py" />
     <None Include="x64\Release\test.py" />
   </ItemGroup>
@@ -42,7 +42,7 @@
     <ClInclude Include="src\PyUtils.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="Kiwi\kiwi_shared_library.vcxproj">
+    <ProjectReference Include="Kiwi\vsproj\kiwi_shared_library.vcxproj">
       <Project>{f790bc37-2732-4ed1-9ca5-7248bed3588e}</Project>
     </ProjectReference>
   </ItemGroup>
@@ -102,27 +102,29 @@
     <LinkIncremental>true</LinkIncremental>
     <TargetExt>.pyd</TargetExt>
     <TargetName>_kiwipiepy</TargetName>
-    <IncludePath>$(ProjectDir)mimalloc/include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>$(ProjectDir)Kiwi/include;$(ProjectDir)Kiwi/third_party/mimalloc/include;C:\Users\Administrator\AppData\Local\Programs\Python\Python310-32\include;C:\Users\Administrator\AppData\Local\Programs\Python\Python310-32\Lib\site-packages\numpy\core\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Administrator\AppData\Local\Programs\Python\Python310-32\libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <TargetExt>.pyd</TargetExt>
     <TargetName>_kiwipiepy</TargetName>
-    <IncludePath>$(ProjectDir)Kiwi/include;$(ProjectDir)Kiwi/third_party/mimalloc/include;C:\Users\Administrator\AppData\Local\Programs\Python\Python310\include;C:\Users\Administrator\AppData\Local\Programs\Python\Python310\Lib\site-packages\numpy\core\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Administrator\AppData\Local\Programs\Python\Python310\libs;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)Kiwi/include;$(ProjectDir)Kiwi/third_party/mimalloc/include;C:\Users\Administrator\AppData\Local\Programs\Python\Python312\include;C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\core\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Administrator\AppData\Local\Programs\Python\Python312\libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <TargetExt>.pyd</TargetExt>
     <TargetName>_kiwipiepy</TargetName>
-    <IncludePath>$(ProjectDir)mimalloc/include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>$(ProjectDir)Kiwi/include;$(ProjectDir)Kiwi/third_party/mimalloc/include;C:\Users\Administrator\AppData\Local\Programs\Python\Python310-32\include;C:\Users\Administrator\AppData\Local\Programs\Python\Python310-32\Lib\site-packages\numpy\core\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Administrator\AppData\Local\Programs\Python\Python310-32\libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <TargetExt>.pyd</TargetExt>
     <TargetName>_kiwipiepy</TargetName>
-    <IncludePath>$(ProjectDir)Kiwi/include;$(ProjectDir)Kiwi/third_party/mimalloc/include;C:\Users\Administrator\AppData\Local\Programs\Python\Python310\include;C:\Users\Administrator\AppData\Local\Programs\Python\Python310\Lib\site-packages\numpy\core\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Administrator\AppData\Local\Programs\Python\Python310\libs;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)Kiwi/include;$(ProjectDir)Kiwi/third_party/mimalloc/include;C:\Users\Administrator\AppData\Local\Programs\Python\Python312\include;C:\Users\Administrator\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\core\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Administrator\AppData\Local\Programs\Python\Python312\libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

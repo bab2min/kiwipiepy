@@ -5,7 +5,7 @@ VisualStudioVersion = 17.1.32210.238
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kiwipiepy", "kiwipiepy.vcxproj", "{C80344D4-D856-41C3-883E-1482D031CCB0}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kiwi_shared_library", "Kiwi\kiwi_shared_library.vcxproj", "{F790BC37-2732-4ED1-9CA5-7248BED3588E}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kiwi_shared_library", "Kiwi\vsproj\kiwi_shared_library.vcxproj", "{F790BC37-2732-4ED1-9CA5-7248BED3588E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
