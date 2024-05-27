@@ -5,7 +5,7 @@ class Model:
     disambiguate_verb_adj = True
 
     @staticmethod
-    def from_name(name, kiwi_model_path=None):
+    def from_name(name, kiwi_model_path=None, bareun_api_key=None):
         if name == 'kiwi': return KiwiModel(kiwi_model_path, 'knlm')
         if name == 'kiwi_sbg': return KiwiModel(kiwi_model_path, 'sbg')
         if name == 'komoran': return KomoranModel()
@@ -14,6 +14,7 @@ class Model:
         if name == 'mecab': return MecabModel()
         if name == 'okt': return OktModel()
         if name == 'khaiii': return KhaiiiModel()
+        if name == 'bareun': return BareunModel(bareun_api_key)
         raise ValueError(f'Unknown model name: {name}')
 
     def _convert(self, morph):
@@ -124,6 +125,19 @@ class KhaiiiModel(Model):
     def _tokenize(self, text):
         return [(morph.lex, morph.tag) for word in self._mdl.analyze(text) for morph in word.morphs]
 
+class BareunModel(Model):
+    def __init__(self, api_key, host='localhost', port=5656) -> None:
+        import bareunpy as brn
+        self._mdl = brn.Tagger(api_key, host, port)
+        print(f"Initialize Bareun from bareunpy (version={brn.version}, bareun_version={brn.bareun_version})", file=sys.stderr)
+
+    def _convert(self, morph):
+        form, tag = morph
+        return form, (tag[:2] if tag.startswith('V') else tag[:1])
+
+    def _tokenize(self, text):
+        return self._mdl.tag(text).pos()
+
 def load_dataset(path):
     ret = []
     for line in open(path, encoding='utf-8'):
@@ -155,7 +169,7 @@ def evaluate(dataset, model, error_output=None, print_all_results=False):
 
 def main(args):
     model_names = args.target.split(',')
-    models = [Model.from_name(n, kiwi_model_path=args.kiwi_model_path) for n in model_names]
+    models = [Model.from_name(n, kiwi_model_path=args.kiwi_model_path, bareun_api_key=args.bareun_api_key) for n in model_names]
 
     if args.error_output_dir:
         os.makedirs(args.error_output_dir, exist_ok=True)
@@ -181,8 +195,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('datasets', nargs='+')
-    parser.add_argument('--target', default='kiwi', help='kiwi,kiwi_sbg,komoran,mecab,kkma,hannanum,okt,khaiii')
+    parser.add_argument('--target', default='kiwi', help='kiwi,kiwi_sbg,komoran,mecab,kkma,hannanum,okt,khaiii,bareun')
     parser.add_argument('--error_output_dir')
     parser.add_argument('--print_all_results', default=False, action='store_true')
     parser.add_argument('--kiwi_model_path')
+    parser.add_argument('--bareun_api_key')
     main(parser.parse_args())
