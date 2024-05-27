@@ -184,3 +184,31 @@ Gold: 30 sents, System: 6 sents, EM: 0.00000, F1: 0.11359, Normalized F1: 0.1135
 [Sentence Split Benchmark] Dataset: testset/wikipedia.txt
 Gold: 326 sents, System: 328 sents, EM: 0.67791, F1: 0.98116, Normalized F1: 0.97286, Latency: 126.11 msec
 ```
+
+bareun_ref.py를 실행하면 바른 형태소 분석기의 문장 분리 성능을 평가할 수 있습니다. 이를 위해서는 먼저 [바른 형태소 분석기를 설치](https://docs.bareun.ai/install/overview/)하고 API Key를 받아야 합니다. 이에 대한 자세한 내용은 [바른 형태소 분석기 공식 문서](https://docs.bareun.ai/)를 참조하세요.
+```console
+$ python bareun_ref.py testset/*.txt --api_key=${YOUR_API_KEY}
+[Sentence Split Benchmark] Dataset: testset/blogs.txt
+Gold: 170 sents, System: 115 sents, EM: 0.42941, F1: 0.57341, Normalized F1: 0.56182, Latency: 821.68 msec
+
+[Sentence Split Benchmark] Dataset: testset/blogs_ko.txt
+Gold: 346 sents, System: 183 sents, EM: 0.36994, F1: 0.46045, Normalized F1: 0.45200, Latency: 1324.90 msec
+
+[Sentence Split Benchmark] Dataset: testset/etn.txt
+Gold: 39 sents, System: 23 sents, EM: 0.38462, F1: 0.51218, Normalized F1: 0.51218, Latency: 245.26 msec
+
+[Sentence Split Benchmark] Dataset: testset/nested.txt
+Gold: 91 sents, System: 89 sents, EM: 0.79121, F1: 0.88125, Normalized F1: 0.84130, Latency: 762.98 msec
+
+[Sentence Split Benchmark] Dataset: testset/sample.txt
+Gold: 43 sents, System: 5 sents, EM: 0.02326, F1: 0.07296, Normalized F1: 0.07296, Latency: 91.03 msec
+
+[Sentence Split Benchmark] Dataset: testset/tweets.txt
+Gold: 178 sents, System: 107 sents, EM: 0.35955, F1: 0.52089, Normalized F1: 0.51330, Latency: 760.96 msec
+
+[Sentence Split Benchmark] Dataset: testset/v_ending.txt
+Gold: 30 sents, System: 6 sents, EM: 0.00000, F1: 0.11359, Normalized F1: 0.11359, Latency: 87.74 msec
+
+[Sentence Split Benchmark] Dataset: testset/wikipedia.txt
+Gold: 326 sents, System: 303 sents, EM: 0.88344, F1: 0.91940, Normalized F1: 0.91940, Latency: 1411.05 msec
+```
