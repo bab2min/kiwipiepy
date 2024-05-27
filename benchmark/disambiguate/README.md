@@ -31,11 +31,12 @@ Initialize Kkma from konlpy (0.6.0)
 Initialize Hannanum from konlpy (0.6.0)
 Initialize Okt from konlpy (0.6.0)
 Initialize khaiii (0.4)
-                        kiwi   kiwi_sbg komoran mecab   kkma   hannanum  okt    khaiii
-distant.txt             0.581   0.774   0.419   0.548   0.419   -       -       0.484
-irregular_verbs.txt     0.821   0.896   0.463   0.463   0.522   0.463   0.463   0.552
-nouns.txt               0.891   0.891   0.545   0.600   0.709   0.473   0.527   0.673
-verb_vs_adj.txt         0.907   0.907   0.407   0.537   0.463   -       -       0.611
+Initialize Bareun from bareunpy (version=1.6.3, bareun_version=1.8.0)
+                        kiwi   kiwi_sbg komoran mecab   kkma   hannanum  okt    khaiii  bareun
+distant.txt             0.581   0.774   0.419   0.548   0.419   -       -       0.484   0.645
+irregular_verbs.txt     0.821   0.896   0.463   0.463   0.522   0.463   0.463   0.552   0.672
+nouns.txt               0.891   0.891   0.545   0.600   0.709   0.473   0.527   0.673   0.818
+verb_vs_adj.txt         0.907   0.907   0.407   0.537   0.463   -       -       0.611   0.796
 ```
 
 `Hannanum`과 `Okt`의 경우 동사와 형용사를 별도로 구분하는 기능이 없어서 `verb_vs_adj`이나 `distant` 평가에서 점수를 매기지 않습니다.
