@@ -210,7 +210,7 @@ setup(
     install_requires=[
         'dataclasses; python_version < "3.7"',
         'kiwipiepy_model>=0.17,<0.18',
-        'numpy',
+        'numpy<2',
         'tqdm',
     ],
     packages=['kiwipiepy'],
