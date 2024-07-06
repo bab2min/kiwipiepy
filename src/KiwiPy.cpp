@@ -12,11 +12,31 @@
 #include <kiwi/Kiwi.h>
 #include <kiwi/HSDataset.h>
 #include <kiwi/SwTokenizer.h>
+#include <kiwi/SubstringExtractor.h>
 
 using namespace std;
 using namespace kiwi;
 
-static py::Module gModule{ "_kiwipiepy", "Kiwi API for Python" };
+vector<pair<u16string, size_t>> pyExtractSubstrings(const u16string& str, size_t minCnt, size_t minLength, size_t maxLength, bool longestOnly, const u16string& stopChr)
+{
+	if (stopChr.size() > 1)
+	{
+		throw py::ValueError{ "stopChr must be a single character." };
+	}
+
+	return extractSubstrings(str.data(), str.data() + str.size(), minCnt, minLength, maxLength, longestOnly, stopChr.empty() ? 0 : stopChr[0]);
+}
+
+static py::Module gModule{ "_kiwipiepy", "Kiwi API for Python", [](PyModuleDef& def)
+{
+	static PyMethodDef methods[] =
+	{
+		{ "_extract_substrings", PY_METHOD(&pyExtractSubstrings), METH_VARARGS | METH_KEYWORDS, "" },
+		{ nullptr }
+	};
+	def.m_methods = methods;
+
+} };
 
 struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 {
