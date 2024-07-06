@@ -605,11 +605,12 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 <tr><td>SN</td><td>숫자(0-9)</td></tr>
 <tr><td>SB</td><td>순서 있는 글머리(가. 나. 1. 2. 가) 나) 등)<sup>*</sup></td></tr>
 <tr><th rowspan='1'>분석 불능</th><td>UN</td><td>분석 불능<sup>*</sup></td></tr>
-<tr><th rowspan='5'>웹(W)</th><td>W_URL</td><td>URL 주소<sup>*</sup></td></tr>
+<tr><th rowspan='6'>웹(W)</th><td>W_URL</td><td>URL 주소<sup>*</sup></td></tr>
 <tr><td>W_EMAIL</td><td>이메일 주소<sup>*</sup></td></tr>
 <tr><td>W_HASHTAG</td><td>해시태그(#abcd)<sup>*</sup></td></tr>
 <tr><td>W_MENTION</td><td>멘션(@abcd)<sup>*</sup></td></tr>
 <tr><td>W_SERIAL</td><td>일련번호(전화번호, 통장번호, IP주소 등)<sup>*</sup></td></tr>
+<tr><td>W_EMOJI</td><td>이모지<sup>*</sup></td></tr>
 <tr><th rowspan='2'>기타</th><td>Z_CODA</td><td>덧붙은 받침<sup>*</sup></td></tr>
 <tr><td>USER0~4</td><td>사용자 정의 태그<sup>*</sup></td></tr>
 </table>
@@ -621,6 +622,12 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.18.0 (2024-07-07)
+    * Kiwi 0.18.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.18.0 )이 반영되었습니다.
+        * 이모지를 분리하는 `Match.EMOJI` 옵션과 이모지에 해당하는 태그인 `W_EMOJI`가 추가되었습니다.
+        * 외국어 및 특수 기호 태그(`SL`, `SH`, `SW`, `W_EMOJI`)에 대해 해당 문자가 속한 언어 집합을 나타내는 `script` 필드가 추가되었습니다. 전체 script의 목록은 `Kiwi.list_all_scripts()` 메소드를 통해 확인할 수 있습니다.
+        * 이제 라틴 문자 사이에 악센트가 붙은 문자가 섞여 있는 경우에도 전체 단어가 하나의 형태소로 분석됩니다.
+
 * 0.17.1 (2024-04-13)
     * Kiwi 0.17.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.17.1 )이 반영되었습니다.
         * 연철 오타를 교정하는 기능이 추가되었습니다.
