@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import tempfile
+import itertools
 
 from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings
 from kiwipiepy.utils import Stopwords
@@ -79,6 +80,10 @@ def test_load_user_dictionary():
 
 def test_issue_158():
     print(len(Kiwi().tokenize('보통' * 40000)))
+
+def test_list_all_scripts():
+    kiwi = Kiwi()
+    print(kiwi.list_all_scripts())
 
 def test_blocklist():
     kiwi = Kiwi()
@@ -252,6 +257,23 @@ def test_user_value():
     assert tokens[0].tag == 'SPECIAL'
     assert tokens[0].user_value == {'tag':'SPECIAL'}
     assert sum(1 for t in tokens if t.user_value is not None) == 1
+
+def test_user_value_issue168():
+    kiwi = Kiwi()
+    text = """마크다운 코드가 섞인 문자열
+```python
+import kiwipiepy
+```
+입니다."""
+
+    pat1 = re.compile(r'^```python\n.*?^```', flags=re.DOTALL | re.MULTILINE)
+    pat2 = re.compile(r'입니다')
+
+    kiwi.add_re_word(pat1, 'USER1', {'tag':'CODE1'})
+    kiwi.add_re_word(pat2, 'USER2', {'tag':'CODE2'})
+    tokens = kiwi.tokenize(text)
+    assert tokens[-3].tag == 'CODE1'
+    assert tokens[-2].tag == 'CODE2'
 
 def test_words_with_space():
     kiwi = Kiwi()
@@ -447,7 +469,7 @@ def test_swtokenizer_trainer_small():
     )
 
 def test_swtokenizer_trainer_digits():
-    kiwi = Kiwi(num_workers=1)
+    kiwi = Kiwi(num_workers=0)
     config = sw_tokenizer.SwTokenizerConfig()
 
     tokenizer = sw_tokenizer.SwTokenizer.train(
@@ -473,8 +495,6 @@ def test_swtokenizer_trainer_digits():
     assert len(mixed_digit) == 0
 
 def test_swtokenizer_trainer():
-    import itertools
-
     config = sw_tokenizer.SwTokenizerConfig()
     sw_tokenizer.SwTokenizer.train(
         'test.json', 
@@ -487,8 +507,6 @@ def test_swtokenizer_trainer():
     )
 
 def test_swtokenizer_trainer_multiple_vocab_sizes():
-    import itertools
-
     config = sw_tokenizer.SwTokenizerConfig()
     sw_tokenizer.SwTokenizer.train(
         ['test.json', 'test2.json', 'test3.json'], 
