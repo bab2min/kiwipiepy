@@ -3,7 +3,7 @@ import sys
 import re
 import tempfile
 
-from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken
+from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings
 from kiwipiepy.utils import Stopwords
 
 curpath = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +14,22 @@ class FileReader:
 
     def __iter__(self):
         yield from open(self.path, encoding='utf-8')
+
+def test_extract_substrings():
+    s = ("자, 너 오늘 하루 뭐 했니? "
+		"난 오늘 하루가 좀 단순했지. 음 뭐 했는데? "
+		"아침에 수업 받다가 오구 그~ 학생이, 응. 미찌 학생인데, "
+		"음. 되게 귀엽게 생겼다, 음. 되게 웃으면 곰돌이 인형같이 생겼어. "
+		"곰돌이? 응 아니 곰돌이도 아니구, 어쨌든 무슨 인형같이 생겼어, "
+		"펜더곰 그런 거, 왜 이렇게 닮은 사람을 대 봐. "
+		"내가 아는 사람 중에서, 한무 한무? 금붕어잖아? "
+		"맞어 눈도 이렇게 톡 튀어나오구, 어. 한무? 조금 잘 생긴 한무. "
+		"잘 생긴 게 아니라 귀여운 한무. 귀여운 한무? "
+		"어 학원에서 별명도 귀여운 한무였어. "
+		"응. 눈이 똥그래 가지고 그래? 어. 좀 특이한 사람이구나.")
+    substrings = extract_substrings(s, min_cnt=2, min_length=2, longest_only=True, stop_chr=' ')
+    print(substrings)
+    assert len(substrings) == 23
 
 def test_false_positive_sb():
     kiwi = Kiwi()
