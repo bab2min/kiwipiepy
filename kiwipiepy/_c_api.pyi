@@ -150,3 +150,9 @@ form과 tag를 `형태/품사태그`꼴로 합쳐서 반환합니다.'''
 
 사용자가 사전에 직접 형태소를 추가할 때 `user_value`로 입력한 값. 별도의 `user_value`를 입력하지 않은 경우 None을 반환합니다.'''
         ...
+
+    @property
+    def script(self):
+        '''.. versionadded:: 0.18.0
+        
+해당 문자열이 어떤 언어 문자 집합에 속하는지를 나타냅니다. 문자 집합의 전체 목록에 대해서는 `Kiwi.list_all_scripts()`를 참조하세요.'''

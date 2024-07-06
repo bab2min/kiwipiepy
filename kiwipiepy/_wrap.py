@@ -1811,6 +1811,11 @@ ValueError: cannot specify format specifier for Kiwi Token
         form:Optional[str] = None,
     ):
         return super().list_senses(form or '')
+    
+    def list_all_scripts(self) -> List[str]:
+        return super().list_all_scripts()
+
+
 def extract_substrings(
     text:str,
     min_cnt: int = 2,

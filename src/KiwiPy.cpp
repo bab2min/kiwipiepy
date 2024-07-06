@@ -10,7 +10,7 @@
 #include "PyUtils.h"
 
 #include <kiwi/Kiwi.h>
-#include <kiwi/HSDataset.h>
+#include <kiwi/Dataset.h>
 #include <kiwi/SwTokenizer.h>
 #include <kiwi/SubstringExtractor.h>
 
@@ -187,7 +187,7 @@ py::TypeWrapper<HSDatasetObject> _HSDatasetSetter{ gModule, [](PyTypeObject& obj
 	{
 		{ "get_vocab_info", PY_METHOD(&HSDatasetObject::getVocabInfo), METH_VARARGS | METH_KEYWORDS, ""},
 		{ "get_sent", PY_METHOD(&HSDatasetObject::getSent), METH_VARARGS | METH_KEYWORDS, ""},
-		{ "estim_vocab_frequency", PY_METHOD(&HSDatasetObject::estimVocabFrequency), METH_NOARGS, ""},
+		{ "estim_vocab_frequency", PY_METHOD(&HSDatasetObject::estimVocabFrequency), METH_VARARGS | METH_KEYWORDS, ""},
 		{ nullptr }
 	};
 	static PyGetSetDef getsets[] =
@@ -374,6 +374,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 	py::UniqueObj getMorpheme(size_t id);
 	py::UniqueObj join(PyObject* morphs, bool lmSearch = true, bool returnPositions = false);
 	py::UniqueObj makeHSDataset(PyObject* inputPathes, size_t batchSize, size_t windowSize, size_t numWorkers, float dropout = 0, PyObject* tokenFilter = nullptr, float splitRatio = 0, size_t seed = 42) const;
+	py::UniqueObj listAllScripts() const;
 
 	float getCutOffThreshold() const
 	{
@@ -475,6 +476,7 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ gModule, [](PyTypeObject& obj)
 		{ "morpheme", PY_METHOD(&KiwiObject::getMorpheme), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "join", PY_METHOD(&KiwiObject::join), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "make_hsdataset", PY_METHOD(&KiwiObject::makeHSDataset), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "list_all_scripts", PY_METHOD(&KiwiObject::listAllScripts), METH_VARARGS | METH_KEYWORDS, "" },
 		{ nullptr }
 	};
 	static PyGetSetDef getsets[] =
@@ -510,6 +512,7 @@ struct TokenObject : py::CObject<TokenObject>
 	const Morpheme* _morph = nullptr;
 	const Morpheme* _baseMorph = nullptr;
 	py::UniqueObj _userValue;
+	ScriptType _script = ScriptType::unknown;
 	bool _regularity = false;
 
 	using _InitArgs = std::tuple<int>;
@@ -546,7 +549,7 @@ struct TokenObject : py::CObject<TokenObject>
 
 	u16string baseForm() const
 	{
-	 	return kiwi::joinHangul(_baseMorph->getForm());
+		return _baseMorph ? kiwi::joinHangul(_baseMorph->getForm()) : u16string{};
 	}
 
 	size_t baseId() const
@@ -563,6 +566,18 @@ struct TokenObject : py::CObject<TokenObject>
 	{
 		if (_tag[0] == 'V') return py::buildPyValue(_regularity);
 		return py::buildPyValue(nullptr);
+	}
+
+	py::UniqueObj script() const
+	{
+		if (_script == ScriptType::unknown)
+		{
+			return py::buildPyValue(nullptr);
+		}
+		else
+		{
+			return py::buildPyValue(getScriptName(_script));
+		}
 	}
 
 	u16string lemma() const
@@ -620,6 +635,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ gModule, [](PyTypeObject& obj)
 		{ (char*)"lemma", PY_GETTER(&TokenObject::lemma), nullptr, "", nullptr},
 		{ (char*)"paired_token", PY_GETTER(&TokenObject::_pairedToken), nullptr, "", nullptr},
 		{ (char*)"user_value", PY_GETTER(&TokenObject::_userValue), nullptr, "", nullptr},
+		{ (char*)"script", PY_GETTER(&TokenObject::script), nullptr, "", nullptr},
 		{ nullptr },
 	};
 
@@ -715,6 +731,10 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			tItem->_baseMorph = q.morph ? (q.morph->origMorphemeId ?  kiwi.idToMorph(q.morph->origMorphemeId) : q.morph) : nullptr;
 			tItem->_raw_form = q.typoCost ? kiwi.getTypoForm(q.typoFormId) : tItem->_form;
 			tItem->_pairedToken = q.pairedToken;
+			if (q.tag == POSTag::sl || q.tag == POSTag::sh || q.tag == POSTag::sw || q.tag == POSTag::w_emoji)
+			{
+				tItem->_script = q.script;
+			}
 
 			if (!q.typoCost && q.typoFormId && userValues[q.typoFormId - 1])
 			{
@@ -830,6 +850,7 @@ inline SwTokenizerConfig convertToConfig(PyObject* obj)
 	cfg.splitVerb = py::getAttr<bool>(obj, "split_verb");
 	cfg.splitEomi = py::getAttr<bool>(obj, "split_eomi");
 	cfg.useGlueToken = py::getAttr<bool>(obj, "use_glue_token");
+	cfg.newlineToken = py::getAttr<bool>(obj, "use_newline_token");
 	cfg.strict = py::getAttr<bool>(obj, "strict");
 	cfg.fallbackHangul = py::getAttr<bool>(obj, "fallback_hangul");
 	cfg.fallbackByte = py::getAttr<bool>(obj, "fallback_byte");
@@ -1946,6 +1967,17 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, size_t batchSize,
 		auto ret = py::buildPyTuple(ret1, ret2);
 		return ret;
 	}
+}
+
+py::UniqueObj KiwiObject::listAllScripts() const
+{
+	py::UniqueObj ret{ PyList_New(0) };
+	for (int i = 1; i < (int)kiwi::ScriptType::max; ++i)
+	{
+		auto s = kiwi::getScriptName((kiwi::ScriptType)i);
+		PyList_Append(ret.get(), py::buildPyValue(s).get());
+	}
+	return ret;
 }
 
 PyMODINIT_FUNC PyInit__kiwipiepy()
