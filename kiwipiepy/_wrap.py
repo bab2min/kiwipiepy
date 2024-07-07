@@ -4,6 +4,7 @@ from typing import Callable, List, Dict, Optional, Tuple, Union, Iterable, Named
 from dataclasses import dataclass
 import warnings
 
+import _kiwipiepy
 from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset, _MorphemeSet
 from kiwipiepy._c_api import Token
 from kiwipiepy._version import __version__
@@ -1810,3 +1811,25 @@ ValueError: cannot specify format specifier for Kiwi Token
         form:Optional[str] = None,
     ):
         return super().list_senses(form or '')
+    
+    def list_all_scripts(self) -> List[str]:
+        return super().list_all_scripts()
+
+
+def extract_substrings(
+    text:str,
+    min_cnt: int = 2,
+    min_length: int = 2,
+    max_length: int = 32,
+    longest_only: bool = True,
+    stop_chr: Optional[str] = None,
+) -> List[Tuple[str, int]]:
+    if not text:
+        return []
+    if min_cnt <= 0:
+        raise ValueError('min_cnt must be greater than 0')
+    if min_length <= 0:
+        raise ValueError('min_length must be greater than 0')
+    if max_length < min_length:
+        raise ValueError('max_length must be greater than or equal to min_length')
+    return _kiwipiepy._extract_substrings(text, min_cnt, min_length, max_length, longest_only, stop_chr or '\x00')

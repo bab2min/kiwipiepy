@@ -201,6 +201,7 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
         return_offsets_mapping: bool = False,
         return_length: bool = False,
         verbose: bool = True,
+        **kwargs,
     ) -> BatchEncoding:
         
         if return_token_type_ids is None:
@@ -248,6 +249,7 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
         return_offsets_mapping: bool = False,
         return_length: bool = False,
         verbose: bool = True,
+        **kwargs,
     ) -> BatchEncoding:
         
         if return_token_type_ids is None:

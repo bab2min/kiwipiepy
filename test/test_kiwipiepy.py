@@ -2,8 +2,9 @@ import os
 import sys
 import re
 import tempfile
+import itertools
 
-from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken
+from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings
 from kiwipiepy.utils import Stopwords
 
 curpath = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +15,22 @@ class FileReader:
 
     def __iter__(self):
         yield from open(self.path, encoding='utf-8')
+
+def test_extract_substrings():
+    s = ("자, 너 오늘 하루 뭐 했니? "
+		"난 오늘 하루가 좀 단순했지. 음 뭐 했는데? "
+		"아침에 수업 받다가 오구 그~ 학생이, 응. 미찌 학생인데, "
+		"음. 되게 귀엽게 생겼다, 음. 되게 웃으면 곰돌이 인형같이 생겼어. "
+		"곰돌이? 응 아니 곰돌이도 아니구, 어쨌든 무슨 인형같이 생겼어, "
+		"펜더곰 그런 거, 왜 이렇게 닮은 사람을 대 봐. "
+		"내가 아는 사람 중에서, 한무 한무? 금붕어잖아? "
+		"맞어 눈도 이렇게 톡 튀어나오구, 어. 한무? 조금 잘 생긴 한무. "
+		"잘 생긴 게 아니라 귀여운 한무. 귀여운 한무? "
+		"어 학원에서 별명도 귀여운 한무였어. "
+		"응. 눈이 똥그래 가지고 그래? 어. 좀 특이한 사람이구나.")
+    substrings = extract_substrings(s, min_cnt=2, min_length=2, longest_only=True, stop_chr=' ')
+    print(substrings)
+    assert len(substrings) == 23
 
 def test_false_positive_sb():
     kiwi = Kiwi()
@@ -63,6 +80,10 @@ def test_load_user_dictionary():
 
 def test_issue_158():
     print(len(Kiwi().tokenize('보통' * 40000)))
+
+def test_list_all_scripts():
+    kiwi = Kiwi()
+    print(kiwi.list_all_scripts())
 
 def test_blocklist():
     kiwi = Kiwi()
@@ -236,6 +257,23 @@ def test_user_value():
     assert tokens[0].tag == 'SPECIAL'
     assert tokens[0].user_value == {'tag':'SPECIAL'}
     assert sum(1 for t in tokens if t.user_value is not None) == 1
+
+def test_user_value_issue168():
+    kiwi = Kiwi()
+    text = """마크다운 코드가 섞인 문자열
+```python
+import kiwipiepy
+```
+입니다."""
+
+    pat1 = re.compile(r'^```python\n.*?^```', flags=re.DOTALL | re.MULTILINE)
+    pat2 = re.compile(r'입니다')
+
+    kiwi.add_re_word(pat1, 'USER1', {'tag':'CODE1'})
+    kiwi.add_re_word(pat2, 'USER2', {'tag':'CODE2'})
+    tokens = kiwi.tokenize(text)
+    assert tokens[-3].tag == 'CODE1'
+    assert tokens[-2].tag == 'CODE2'
 
 def test_words_with_space():
     kiwi = Kiwi()
@@ -431,7 +469,7 @@ def test_swtokenizer_trainer_small():
     )
 
 def test_swtokenizer_trainer_digits():
-    kiwi = Kiwi(num_workers=1)
+    kiwi = Kiwi(num_workers=0)
     config = sw_tokenizer.SwTokenizerConfig()
 
     tokenizer = sw_tokenizer.SwTokenizer.train(
@@ -457,8 +495,6 @@ def test_swtokenizer_trainer_digits():
     assert len(mixed_digit) == 0
 
 def test_swtokenizer_trainer():
-    import itertools
-
     config = sw_tokenizer.SwTokenizerConfig()
     sw_tokenizer.SwTokenizer.train(
         'test.json', 
@@ -471,8 +507,6 @@ def test_swtokenizer_trainer():
     )
 
 def test_swtokenizer_trainer_multiple_vocab_sizes():
-    import itertools
-
     config = sw_tokenizer.SwTokenizerConfig()
     sw_tokenizer.SwTokenizer.train(
         ['test.json', 'test2.json', 'test3.json'], 
