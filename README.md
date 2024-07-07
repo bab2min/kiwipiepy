@@ -386,6 +386,47 @@ kiwi.tokenize('대학생선교회에서')
 >>> kiwi.tokenize('대학 생선 교회에서')
 [Token(form='대학생 선교회', tag='NNP', start=0, len=8),
  Token(form='에서', tag='JKB', start=8, len=2)]
+
+# 0.18.0 버전에서는 외국어 문자, 이모지에 대한 지원이 강화되었습니다.
+# 화면에 표시되는 글자 단위로 토큰이 분할됩니다.
+>>> kiwi.tokenize('😂☝🏻☝🏿')
+[Token(form='😂', tag='W_EMOJI', start=0, len=1), 
+ Token(form='☝🏻', tag='W_EMOJI', start=1, len=2), 
+ Token(form='☝🏿', tag='W_EMOJI', start=3, len=2)]
+# 참고: v0.17의 결과
+# [Token(form='😂☝🏻☝🏿', tag='SW', start=0, len=5)]
+
+# script 필드가 추가되어 해당 문자가
+# 유니코드 상에서 어떤 영역에 속하는지 확인할 수 있습니다.
+# SW, SH, SL, W_EMOJI 태그에 대해서만 script값이 부여됩니다.
+>>> tokens = kiwi.tokenize('ひらがなカタカナ')
+>>> tokens
+[Token(form='ひらがなカタカナ', tag='SW', start=0, len=8)]
+>>> tokens[0].script
+'Kana'
+
+>>> tokens = kiwi.tokenize('résumé')
+>>> tokens
+[Token(form='résumé', tag='SL', start=0, len=6)]
+# 참고 v0.17의 결과
+# [Token(form='r', tag='SL', start=0, len=1), 
+#  Token(form='é', tag='SW', start=1, len=1), 
+#  Token(form='sum', tag='SL', start=2, len=3), 
+#  Token(form='é', tag='SW', start=5, len=1)]
+>>> tokens[0].script
+'Latin'
+
+>>> tokens = kiwi.tokenize('ἥρως')
+>>> tokens
+[Token(form='ἥρως', tag='SW', start=0, len=4)]
+>>> tokens[0].script
+'Greek and Coptic'
+
+>>> tokens = kiwi.tokenize('ฉันชอบกินข้าวผัด')
+>>> tokens
+[Token(form='ฉันชอบกินข้าวผัด', tag='SW', start=0, len=16)]
+>>> tokens[0].script
+'Thai'
 ```
 
 ## 시작하기
