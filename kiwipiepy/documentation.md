@@ -627,6 +627,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
         * 이모지를 분리하는 `Match.EMOJI` 옵션과 이모지에 해당하는 태그인 `W_EMOJI`가 추가되었습니다.
         * 외국어 및 특수 기호 태그(`SL`, `SH`, `SW`, `W_EMOJI`)에 대해 해당 문자가 속한 언어 집합을 나타내는 `script` 필드가 추가되었습니다. 전체 script의 목록은 `Kiwi.list_all_scripts()` 메소드를 통해 확인할 수 있습니다.
         * 이제 라틴 문자 사이에 악센트가 붙은 문자가 섞여 있는 경우에도 전체 단어가 하나의 형태소로 분석됩니다.
+    * `KiwiTokenizer`가 `transformers>=4.41`에서 작동하지 않는 버그가 수정되었습니다.
 
 * 0.17.1 (2024-04-13)
     * Kiwi 0.17.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.17.1 )이 반영되었습니다.
