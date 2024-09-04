@@ -2128,7 +2128,13 @@ namespace py
 				static_assert(std::is_integral_v<Arg<0>>, "ssizearg() must take one integral argument");
 				return (self->*func)(idx);
 			}
-			
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 1, ReturnType> binary(ClassType* self, PyObject* arg)
+			{
+				return (self->*func)(toCpp<Arg<0>>(arg));
+			}
+
 			template<Type func, size_t _nargs = nargs>
 			static constexpr std::enable_if_t<_nargs == 0, ReturnType> repr(ClassType* self)
 			{
@@ -2191,6 +2197,12 @@ namespace py
 			{
 				static_assert(std::is_integral_v<Arg<0>>, "ssizearg() must take one integral argument");
 				return (self->*func)(idx);
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 1, ReturnType> binary(ClassType* self, PyObject* arg)
+			{
+				return (self->*func)(toCpp<Arg<0>>(arg));
 			}
 
 			template<Type func, size_t _nargs = nargs>
@@ -2290,6 +2302,18 @@ namespace py
 			}
 
 			template<T ptr>
+			static constexpr binaryfunc binary()
+			{
+				return (binaryfunc)[](PyObject* self, PyObject* arg) -> PyObject*
+				{
+					return handleExc([&]()
+					{
+						return buildPyValue(Base::template binary<ptr>((typename Base::ClassType*)self, arg)).release();
+					});
+				};
+			}
+
+			template<T ptr>
 			static constexpr getter get()
 			{
 				return (getter)[](PyObject* self, void* closure) -> PyObject*
@@ -2381,4 +2405,5 @@ namespace py
 #define PY_SETTER(P) py::CppWrapper<decltype(P)>::set<P>()
 #define PY_LENFUNC(P) py::CppWrapper<decltype(P)>::len<P>()
 #define PY_SSIZEARGFUNC(P) py::CppWrapper<decltype(P)>::ssizearg<P>()
+#define PY_BINARYFUNC(P) py::CppWrapper<decltype(P)>::binary<P>()
 #define PY_REPRFUNC(P) py::CppWrapper<decltype(P)>::repr<P>()
