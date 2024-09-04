@@ -275,10 +275,10 @@ py::TypeWrapper<HSDatasetIterObject> _HSDatasetIterSetter{ gModule, [](PyTypeObj
 
 struct KNLangModelObject;
 
-struct KNLangModelResultObject : py::CObject<KNLangModelResultObject>
+struct KNLangModelNextTokensResultObject : py::CObject<KNLangModelNextTokensResultObject>
 {
-	static constexpr const char* _name = "kiwipiepy._KNLangModelResult";
-	static constexpr const char* _name_in_module = "_KNLangModelResult";
+	static constexpr const char* _name = "kiwipiepy._KNLangModelNextTokensResult";
+	static constexpr const char* _name_in_module = "_KNLangModelNextTokensResult";
 	static constexpr int _flags = Py_TPFLAGS_DEFAULT;
 
 	using _InitArgs = std::tuple<>;
@@ -314,17 +314,94 @@ struct KNLangModelResultObject : py::CObject<KNLangModelResultObject>
 };
 
 
-py::TypeWrapper<KNLangModelResultObject> _KNLangModelResultObjectSetter{ gModule, [](PyTypeObject& obj)
+py::TypeWrapper<KNLangModelNextTokensResultObject> _KNLangModelNextTokensResultObjectSetter{ gModule, [](PyTypeObject& obj)
 {
 	static PySequenceMethods seq = {
-		PY_LENFUNC(&KNLangModelResultObject::len),
+		PY_LENFUNC(&KNLangModelNextTokensResultObject::len),
 		nullptr,
 		nullptr,
-		PY_SSIZEARGFUNC(&KNLangModelResultObject::getitem),
+		PY_SSIZEARGFUNC(&KNLangModelNextTokensResultObject::getitem),
 	};
 	obj.tp_as_sequence = &seq;
 } };
 
+struct KNLangModelEvaluateResultObject : py::CObject<KNLangModelEvaluateResultObject>
+{
+	static constexpr const char* _name = "kiwipiepy._KNLangModelEvaluateResult";
+	static constexpr const char* _name_in_module = "_KNLangModelEvaluateResult";
+	static constexpr int _flags = Py_TPFLAGS_DEFAULT;
+
+	using _InitArgs = std::tuple<>;
+
+	py::UniqueObj inArray, outLl;
+	py::UniqueCObj<KNLangModelObject> parent;
+
+	mutable std::future<void> future;
+
+	size_t len() const
+	{
+		return PyObject_Length(outLl.get());
+	}
+
+	py::UniqueObj getitem(py::UniqueObj arg) const
+	{
+		if (future.valid())
+		{
+			future.get();
+		}
+		return py::UniqueObj{ PyObject_GetItem(outLl.get(), arg.get()) };
+	}
+
+	py::UniqueObj getattr(py::UniqueObj arg) const
+	{
+		if (PyUnicode_Check(arg))
+		{
+			auto argStr = py::toCpp<string>(arg.get());
+			if (argStr == "__dict__")
+			{
+				throw py::AttributeError{ "__dict__" };
+			}
+		}
+		py::UniqueObj ret{ PyObject_GenericGetAttr((PyObject*)this, arg.get()) };
+		if (ret) return ret;
+		PyErr_Clear();
+
+		if (future.valid())
+		{
+			future.get();
+		}
+		return py::UniqueObj{ PyObject_GetAttr(outLl.get(), arg.get()) };
+	}
+
+	py::UniqueObj iter() const
+	{
+		return py::UniqueObj{ PyObject_GetIter(outLl.get()) };
+	}
+
+	py::UniqueObj dir() const
+	{
+		return py::UniqueObj{ PyObject_Dir(outLl.get()) };
+	}
+	
+};
+
+
+py::TypeWrapper<KNLangModelEvaluateResultObject> _KNLangModelEvaluateResultObjectSetter{ gModule, [](PyTypeObject& obj)
+{
+	static PyMappingMethods map = {
+		PY_LENFUNC(&KNLangModelEvaluateResultObject::len),
+		PY_BINARYFUNC(&KNLangModelEvaluateResultObject::getitem),
+		nullptr,
+	};
+	obj.tp_as_mapping = &map;
+	obj.tp_getattro = PY_BINARYFUNC(&KNLangModelEvaluateResultObject::getattr);
+
+	static PyMethodDef methods[] = 	{
+		{ "__dir__", PY_METHOD(&KNLangModelEvaluateResultObject::dir), METH_VARARGS | METH_KEYWORDS, ""},
+		{ nullptr }
+	};
+	obj.tp_methods = methods;
+} };
 
 struct KNLangModelObject : py::CObject<KNLangModelObject>
 {
@@ -334,22 +411,31 @@ struct KNLangModelObject : py::CObject<KNLangModelObject>
 
 	std::unique_ptr<lm::KnLangModelBase> langModel;
 	std::unique_ptr<utils::ThreadPool> workers;
+	ClusterData clusterData;
 
 	using _InitArgs = std::tuple<>;
+
+	void initClusterData()
+	{
+		if (langModel && langModel->getExtraBuf())
+		{
+			clusterData = ClusterData{ langModel->getExtraBuf(), langModel->getHeader().extra_buf_size};
+		}
+	}
 
 	static py::UniqueCObj<KNLangModelObject> fromArrays(
 		py::UniqueObj cls,
 		py::UniqueObj arrays,
 		size_t ngramSize,
-		size_t minCf,
-		size_t lastMinCf,
+		const std::vector<size_t>& minCf,
 		size_t bosTokenId,
 		size_t eosTokenId,
 		size_t unkTokenId,
+		const std::vector<std::vector<size_t>>& clusters,
 		size_t numWorkers
 	)
 	{
-		PrefixCounter pfCnt{ ngramSize, minCf, numWorkers };
+		PrefixCounter pfCnt{ ngramSize, minCf[0], numWorkers, clusters };
 
 		py::foreach<PyObject*>(arrays.get(), [&](PyObject* item)
 		{
@@ -379,11 +465,12 @@ struct KNLangModelObject : py::CObject<KNLangModelObject>
 			}
 		}, "arrays must be a list of numpy arrays.");
 
-		auto lm = pfCnt.buildLM(lastMinCf, bosTokenId, eosTokenId, unkTokenId, ArchType::balanced);
+		auto lm = pfCnt.buildLM(minCf, bosTokenId, eosTokenId, unkTokenId, ArchType::balanced);
 
 		auto* clsType = (PyTypeObject*)cls.get();
 		py::UniqueCObj<KNLangModelObject> ret{ (KNLangModelObject*)clsType->tp_new(clsType, nullptr, nullptr) };
 		ret->langModel = std::move(lm);
+		ret->initClusterData();
 		if (numWorkers >= 1)
 		{
 			ret->workers = std::make_unique<utils::ThreadPool>(numWorkers);
@@ -401,6 +488,11 @@ struct KNLangModelObject : py::CObject<KNLangModelObject>
 		return langModel->getHeader().vocab_size;
 	}
 
+	size_t numNodes() const
+	{
+		return langModel->getHeader().num_nodes;
+	}
+
 	size_t numWorkers() const
 	{
 		return workers ? workers->size() : 0;
@@ -413,6 +505,7 @@ struct KNLangModelObject : py::CObject<KNLangModelObject>
 		auto* clsType = (PyTypeObject*)cls.get();
 		py::UniqueCObj<KNLangModelObject> ret{ (KNLangModelObject*)clsType->tp_new(clsType, nullptr, nullptr) };
 		ret->langModel = std::move(lm);
+		ret->initClusterData();
 		if (numWorkers >= 1)
 		{
 			ret->workers = std::make_unique<utils::ThreadPool>(numWorkers);
@@ -451,7 +544,7 @@ struct KNLangModelObject : py::CObject<KNLangModelObject>
 
 		if (deferred)
 		{
-			auto ret = py::makeNewObject<KNLangModelResultObject>();
+			auto ret = py::makeNewObject<KNLangModelNextTokensResultObject>();
 			ret->inArray = move(obj);
 			ret->outIdx = move(outIdx);
 			ret->outLl = move(outLl);
@@ -512,6 +605,95 @@ struct KNLangModelObject : py::CObject<KNLangModelObject>
 		}
 	}
 
+	template<class Ty>
+	void evaluateWithCluster(const Ty* data, size_t length, float* llData) const
+	{
+		ptrdiff_t node = 0;
+		for (size_t i = 0; i < length; ++i)
+		{
+			auto id = clusterData.cluster(data[i]);
+			auto score = clusterData.score(data[i]);
+			llData[i] = langModel->progress(node, id) + score;
+		}
+	}
+
+	py::UniqueObj evaluate(py::UniqueObj obj, bool deferred) const
+	{
+		if (deferred && !workers)
+		{
+			throw py::ValueError{ "numWorkers must be greater than 0 when `deferred=True`." };
+		}
+		if (!PyArray_Check(obj.get())) throw py::ValueError{ "obj must be a numpy array." };
+		const size_t dims = PyArray_NDIM((PyArrayObject*)obj.get());
+		if (dims != 1) throw py::ValueError{ "obj must be a 1D numpy array." };
+		const size_t len = PyArray_DIM((PyArrayObject*)obj.get(), 0);
+		const auto dtype = PyArray_TYPE((PyArrayObject*)obj.get());
+		const void* inData = PyArray_DATA((PyArrayObject*)obj.get());
+
+		npy_intp sizes[1] = { (npy_intp)len, };
+		py::UniqueObj outLl{ PyArray_EMPTY(1, sizes, NPY_FLOAT32, 0) };
+		auto* llData = (float*)PyArray_DATA((PyArrayObject*)outLl.get());
+		if (deferred)
+		{
+			auto ret = py::makeNewObject<KNLangModelEvaluateResultObject>();
+			ret->inArray = move(obj);
+			ret->outLl = move(outLl);
+			Py_INCREF(this);
+			ret->parent = py::UniqueCObj<KNLangModelObject>{ (KNLangModelObject*)this };
+			if (dtype == NPY_UINT16 || dtype == NPY_INT16)
+			{
+				ret->future = workers->enqueue([=](size_t threadIdx)
+				{
+					auto* ptr = (const uint16_t*)inData;
+					evaluateWithCluster(ptr, len, llData);
+				});
+			}
+			else if (dtype == NPY_UINT32 || dtype == NPY_INT32)
+			{
+				ret->future = workers->enqueue([=](size_t threadIdx)
+				{
+					auto* ptr = (const uint32_t*)inData;
+					evaluateWithCluster(ptr, len, llData);
+				});
+			}
+			else if (dtype == NPY_UINT64 || dtype == NPY_INT64)
+			{
+				ret->future = workers->enqueue([=](size_t threadIdx)
+				{
+					auto* ptr = (const uint64_t*)inData;
+					evaluateWithCluster(ptr, len, llData);
+				});
+			}
+			else
+			{
+				throw py::ValueError{ "obj must be a numpy array of uint16, uint32 or uint64." };
+			}
+			return ret;
+		}
+		else
+		{
+			if (dtype == NPY_UINT16 || dtype == NPY_INT16)
+			{
+				auto* ptr = (const uint16_t*)inData;
+				evaluateWithCluster(ptr, len, llData);
+			}
+			else if (dtype == NPY_UINT32 || dtype == NPY_INT32)
+			{
+				auto* ptr = (const uint32_t*)inData;
+				evaluateWithCluster(ptr, len, llData);
+			}
+			else if (dtype == NPY_UINT64 || dtype == NPY_INT64)
+			{
+				auto* ptr = (const uint64_t*)inData;
+				evaluateWithCluster(ptr, len, llData);
+			}
+			else
+			{
+				throw py::ValueError{ "obj must be a numpy array of uint16, uint32 or uint64." };
+			}
+			return outLl;
+		}
+	}
 };
 
 py::TypeWrapper<KNLangModelObject> _KNLangModelObjectSetter{ gModule, [](PyTypeObject& obj)
@@ -522,13 +704,14 @@ py::TypeWrapper<KNLangModelObject> _KNLangModelObjectSetter{ gModule, [](PyTypeO
 		{ "load", PY_METHOD(&KNLangModelObject::load), METH_VARARGS | METH_KEYWORDS | METH_STATIC, ""},
 		{ "save", PY_METHOD(&KNLangModelObject::save), METH_VARARGS | METH_KEYWORDS, ""},
 		{ "next_tokens", PY_METHOD(&KNLangModelObject::nextTokens), METH_VARARGS | METH_KEYWORDS, ""},
-		
+		{ "evaluate", PY_METHOD(&KNLangModelObject::evaluate), METH_VARARGS | METH_KEYWORDS, ""},
 		{ nullptr }
 	};
 	static PyGetSetDef getsets[] =
 	{
 		{ "_ngram_size", PY_GETTER(&KNLangModelObject::ngramSize), nullptr, "", nullptr },
 		{ "_vocab_size", PY_GETTER(&KNLangModelObject::vocabSize), nullptr, "", nullptr },
+		{ "_num_nodes", PY_GETTER(&KNLangModelObject::numNodes), nullptr, "", nullptr },
 		{ "_num_workers", PY_GETTER(&KNLangModelObject::numWorkers), nullptr, "", nullptr },
 		{ nullptr },
 	};
