@@ -237,6 +237,10 @@ morphset = MorphemeSet([
 
 class Kiwi(_Kiwi):
     '''Kiwi 클래스는 실제 형태소 분석을 수행하는 kiwipiepy 모듈의 핵심 클래스입니다.
+이 클래스는 지연 초기화(Lazy initialization)를 사용합니다. 즉 `Kiwi` 인스턴스를 생성할 때에는 최소한의 초기화만 수행하고, 
+실제 분석을 수행하는 함수(`tokenize`, `analyze` 등)를 호출할 때에 초기화가 완료됩니다.
+따라서 분석 함수를 최초로 호출할 때에는 초기화에 추가적인 시간이 소요될 수 있습니다.
+만약 미리 초기화를 수행하고 싶다면 인스턴스가 생성된 후에 빈 문자열에 대해서 `Kiwi.tokenize()` 함수를 호출하는 것을 권장합니다.
 
 Parameters
 ----------
