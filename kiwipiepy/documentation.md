@@ -622,6 +622,13 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.18.1 (2024-09-08)
+    * Kiwi 0.18.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.18.1 )이 반영되었습니다.
+        * PreTokenizedSpan과 SPLIT_COMPLEX를 동시에 사용시 종종 빈 결과값이 나오던 버그가 수정되었습니다.
+        * 공백 없이 길게 이어진 텍스트를 분석할때 종종 std::length_error가 발생하던 오류가 수정되었습니다.
+        * 문장 분리 시 여는 따옴표가 종종 잘못된 문장에 붙던 버그가 수정되었습니다.
+    * `Kiwi.tokenize()`에 `compatible_jamo` 인자가 추가되었습니다. compatible_jamo를 True로 설정하면 첫가끝 자모를 호환용 자모로 변환하여 출력합니다.
+
 * 0.18.0 (2024-07-07)
     * Kiwi 0.18.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.18.0 )이 반영되었습니다.
         * 이모지를 분리하는 `Match.EMOJI` 옵션과 이모지에 해당하는 태그인 `W_EMOJI`가 추가되었습니다.
