@@ -81,6 +81,12 @@ class Match(IntEnum):
 
     .. versionadded:: 0.15.0
     """
+    COMPATIBLE_JAMO = 1 << 24
+    """
+    형태소 분석 결과 출력 시 첫가끝 자모를 호환용 자모로 변환합니다.
+
+    .. versionadded:: 0.18.1
+    """
     JOIN_V_SUFFIX = JOIN_VERB_SUFFIX | JOIN_ADJ_SUFFIX
     """
     동사/형용사형 파생접미사를 분리하지 않고 결합합니다.
