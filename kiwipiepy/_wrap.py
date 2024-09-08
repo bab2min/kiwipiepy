@@ -829,6 +829,7 @@ result: List[Tuple[str, float, int, float]]
         normalize_coda:bool = False,
         z_coda:bool = True,
         split_complex:bool = False,
+        compatible_jamo:bool = False,
         blocklist:Optional[Union[MorphemeSet, Iterable[str]]] = None,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ) -> List[Tuple[List[Token], float]]:
@@ -852,6 +853,8 @@ normalize_coda: bool
 z_coda: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 split_complex: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+compatible_jamo: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 blocklist: Union[Iterable[str], MorphemeSet]
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
@@ -900,6 +903,8 @@ with open('result.txt', 'w', encoding='utf-8') as output:
             match_options |= Match.Z_CODA
         if split_complex:
             match_options |= Match.SPLIT_COMPLEX
+        if compatible_jamo:
+            match_options |= Match.COMPATIBLE_JAMO
         if isinstance(blocklist, MorphemeSet):
             if blocklist.kiwi != self: 
                 warnings.warn("This `MorphemeSet` isn't based on current Kiwi object.")
@@ -1050,6 +1055,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         normalize_coda:bool = False,
         z_coda:bool = True,
         split_complex:bool = False,
+        compatible_jamo:bool = False,
         split_sents:bool = False,
         stopwords:Optional[Stopwords] = None,
         echo:bool = False,
@@ -1076,6 +1082,8 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
             match_options |= Match.Z_CODA
         if split_complex:
             match_options |= Match.SPLIT_COMPLEX
+        if compatible_jamo:
+            match_options |= Match.COMPATIBLE_JAMO
 
         if isinstance(blocklist, MorphemeSet):
             if blocklist.kiwi != self: 
@@ -1103,6 +1111,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         normalize_coda:bool = False,
         z_coda:bool = True,
         split_complex:bool = False,
+        compatible_jamo:bool = False,
         split_sents:bool = False,
         stopwords:Optional[Stopwords] = None,
         echo:bool = False,
@@ -1137,6 +1146,12 @@ split_complex: bool
     True인 경우 둘 이상의 형태소로 더 잘게 분할될 수 있는 경우 형태소를 최대한 분할합니다. 
     예를 들어 '고마움을 전하다'의 경우 split_complex=False인 경우 `고마움/NNG 을/JKO 전하/VV 다/EF`와 같이 분석되지만,
     split_complex=True인 경우 `고맙/VA-I 음/ETN 을/JKO 전하/VV 다/EF`처럼 `고마움/NNG`이 더 잘게 분석됩니다.
+compatible_jamo: bool
+
+    .. versionadded:: 0.18.1
+
+    True인 경우 분석 결과의 첫가끝 자모를 호환용 자모로 변환하여 출력합니다.
+    예를 들어 "ᆫ다/EF"는 "ㄴ다/EF"로, "ᆯ/ETM"은 "ㄹ/ETM"으로 변환됩니다.
 split_sents: bool
     .. versionadded:: 0.10.3
 
@@ -1275,7 +1290,8 @@ Notes
  Token(form='.', tag='SF', start=25, len=1)]
 ```
         '''
-        return self._tokenize(text, match_options, normalize_coda, z_coda, split_complex, split_sents, stopwords, echo, 
+        return self._tokenize(text, match_options, normalize_coda, z_coda, split_complex, compatible_jamo, 
+                              split_sents, stopwords, echo, 
                               blocklist=blocklist, 
                               pretokenized=pretokenized
         )
@@ -1286,6 +1302,7 @@ Notes
         normalize_coda:bool = False,
         z_coda:bool = True,
         split_complex:bool = False,
+        compatible_jamo:bool = False,
         stopwords:Optional[Stopwords] = None,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
         return_tokens:bool = False,
@@ -1309,6 +1326,8 @@ normalize_coda: bool
 z_coda: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 split_complex: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+compatible_jamo: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 stopwords: Stopwords
 
@@ -1410,9 +1429,24 @@ Notes
             return ret
 
         if isinstance(text, str):
-            return _make_result((self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, z_coda=z_coda, split_complex=split_complex, blocklist=blocklist, split_sents=True), text))
+            return _make_result((self._tokenize(text, 
+                                                match_options=match_options, 
+                                                normalize_coda=normalize_coda, 
+                                                z_coda=z_coda, 
+                                                split_complex=split_complex, 
+                                                compatible_jamo=compatible_jamo,
+                                                blocklist=blocklist, 
+                                                split_sents=True), text))
 
-        return map(_make_result, self._tokenize(text, match_options=match_options, normalize_coda=normalize_coda, z_coda=z_coda, split_complex=split_complex, blocklist=blocklist, split_sents=True, echo=True))
+        return map(_make_result, self._tokenize(text, 
+                                                match_options=match_options, 
+                                                normalize_coda=normalize_coda, 
+                                                z_coda=z_coda, 
+                                                split_complex=split_complex, 
+                                                compatible_jamo=compatible_jamo,
+                                                blocklist=blocklist, 
+                                                split_sents=True, 
+                                                echo=True))
 
     def glue(self,
         text_chunks:Iterable[str],
