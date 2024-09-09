@@ -959,6 +959,7 @@ struct TokenObject : py::CObject<TokenObject>
 	const Morpheme* _morph = nullptr;
 	const Morpheme* _baseMorph = nullptr;
 	py::UniqueObj _userValue;
+	POSTag _rawTag = POSTag::unknown;
 	ScriptType _script = ScriptType::unknown;
 	bool _regularity = false;
 
@@ -1163,6 +1164,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			auto tItem = py::makeNewObject<TokenObject>();
 			tItem->_form = move(q.str);
 			tItem->_regularity = !isIrregular(q.tag);
+			tItem->_rawTag = q.tag;
 			tItem->resultHash = resultHash;
 			tItem->_tag = getTagStr(q.tag, tItem->_form);
 			tItem->_pos = q.position - u32offset;
@@ -2317,13 +2319,13 @@ py::UniqueObj KiwiObject::join(PyObject* morphs, bool lmSearch, bool returnPosit
 				space = token._pos <= prevEnd ? cmb::Space::no_space : cmb::Space::insert_space;
 			}
 
-			if (token._morph->kform && !token._morph->kform->empty())
+			if (token._morph && token._morph->kform && !token._morph->kform->empty())
 			{
 				joiner.add(token._morphId, space);
 			}
 			else
 			{
-				joiner.add(token._form, token._morph->tag, false, space);
+				joiner.add(token._form, token._rawTag, false, space);
 			}
 			prevHash = token.resultHash;
 			prevEnd = token.end();
