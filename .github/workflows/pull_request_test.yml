@@ -99,7 +99,7 @@ jobs:
               /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_kiwipiepy.py
           - name: Test transformers_addon
             run: |
-              for v in {12..42}
+              for v in {12..46}
               do
                 echo "Test with transformers 4.$v ..."
                 if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
@@ -209,15 +209,14 @@ jobs:
       max-parallel: 8
       matrix:
         cp: [cp39-cp39, cp310-cp310, cp311-cp311, cp312-cp312]
-        arch: [aarch64, ppc64le]
+        arch: [aarch64]
 
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
         lfs: true
-    - if: matrix.arch == 'aarch64' || matrix.cp != 'cp312-cp312'
-      uses: bab2min/run-on-arch-action@use-custom-image
+    - uses: bab2min/run-on-arch-action@use-custom-image
       id: runcmd
       with:
         image: quay.io/pypa/manylinux2014_${{ matrix.arch }}

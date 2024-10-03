@@ -160,9 +160,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [aarch64, ppc64le]
+        arch: [aarch64]
 
-    steps:        
+    steps:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
@@ -181,7 +181,7 @@ jobs:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |          
-          for cp in cp36-cp36m cp37-cp37m cp38-cp38
+          for cp in cp37-cp37m cp38-cp38 cp39-cp39
           do
             /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
             USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
@@ -202,9 +202,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [aarch64, ppc64le]
+        arch: [aarch64]
 
-    steps:        
+    steps:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
@@ -223,12 +223,7 @@ jobs:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |          
-          if [ "${{ matrix.arch }}" = "aarch64" ]; then
-            export CPS="cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312"
-          else
-            export CPS="cp39-cp39 cp310-cp310 cp311-cp311"
-          fi
-          for cp in $CPS
+          for cp in cp310-cp310 cp311-cp311 cp312-cp312
           do
             /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
             USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
