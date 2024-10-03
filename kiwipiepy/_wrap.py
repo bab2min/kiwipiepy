@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import warnings
 
 import _kiwipiepy
-from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset, _MorphemeSet
+from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset, _MorphemeSet, _NgramExtractor
 from kiwipiepy._c_api import Token
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
@@ -31,6 +31,18 @@ PretokenizedToken.tag.__doc__ = '형태소의 품사 태그'
 PretokenizedToken.start.__doc__ = '주어진 구간에서 형태소가 시작하는 시작 위치 (문자 단위)'
 PretokenizedToken.end.__doc__ = '주어진 구간에서 형태소가 끝나는 시작 위치 (문자 단위)'
 PretokenizedTokenList = List[Union[Tuple[int, int], Tuple[int, int, POSTag], Tuple[int, int, PretokenizedToken], Tuple[int, int, List[PretokenizedToken]]]]
+
+NgramCandidate = NamedTuple('NgramCandidate', [('text', str), ('tokens', List[Tuple[str, str]]), ('token_scores', List[float]), ('cnt', int), ('df', int), ('score', float), ('npmi', float), ('lb_entropy', float), ('rb_entropy', float), ('lm_score', float)])
+
+class NgramExtractor(_NgramExtractor):
+    def __init__(self, kiwi, gather_lm_score=True):
+        super().__init__(kiwi, gather_lm_score)
+
+    def add(self, text:Union[str, List[str]]) -> None:
+        return super().add(text)
+
+    def extract(self, max_candidates=-1, min_cnt=10, max_length=5, min_score=1e-3, num_workers=1) -> List[NgramCandidate]:
+        return super().extract(NgramCandidate, max_candidates, min_cnt, max_length, min_score, num_workers)
 
 @dataclass
 class TypoDefinition:
@@ -114,15 +126,19 @@ defs: List[TypoDefinition]
 continual_typo_cost: float
     .. versionadded:: 0.17.1
 
-    연철에 대한 교정 비용. 기본값은 0입니다.
-    
+    연철에 대한 교정 비용. 기본값은 0으로, 연철에 대한 교정을 수행하지 않습니다.
+lengthening_typo_cost: float
+    .. versionadded:: 0.19.0
+
+    장음화에 대한 교정 비용. 기본값은 0으로, 장음화에 대한 교정을 수행하지 않습니다.
+
 Notes
 -----
 이 클래스의 인스턴스를 Kiwi 생성시의 typos 인자로 주면 Kiwi의 오타 교정 기능이 활성화됩니다.
 ```python
 >>> from kiwipiepy import Kiwi, TypoTransformer, TypoDefinition
 >>> typos = TypoTransformer([
-    TypoDefinition(["ㅐ", "ㅔ"], ["ㅐ", "ㅔ"], 1.), # ㅐ 혹은 ㅖ를 ㅐ 혹은 ㅖ로 교체하여 오타를 생성. 생성 비용은 1
+    TypoDefinition(["ㅐ", "ㅔ"], ["ㅐ", "ㅔ"], 1.), # ㅐ 혹은 ㅔ를 ㅐ 혹은 ㅔ로 교체하여 오타를 생성. 생성 비용은 1
     TypoDefinition(["ㅔ"], ["ㅖ"], 2.), # ㅔ를 ㅖ로 교체하여 오타를 생성. 생성 비용은 2
 ])
 >>> typos.generate('과제', 1.) # 생성 비용이 1.0이하인 오타들을 생성
@@ -143,12 +159,18 @@ Notes
     def __init__(self,
         defs: List[TypoDefinition],
         continual_typo_cost: float = 0,
+        lengthening_typo_cost: float = 0,
     ):
-        self._defs = list(defs)
-        self._continual_typo_cost = continual_typo_cost
+        try:
+            assert continual_typo_cost >= 0, "continual_typo_cost should be zero or positive."
+            assert lengthening_typo_cost >= 0, "lengthening_typo_cost should be zero or positive."
+        except AssertionError as e:
+            raise ValueError(*e.args)
+        
         super().__init__(
-            ((list(map(_convert_consonant, d.orig)), list(map(_convert_consonant, d.error)), d.cost, d.condition) for d in self._defs),
-            continual_typo_cost
+            ((list(map(_convert_consonant, d.orig)), list(map(_convert_consonant, d.error)), d.cost, d.condition) for d in defs),
+            continual_typo_cost,
+            lengthening_typo_cost,
         )
 
     def generate(self, text:str, cost_threshold:float = 2.5) -> List[Tuple[str, float]]:
@@ -168,13 +190,58 @@ errors: List[Tuple[str, float]]
         '''
         return super().generate(text, cost_threshold)
 
+    def copy(self) -> 'TypoTransformer':
+        '''현재 오타 생성기의 복사본을 생성합니다.'''
+        return super().copy(TypoTransformer)
+
+    def update(self, other:'TypoTransformer'):
+        '''다른 오타 생성기의 오타 정의를 현재 오타 생성기에 추가합니다.'''
+        super().update(other)
+
+    def scale_cost(self, scale:float):
+        '''오타 생성 비용을 scale배만큼 조정합니다.'''
+        super().scale_cost(scale)
+
+    def __or__(self, other:'TypoTransformer'):
+        new_inst = self.copy()
+        new_inst.update(other)
+        return new_inst
+
+    def __ior__(self, other:'TypoTransformer'):
+        self.update(other)
+        return self
+    
+    def __mul__(self, scale:float):
+        new_inst = self.copy()
+        new_inst.scale_cost(scale)
+        return new_inst
+    
+    def __imul__(self, scale:float):
+        self.scale_cost(scale)
+        return self
+
     @property
-    def defs(self):
+    def defs(self) -> List[Tuple[str, str, float, Optional[str]]]:
         '''현재 오타 생성기의 정의자 목록'''
         return self._defs
     
+    @property
+    def continual_typo_cost(self) -> float:
+        '''연철에 대한 교정 비용'''
+        return self._continual_typo_cost
+    
+    @property
+    def lengthening_typo_cost(self) -> float:
+        '''장음화에 대한 교정 비용'''
+        return self._lengthening_typo_cost
+
     def __repr__(self):
-        return "TypoTransformer([{}])".format(",\n  ".join(map(repr, self._defs)))
+        defs = self._defs
+        if len(defs) < 5:
+            defs_str = ", ".join(map(repr, defs))
+        else:
+            defs_str = ", ".join(map(repr, defs[:5])) + ", ... ({} more)".format(len(defs) - 5)
+        return "TypoTransformer([{}], continual_typo_cost={!r}, lengthening_typo_cost={!r})".format(defs_str, self._continual_typo_cost, self._lengthening_typo_cost)
 
 class HSDataset(_HSDataset):
     pass
@@ -268,13 +335,15 @@ model_type: str
     형태소 분석에 사용할 언어 모델을 지정합니다. `'knlm'`, `'sbg'` 중 하나를 선택할 수 있습니다. 기본값은 `'knlm'`입니다. 각 모델에 대한 자세한 설명은 <a href='#_4'>여기</a>를 참조하세요.
 
 typos: Union[str, TypoTransformer]
-    .. versionadded:: 0.13.0
+    .. versionupdated:: 0.19.0
 
     교정에 사용할 오타 정보입니다. 기본값은 `None`으로 이 경우 오타 교정을 사용하지 않습니다. `TypoTransformer` 인스턴스를 입력하거나 약어로 다음 문자열을 입력할 수 있습니다.
 
     * `'basic'`: 기본 오타 정보(`kiwipiepy.basic_typos`)
     * `'continual'`: 연철 오타 정보(`kiwipiepy.continual_typos`)
     * `'basic_with_continual'`: 기본 오타 정보와 연철 함께 사용(`kiwipiepy.basic_typos_with_continual`)
+    * `'lengthening'`: 장음화 오타 정보(`kiwipiepy.lengthening_typos`)
+    * `'basic_with_continual_and_lengthening'`: 기본 오타 정보, 연철, 장음화 함께 사용(`kiwipiepy.basic_typos_with_continual_and_lengthening`)
 
     이에 대한 자세한 내용은 `kiwipiepy.TypoTransformer` 및 <a href='#_5'>여기</a>를 참조하세요.
 typo_cost_threshold: float
@@ -311,11 +380,19 @@ typo_cost_threshold: float
         
         import kiwipiepy
         if typos == 'basic': 
-            typos = kiwipiepy.basic_typos
+            rtypos = kiwipiepy.basic_typos
         elif typos == 'continual':
-            typos = kiwipiepy.continual_typos
+            rtypos = kiwipiepy.continual_typos
         elif typos == 'basic_with_continual':
-            typos = kiwipiepy.basic_typos_with_continual
+            rtypos = kiwipiepy.basic_typos_with_continual
+        elif typos == 'lengthening':
+            rtypos = kiwipiepy.lengthening_typos
+        elif typos == 'basic_with_continual_and_lengthening':
+            rtypos = kiwipiepy.basic_typos_with_continual_and_lengthening
+        elif typos is None or isinstance(typos, TypoTransformer):
+            rtypos = typos
+        else:
+            raise ValueError("`typos` should be one of ('basic', 'continual', 'basic_with_continual', 'lengthening', 'basic_with_continual_and_lengthening', TypoTransformer), but {}".format(typos))
 
         super().__init__(
             num_workers,
@@ -325,7 +402,7 @@ typo_cost_threshold: float
             load_typo_dict,
             load_multi_dict,
             (model_type=='sbg'),
-            typos,
+            rtypos,
             typo_cost_threshold,
         )
 
@@ -1852,6 +1929,20 @@ ValueError: cannot specify format specifier for Kiwi Token
     
     def list_all_scripts(self) -> List[str]:
         return super().list_all_scripts()
+
+    def make_hsdataset(
+        self,
+        inputs:List[str],
+        batch_size:int = 128, 
+        window_size:int = 8, 
+        num_workers:int = 1, 
+        dropout:float = 0, 
+        token_filter:Callable[[str, str], bool] = None, 
+        split_ratio:float = 0, 
+        separate_default_morpheme:bool = False,
+        seed:int = 0,
+    ):
+        return super().make_hsdataset(inputs, batch_size, window_size, num_workers, dropout, token_filter, split_ratio, separate_default_morpheme, seed)
 
 
 def extract_substrings(

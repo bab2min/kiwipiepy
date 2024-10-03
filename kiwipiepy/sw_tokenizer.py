@@ -147,20 +147,20 @@ class _ProgressShower(TrainerCallback):
     
     def begin_reduction(self, n_tkn:int, iteration: int, cur_vocab_size: int, unigram_loss: float):
         self._bar = tqdm.tqdm(itertools.repeat(None), desc=f"Reducing #{n_tkn+1}", file=self._file, total=self._iterations)
-        self._bar.write(f"Iteration: {iteration} VocabSize: {cur_vocab_size} Loss: {unigram_loss:.4f}")
-        self._bar.set_postfix(dict(vocab_size=cur_vocab_size, loss=unigram_loss))
+        self._bar.write(f"Iteration: {iteration} VocabSize: {cur_vocab_size} Loss: {-unigram_loss:.4f}")
+        self._bar.set_postfix(dict(vocab_size=cur_vocab_size, loss=-unigram_loss))
         self._last_iteration = iteration
     
     def proc_reduction(self, n_tkn:int, iteration: int, cur_vocab_size: int, unigram_loss: float):
-        self._bar.write(f"Iteration: {iteration} VocabSize: {cur_vocab_size} Loss: {unigram_loss:.4f}")
+        self._bar.write(f"Iteration: {iteration} VocabSize: {cur_vocab_size} Loss: {-unigram_loss:.4f}")
         self._bar.update(iteration - self._last_iteration)
-        self._bar.set_postfix(dict(vocab_size=cur_vocab_size, loss=unigram_loss))
+        self._bar.set_postfix(dict(vocab_size=cur_vocab_size, loss=-unigram_loss))
         self._last_iteration = iteration
 
     def end_reduction(self, n_tkn:int, iteration: int, cur_vocab_size: int, unigram_loss: float):
         self._bar.close()
         self._bar = None
-        print(f"Finished. Iteration: {iteration} VocabSize: {cur_vocab_size} Loss: {unigram_loss:.4f}", file=self._file)
+        print(f"Finished. Iteration: {iteration} VocabSize: {cur_vocab_size} Loss: {-unigram_loss:.4f}", file=self._file)
 
 SPECIAL_TOKEN_NAMES = ['unk', 'cls', 'sep', 'mask', 'pad', 'bos', 'eos']
 
