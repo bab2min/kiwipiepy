@@ -1811,12 +1811,17 @@ namespace py
 		PyVarObject_HEAD_INIT(nullptr, 0)
 	};
 
+	template<class Ty = PyObject>
+	inline UniqueCObj<Ty> makeNewObject(PyTypeObject* type)
+	{
+		UniqueCObj<Ty> ret{ (Ty*)type->tp_new(type, buildPyTuple().get(), nullptr)};
+		return ret;
+	}
+
 	template<class Ty>
 	inline UniqueCObj<Ty> makeNewObject()
 	{
-		UniqueCObj<Ty> ret{ PyObject_New(Ty, Type<Ty>) };
-		new (ret.get()) Ty;
-		return ret;
+		return makeNewObject<Ty>(Type<Ty>);
 	}
 
 	template<class Ty>

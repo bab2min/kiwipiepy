@@ -46,17 +46,24 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 
 	TypoTransformer tt;
 	PreparedTypoTransformer ptt;
+	bool prepared = false;
 
-	using _InitArgs = std::tuple<PyObject*, float>;
+	using _InitArgs = std::tuple<PyObject*, float, float>;
 
 	TypoTransformerObject() = default;
 
-	TypoTransformerObject(PyObject* defs, float continualTypoCost)
+	TypoTransformerObject(PyObject* defs, float continualTypoCost, float lengtheningTypoCost)
 	{
 		if (continualTypoCost)
 		{
 			tt.setContinualTypoCost(continualTypoCost);
 		}
+
+		if (lengtheningTypoCost)
+		{
+			tt.setLengtheningTypoCost(lengtheningTypoCost);
+		}
+
 		py::foreach<PyObject*>(defs, [&](PyObject* item)
 		{
 			auto orig = py::toCpp<std::vector<std::string>>(PyTuple_GET_ITEM(item, 0));
@@ -85,12 +92,77 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 		}, "`defs` must be an iterable of Tuple[List, List, float, str].");
 	}
 
+	py::UniqueObj copy(PyObject* type)
+	{
+		auto obj = py::makeNewObject<TypoTransformerObject>((PyTypeObject*)type);
+		obj->tt = tt;
+		return obj;
+	}
+
+	void update(PyObject* obj)
+	{
+		if (!PyObject_IsInstance(obj, (PyObject*)py::Type<TypoTransformerObject>))
+		{
+			throw py::ValueError{ "`obj` must be an instance of `TypoTransformer`." };
+		}
+		tt.update(((TypoTransformerObject*)obj)->tt);
+	}
+
+	void scaleCost(float scale)
+	{
+		tt.scaleCost(scale);
+	}
+
+	float getContinualTypoCost() const
+	{
+		return tt.getContinualTypoCost();
+	}
+
+	float getLengtheningTypoCost() const
+	{
+		return tt.getLengtheningTypoCost();
+	}
+
+	py::UniqueObj getDefs() const
+	{
+		py::UniqueObj ret{ PyList_New(0) };
+		vector<pair<tuple<KString, KString, CondVowel>, float>> defs{ tt.getTypos().begin(), tt.getTypos().end() };
+		sort(defs.begin(), defs.end());
+		for (auto& p : defs)
+		{
+			const auto orig = joinHangul(get<0>(p.first));
+			const auto error = joinHangul(get<1>(p.first));
+			const auto cond = get<2>(p.first);
+			const auto cost = p.second;
+			py::UniqueObj pyCond = py::buildPyValue(nullptr);
+			if (cond == CondVowel::any)
+			{
+				pyCond = py::buildPyValue("any");
+			}
+			else if (cond == CondVowel::vowel)
+			{
+				pyCond = py::buildPyValue("vowel");
+			}
+			else if (cond == CondVowel::applosive)
+			{
+				pyCond = py::buildPyValue("applosive");
+			}
+			PyList_Append(ret.get(), py::buildPyTuple(orig, error, cost, pyCond).get());
+		}
+		return ret;
+	}
+
+	PreparedTypoTransformer& getPtt()
+	{
+		if (!prepared) ptt = tt.prepare();
+		prepared = true;
+		return ptt;
+	}
+
 	py::UniqueObj generate(const char* orig, float costThreshold = 2.5)
 	{
-		if (!ptt.ready()) ptt = tt.prepare();
-
 		py::UniqueObj ret{ PyList_New(0) };
-		for (auto r : ptt.generate(utf8To16(orig), costThreshold))
+		for (auto r : getPtt().generate(utf8To16(orig), costThreshold))
 		{
 			PyList_Append(ret.get(), py::buildPyTuple(r.str, r.cost).get());
 		}
@@ -103,9 +175,21 @@ py::TypeWrapper<TypoTransformerObject> _TypoTransformerSetter{ gModule, [](PyTyp
 	static PyMethodDef methods[] =
 	{
 		{ "generate", PY_METHOD(&TypoTransformerObject::generate), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "copy", PY_METHOD(&TypoTransformerObject::copy), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "update", PY_METHOD(&TypoTransformerObject::update), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "scale_cost", PY_METHOD(&TypoTransformerObject::scaleCost), METH_VARARGS | METH_KEYWORDS, ""},
 		{ nullptr }
 	};
 	obj.tp_methods = methods;
+
+	static PyGetSetDef getsets[] =
+	{
+		{ "_continual_typo_cost", PY_GETTER(&TypoTransformerObject::getContinualTypoCost), nullptr, "", nullptr },
+		{ "_lengthening_typo_cost", PY_GETTER(&TypoTransformerObject::getLengtheningTypoCost), nullptr, "", nullptr },
+		{ "_defs", PY_GETTER(&TypoTransformerObject::getDefs), nullptr, "", nullptr },
+		{ nullptr },
+	};
+	obj.tp_getset = getsets;
 } };
 
 struct HSDatasetIterObject;
@@ -127,6 +211,11 @@ struct HSDatasetObject : py::CObject<HSDatasetObject>
 	size_t getVocabSize() const
 	{
 		return hsd.vocabSize();
+	}
+
+	size_t getKnlmVocabSize() const
+	{
+		return hsd.getKnlmVocabSize();
 	}
 
 	size_t getNgramNodeSize() const
@@ -193,6 +282,7 @@ py::TypeWrapper<HSDatasetObject> _HSDatasetSetter{ gModule, [](PyTypeObject& obj
 	static PyGetSetDef getsets[] =
 	{
 		{ (char*)"vocab_size", PY_GETTER(&HSDatasetObject::getVocabSize), nullptr, "", nullptr },
+		{ (char*)"knlm_vocab_size", PY_GETTER(&HSDatasetObject::getKnlmVocabSize), nullptr, "", nullptr },
 		{ (char*)"ngram_node_size", PY_GETTER(&HSDatasetObject::getNgramNodeSize), nullptr, "", nullptr },
 		{ (char*)"batch_size", PY_GETTER(&HSDatasetObject::getBatchSize), nullptr, "", nullptr },
 		{ (char*)"window_size", PY_GETTER(&HSDatasetObject::getWindowSize), nullptr, "", nullptr },
@@ -820,7 +910,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 	size_t loadUserDictionary(const char* path);
 	py::UniqueObj getMorpheme(size_t id);
 	py::UniqueObj join(PyObject* morphs, bool lmSearch = true, bool returnPositions = false);
-	py::UniqueObj makeHSDataset(PyObject* inputPathes, size_t batchSize, size_t windowSize, size_t numWorkers, float dropout = 0, PyObject* tokenFilter = nullptr, float splitRatio = 0, size_t seed = 42) const;
+	py::UniqueObj makeHSDataset(PyObject* inputPathes, size_t batchSize, size_t windowSize, size_t numWorkers, 
+		float dropout = 0, PyObject* tokenFilter = nullptr, float splitRatio = 0, bool separateDefaultMorpheme = false, size_t seed = 42) const;
 	py::UniqueObj listAllScripts() const;
 
 	float getCutOffThreshold() const
@@ -2420,7 +2511,8 @@ py::UniqueObj KiwiObject::join(PyObject* morphs, bool lmSearch, bool returnPosit
 	}
 }
 
-py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, size_t batchSize, size_t windowSize, size_t numWorkers, float dropout, PyObject* tokenFilter, float splitRatio, size_t seed) const
+py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, size_t batchSize, size_t windowSize, size_t numWorkers, 
+	float dropout, PyObject* tokenFilter, float splitRatio, bool separateDefaultMorpheme, size_t seed) const
 {
 	KiwiBuilder::TokenFilter tf;
 	if (tokenFilter && tokenFilter != Py_None)
@@ -2436,7 +2528,7 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, size_t batchSize,
 	}
 
 	HSDataset anotherDataset;
-	auto dataset = builder.makeHSDataset(py::toCpp<vector<string>>(inputPathes), batchSize, windowSize, numWorkers, dropout, tf, splitRatio, &anotherDataset);
+	auto dataset = builder.makeHSDataset(py::toCpp<vector<string>>(inputPathes), batchSize, windowSize, numWorkers, dropout, tf, splitRatio, separateDefaultMorpheme, &anotherDataset);
 	dataset.seed(seed);
 	if (splitRatio == 0)
 	{
@@ -2465,6 +2557,93 @@ py::UniqueObj KiwiObject::listAllScripts() const
 	}
 	return ret;
 }
+
+
+struct NgramExtractorObject : py::CObject<NgramExtractorObject>
+{
+	static constexpr const char* _name = "kiwipiepy._NgramExtractor";
+	static constexpr const char* _name_in_module = "_NgramExtractor";
+	static constexpr int _flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+
+	using _InitArgs = std::tuple<PyObject*, bool>;
+
+	NgramExtractor ne;
+
+	NgramExtractorObject() = default;
+
+	NgramExtractorObject(PyObject* kiwi, bool gatherLmScore)
+	{
+		if (!PyObject_IsInstance(kiwi, (PyObject*)py::Type<KiwiObject>))
+		{
+			throw py::ValueError{ "`kiwi` must be an instance of `Kiwi`." };
+		}
+		((KiwiObject*)kiwi)->doPrepare();
+		ne = NgramExtractor{ ((KiwiObject*)kiwi)->kiwi, gatherLmScore };
+	}
+
+	size_t add(PyObject* texts)
+	{
+		if (PyUnicode_Check(texts))
+		{
+			return ne.addText(py::toCpp<u16string>(texts));
+		}
+		else
+		{
+			py::UniqueObj iter{ PyObject_GetIter(texts) };
+			auto ret = ne.addTexts([&]()
+			{
+				py::UniqueObj text{ PyIter_Next(iter.get()) };
+				if (!text) return u16string{};
+				return py::toCpp<u16string>(text.get());
+			});
+
+			if (PyErr_Occurred())
+			{
+				throw py::ExcPropagation{};
+			}
+
+			return ret;
+		}
+	}
+
+	py::UniqueObj extract(PyObject* retTy, size_t maxCandidates, size_t minCnt, size_t maxLength, float minScore, size_t numWorkers)
+	{
+		auto ret = ne.extract(maxCandidates, minCnt, maxLength, minScore, numWorkers);
+		py::UniqueObj retList{ PyList_New(0) };
+		for (auto& r : ret)
+		{
+			py::UniqueObj tokens{ PyList_New(0) };
+			for (auto& t : r.tokens)
+			{
+				auto v = py::buildPyTuple(t.substr(1), t.substr(0, 1));
+				PyList_Append(tokens.get(), v.get());
+			}
+			py::UniqueObj v{ PyObject_CallObject(retTy, 
+				py::buildPyTuple(r.text, tokens, r.tokenScores, r.cnt, r.df, r.score, r.npmi, r.leftBranch, r.rightBranch, r.lmScore).get()) 
+			};
+			PyList_Append(retList.get(), v.get());
+		}
+		return retList;
+	}
+};
+
+py::TypeWrapper<NgramExtractorObject> _NgramExtractorSetter{ gModule, [](PyTypeObject& obj)
+{
+	static PyMethodDef methods[] =
+	{
+		{ "add", PY_METHOD(&NgramExtractorObject::add), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "extract", PY_METHOD(&NgramExtractorObject::extract), METH_VARARGS | METH_KEYWORDS, ""},
+		{ nullptr }
+	};
+	obj.tp_methods = methods;
+
+	static PyGetSetDef getsets[] =
+	{
+		{ nullptr },
+	};
+	obj.tp_getset = getsets;
+} };
+
 
 PyMODINIT_FUNC PyInit__kiwipiepy()
 {
