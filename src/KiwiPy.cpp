@@ -953,12 +953,13 @@ struct TokenObject : py::CObject<TokenObject>
 	const char* _tag = nullptr;
 	size_t resultHash = 0;
 	uint32_t _pos = 0, _len = 0, _wordPosition = 0, _sentPosition = 0, _subSentPosition = 0, _lineNumber = 0;
-	int32_t _pairedToken = -1;
+	int32_t _pairedToken = -1, _sense = 0;
 	float _score = 0, _typoCost = 0;
 	size_t _morphId = 0;
 	const Morpheme* _morph = nullptr;
 	const Morpheme* _baseMorph = nullptr;
 	py::UniqueObj _userValue;
+	POSTag _rawTag = POSTag::unknown;
 	ScriptType _script = ScriptType::unknown;
 	bool _regularity = false;
 
@@ -1048,11 +1049,42 @@ struct TokenObject : py::CObject<TokenObject>
 
 	std::string repr() const
 	{
-		return "Token("
-				"form=" + py::reprFromCpp(_form) + ", "
-				"tag=" + py::reprFromCpp(_tag) + ", "
-				"start=" + to_string(_pos) + ", "
-				"len=" + to_string(_len) + ")";
+		if (resultHash)
+		{
+			if (_sense)
+			{
+				return "Token("
+					"form=" + py::reprFromCpp(_form) + ", "
+					"tag=" + py::reprFromCpp(_tag) + ", "
+					"start=" + to_string(_pos) + ", "
+					"len=" + to_string(_len) + ", "
+					"sense=" + to_string(_sense) + ")";
+			}
+			else
+			{
+				return "Token("
+					"form=" + py::reprFromCpp(_form) + ", "
+					"tag=" + py::reprFromCpp(_tag) + ", "
+					"start=" + to_string(_pos) + ", "
+					"len=" + to_string(_len) + ")";
+			}
+		}
+		else
+		{
+			if (_sense)
+			{
+				return "Token("
+					"form=" + py::reprFromCpp(_form) + ", "
+					"tag=" + py::reprFromCpp(_tag) + ", "
+					"sense=" + to_string(_sense) + ")";
+			}
+			else
+			{
+				return "Token("
+					"form=" + py::reprFromCpp(_form) + ", "
+					"tag=" + py::reprFromCpp(_tag) + ")";
+			}
+		}
 	}
 };
 
@@ -1083,6 +1115,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ gModule, [](PyTypeObject& obj)
 		{ (char*)"paired_token", PY_GETTER(&TokenObject::_pairedToken), nullptr, "", nullptr},
 		{ (char*)"user_value", PY_GETTER(&TokenObject::_userValue), nullptr, "", nullptr},
 		{ (char*)"script", PY_GETTER(&TokenObject::script), nullptr, "", nullptr},
+		{ (char*)"sense", PY_GETTER(&TokenObject::_sense), nullptr, "", nullptr},
 		{ nullptr },
 	};
 
@@ -1163,6 +1196,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			auto tItem = py::makeNewObject<TokenObject>();
 			tItem->_form = move(q.str);
 			tItem->_regularity = !isIrregular(q.tag);
+			tItem->_rawTag = q.tag;
 			tItem->resultHash = resultHash;
 			tItem->_tag = getTagStr(q.tag, tItem->_form);
 			tItem->_pos = q.position - u32offset;
@@ -1181,6 +1215,10 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			if (q.tag == POSTag::sl || q.tag == POSTag::sh || q.tag == POSTag::sw || q.tag == POSTag::w_emoji)
 			{
 				tItem->_script = q.script;
+			}
+			else
+			{
+				tItem->_sense = q.senseId;
 			}
 
 			if (!q.typoCost && q.typoFormId && userValues[q.typoFormId - 1])
@@ -2297,6 +2335,7 @@ py::UniqueObj KiwiObject::getMorpheme(size_t id)
 	ret->_baseMorph = ret->_morph = morph;
 	ret->_morphId = id;
 	ret->_regularity = !isIrregular(morph->tag);
+	ret->_sense = morph->senseId;
 	return ret;
 }
 
@@ -2317,13 +2356,13 @@ py::UniqueObj KiwiObject::join(PyObject* morphs, bool lmSearch, bool returnPosit
 				space = token._pos <= prevEnd ? cmb::Space::no_space : cmb::Space::insert_space;
 			}
 
-			if (token._morph->kform && !token._morph->kform->empty())
+			if (token._morph && token._morph->kform && !token._morph->kform->empty())
 			{
 				joiner.add(token._morphId, space);
 			}
 			else
 			{
-				joiner.add(token._form, token._morph->tag, false, space);
+				joiner.add(token._form, token._rawTag, false, space);
 			}
 			prevHash = token.resultHash;
 			prevEnd = token.end();

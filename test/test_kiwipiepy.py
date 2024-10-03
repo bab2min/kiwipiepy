@@ -4,7 +4,7 @@ import re
 import tempfile
 import itertools
 
-from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings
+from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings, Match
 from kiwipiepy.utils import Stopwords
 
 curpath = os.path.dirname(os.path.abspath(__file__))
@@ -876,3 +876,9 @@ def test_compatible_jamo():
     assert len(res3) == 2
     assert res3[0].form == u"ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
     assert res3[1].form == u"ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ"
+
+def test_issue_176():
+    kiwi = Kiwi()
+    text = "접사를 결합해 출력합니다."
+    tokens = kiwi.tokenize(text, match_options=Match.JOIN_AFFIX)
+    assert kiwi.join(tokens) == text
