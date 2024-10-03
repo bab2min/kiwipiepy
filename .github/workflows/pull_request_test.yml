@@ -45,7 +45,7 @@ jobs:
 
     - run: tar -zcvf build.tgz build
     - name: Archive binary
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: Linux Binary ${{ matrix.cp }}
         path: build.tgz
@@ -103,7 +103,7 @@ jobs:
 
     - run: tar -zcvf build.tgz build
     - name: Archive binary
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: Linux Binary ${{ matrix.cp }}
         path: build.tgz
