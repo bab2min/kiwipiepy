@@ -634,7 +634,7 @@ score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
 ```
 사전 파일을 성공적으로 읽어들이면, 사전을 통해 새로 추가된 형태소의 개수를 반환합니다. 
 
-실제 예시에 대해서는 [Kiwi에 내장된 기본 사전 파일](https://raw.githubusercontent.com/bab2min/Kiwi/main/ModelGenerator/default.dict)을 참조해주세요.
+실제 예시에 대해서는 [Kiwi에 내장된 기본 사전 파일](https://raw.githubusercontent.com/bab2min/Kiwi/main/models/base/default.dict)을 참조해주세요.
 </details>
 <hr>
 

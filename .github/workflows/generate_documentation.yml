@@ -32,11 +32,11 @@ jobs:
       run: |
         python3 -m pip install pdoc3==0.10.0 numpy transformers
 
-        mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
+        mv Kiwi/models/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
+        mv Kiwi/models/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
+        mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
         
         cd model
         python3 setup.py install
