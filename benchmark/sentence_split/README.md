@@ -41,16 +41,16 @@ $ python sentence_split.py testset/*.txt
 
 ======== Baseline Splitter ========
 [Sentence Split Benchmark] Dataset: testset/blogs.txt
-Gold: 170 sents, System: 151 sents, EM: 0.53529, F1: 0.66847, Normalized F1: 0.59884, Latency: 0.28 msec
+Gold: 170 sents, System: 151 sents, EM: 0.53529, F1: 0.66847, Normalized F1: 0.59884, Latency: 0.29 msec
 
 [Sentence Split Benchmark] Dataset: testset/blogs_ko.txt
-Gold: 346 sents, System: 243 sents, EM: 0.43642, F1: 0.55724, Normalized F1: 0.52607, Latency: 0.33 msec
+Gold: 346 sents, System: 243 sents, EM: 0.43642, F1: 0.55724, Normalized F1: 0.52607, Latency: 0.53 msec
 
 [Sentence Split Benchmark] Dataset: testset/etn.txt
 Gold: 39 sents, System: 26 sents, EM: 0.46154, F1: 0.59857, Normalized F1: 0.59857, Latency: 0.05 msec
 
 [Sentence Split Benchmark] Dataset: testset/nested.txt
-Gold: 91 sents, System: 104 sents, EM: 0.68132, F1: 0.85438, Normalized F1: 0.75991, Latency: 0.16 msec
+Gold: 91 sents, System: 104 sents, EM: 0.68132, F1: 0.85438, Normalized F1: 0.75991, Latency: 0.15 msec
 
 [Sentence Split Benchmark] Dataset: testset/sample.txt
 Gold: 43 sents, System: 26 sents, EM: 0.34884, F1: 0.52431, Normalized F1: 0.52431, Latency: 0.04 msec
@@ -59,35 +59,35 @@ Gold: 43 sents, System: 26 sents, EM: 0.34884, F1: 0.52431, Normalized F1: 0.524
 Gold: 178 sents, System: 140 sents, EM: 0.51124, F1: 0.65446, Normalized F1: 0.61806, Latency: 0.16 msec
 
 [Sentence Split Benchmark] Dataset: testset/v_ending.txt
-Gold: 30 sents, System: 6 sents, EM: 0.00000, F1: 0.11359, Normalized F1: 0.11359, Latency: 0.02 msec
+Gold: 30 sents, System: 6 sents, EM: 0.00000, F1: 0.11359, Normalized F1: 0.11359, Latency: 0.03 msec
 
 [Sentence Split Benchmark] Dataset: testset/wikipedia.txt
 Gold: 326 sents, System: 267 sents, EM: 0.66258, F1: 0.76664, Normalized F1: 0.76379, Latency: 0.42 msec
 
 ======== Kiwi.split_into_sents ========
 [Sentence Split Benchmark] Dataset: testset/blogs.txt
-Gold: 170 sents, System: 178 sents, EM: 0.75294, F1: 0.89831, Normalized F1: 0.83819, Latency: 229.93 msec
+Gold: 170 sents, System: 176 sents, EM: 0.70588, F1: 0.88183, Normalized F1: 0.82171, Latency: 171.42 msec
 
 [Sentence Split Benchmark] Dataset: testset/blogs_ko.txt
-Gold: 346 sents, System: 338 sents, EM: 0.69653, F1: 0.85275, Normalized F1: 0.81506, Latency: 425.63 msec
+Gold: 346 sents, System: 344 sents, EM: 0.64162, F1: 0.85765, Normalized F1: 0.81316, Latency: 318.46 msec
 
 [Sentence Split Benchmark] Dataset: testset/etn.txt
-Gold: 39 sents, System: 39 sents, EM: 0.76923, F1: 0.88685, Normalized F1: 0.85661, Latency: 31.40 msec
+Gold: 39 sents, System: 39 sents, EM: 0.76923, F1: 0.88685, Normalized F1: 0.85661, Latency: 29.17 msec
 
 [Sentence Split Benchmark] Dataset: testset/nested.txt
-Gold: 91 sents, System: 94 sents, EM: 0.71429, F1: 0.95166, Normalized F1: 0.91447, Latency: 198.76 msec
+Gold: 91 sents, System: 95 sents, EM: 0.79121, F1: 0.95392, Normalized F1: 0.90797, Latency: 172.75 msec
 
 [Sentence Split Benchmark] Dataset: testset/sample.txt
-Gold: 43 sents, System: 40 sents, EM: 0.83721, F1: 0.91114, Normalized F1: 0.91114, Latency: 56.42 msec
+Gold: 43 sents, System: 44 sents, EM: 0.83721, F1: 0.93592, Normalized F1: 0.91465, Latency: 29.83 msec
 
 [Sentence Split Benchmark] Dataset: testset/tweets.txt
-Gold: 178 sents, System: 169 sents, EM: 0.65169, F1: 0.83270, Normalized F1: 0.78986, Latency: 126.91 msec
+Gold: 178 sents, System: 169 sents, EM: 0.70787, F1: 0.83580, Normalized F1: 0.79297, Latency: 104.42 msec
 
 [Sentence Split Benchmark] Dataset: testset/v_ending.txt
-Gold: 30 sents, System: 16 sents, EM: 0.23333, F1: 0.40282, Normalized F1: 0.37656, Latency: 20.56 msec
+Gold: 30 sents, System: 16 sents, EM: 0.23333, F1: 0.40282, Normalized F1: 0.37656, Latency: 16.79 msec
 
 [Sentence Split Benchmark] Dataset: testset/wikipedia.txt
-Gold: 326 sents, System: 334 sents, EM: 0.96626, F1: 0.99170, Normalized F1: 0.97104, Latency: 677.18 msec
+Gold: 326 sents, System: 333 sents, EM: 0.96933, F1: 0.99254, Normalized F1: 0.97473, Latency: 434.14 msec
 
 ```
 
