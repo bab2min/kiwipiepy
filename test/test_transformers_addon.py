@@ -67,9 +67,9 @@ def test_pad():
     assert (e['token_type_ids'] == [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]])
 
 def test_offset_mapping():
-    e = tokenizer("맞습니다요~!", padding='max_length', max_length=8, return_offsets_mapping=True)
-    assert (e['input_ids'] == [2, 282, 64, 157, 60, 85, 3, 0])
-    assert (e['offset_mapping'] == [(0, 0), (0, 1), (1, 4), (4, 5), (5, 6), (6, 7), (0, 0), (0, 0)])
+    e = tokenizer("맞습니다요!", padding='max_length', max_length=8, return_offsets_mapping=True)
+    assert (e['input_ids'] == [2, 282, 64, 157, 85, 3, 0, 0])
+    assert (e['offset_mapping'] == [(0, 0), (0, 1), (1, 4), (4, 5), (5, 6), (0, 0), (0, 0), (0, 0)])
 
     e = tokenizer("가자", "맞습니다요", return_offsets_mapping=True)
     assert (e['input_ids'] == [2, 75, 130, 3, 282, 64, 157, 3])

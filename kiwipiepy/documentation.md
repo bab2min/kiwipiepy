@@ -418,9 +418,9 @@ kiwi.extract_words(IterableTextFile('test.txt'), 10, 10, 0.25)
 # 예) 요$	용/EF	-5
 ```
 단어점수는 생략 가능하며, 생략 시 기본값인 0으로 처리됩니다.
-실제 예시에 대해서는 Kiwi에 내장된 기본 사전 파일인 https://raw.githubusercontent.com/bab2min/Kiwi/main/ModelGenerator/default.dict 을 참조해주세요.
+실제 예시에 대해서는 Kiwi에 내장된 기본 사전 파일인 https://raw.githubusercontent.com/bab2min/Kiwi/main/models/base/default.dict 을 참조해주세요.
 
-또한 0.14.0버전부터 내장된 기본 오타 사전이 추가되었습니다. 이에 대해서는 https://raw.githubusercontent.com/bab2min/Kiwi/main/ModelGenerator/typo.dict 을 참조해주세요.
+또한 0.14.0버전부터 내장된 기본 오타 사전이 추가되었습니다. 이에 대해서는 https://raw.githubusercontent.com/bab2min/Kiwi/main/models/base/typo.dict 을 참조해주세요.
 
 언어 모델
 ---------

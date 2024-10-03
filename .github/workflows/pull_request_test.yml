@@ -27,11 +27,11 @@ jobs:
         multipleRun: |
           - name: Build
             run: |
-              mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
-              mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
-              mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
-              mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
-              mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
+              mv Kiwi/models/base/sj.* model/kiwipiepy_model/
+              mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
+              mv Kiwi/models/base/*.dict model/kiwipiepy_model/
+              mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
+              mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
 
               /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
 
@@ -81,11 +81,11 @@ jobs:
         multipleRun: |
           - name: Build
             run: |
-              mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
-              mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
-              mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
-              mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
-              mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
+              mv Kiwi/models/base/sj.* model/kiwipiepy_model/
+              mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
+              mv Kiwi/models/base/*.dict model/kiwipiepy_model/
+              mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
+              mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
 
               /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
 
@@ -134,11 +134,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Build
       run: |
-        mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
+        mv Kiwi/models/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
+        mv Kiwi/models/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
+        mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
         
         python -m pip install numpy==`python .github/workflows/numpy_version.py` setuptools
 
@@ -185,11 +185,11 @@ jobs:
         python -m pip install --upgrade pip setuptools
         python -m pip install numpy==$(python .github/workflows/numpy_version.py)
 
-        mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
+        mv Kiwi/models/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
+        mv Kiwi/models/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
+        mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
         
         cd model
         python setup.py build install
@@ -232,11 +232,11 @@ jobs:
         dockerRunArgs: |
           --volume "${PWD}/artifacts:/artifacts"
         run: |
-          mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
-          mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
-          mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
-          mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
-          mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
+          mv Kiwi/models/base/sj.* model/kiwipiepy_model/
+          mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
+          mv Kiwi/models/base/*.dict model/kiwipiepy_model/
+          mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
+          mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
 
           /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
 

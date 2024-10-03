@@ -116,15 +116,26 @@ basic_typos = TypoTransformer(_basic_defs)
 자주 틀리는 오타들을 포함하고 있습니다. 형태소 내의 오타만 교정할 수 있습니다.
 '''
 
-continual_typos = TypoTransformer(_continual_defs, 1.)
+continual_typos = TypoTransformer(_continual_defs, continual_typo_cost=1.)
 '''
 내장된 기본 연철 오타 자료입니다.
 받침 + 초성 ㅇ/ㅎ을 잘못 이어적은 경우(먹어라 -> 머거라, 않지 -> 안치 등)를 교정할 수 있습니다.
 형태소 간의 오타만 교정할 수 있습니다. 
 '''
 
-basic_typos_with_continual = TypoTransformer(_basic_defs + _continual_defs, 1.)
+basic_typos_with_continual = basic_typos | continual_typos
 '''
 기본 오타와 연철 오타를 합친 것입니다.
 형태소 내의 오타와 형태소 간의 오타를 모두 교정할 수 있습니다.
+'''
+
+lengthening_typos = TypoTransformer([], lengthening_typo_cost=0.25)
+'''
+장음화 오타 자료입니다. 음절 하나를 두 음절 이상으로 길게 늘여적은 경우(진짜 -> 지인짜)를 교정할 수 있습니다.
+'''
+
+basic_typos_with_continual_and_lengthening = basic_typos_with_continual | lengthening_typos
+'''
+기본 오타, 연철 오타, 장음화 오타를 합친 것입니다.
+형태소 내의 오타, 형태소 간의 오타, 장음화 오타를 모두 교정할 수 있습니다.
 '''

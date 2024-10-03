@@ -30,11 +30,11 @@ jobs:
         TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
       run: |
-        mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
+        mv Kiwi/models/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
+        mv Kiwi/models/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
+        mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
         
         yum install libffi-devel -y
         /opt/python/cp39-cp39/bin/python -m pip install --upgrade pip "setuptools<71"
@@ -77,11 +77,11 @@ jobs:
         TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
       run: |
-        mv Kiwi/ModelGenerator/sj.* model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/extract.mdl model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/*.dict model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/combiningRule.txt model/kiwipiepy_model/
-        mv Kiwi/ModelGenerator/skipbigram.mdl model/kiwipiepy_model/
+        mv Kiwi/models/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
+        mv Kiwi/models/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
+        mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
         
         yum install libffi-devel -y
         /opt/python/cp311-cp311/bin/python -m pip install --upgrade pip setuptools
