@@ -92,7 +92,9 @@ jobs:
               cd model
               /opt/python/${{ matrix.cp }}/bin/python setup.py build install
               cd ..
-              /opt/python/${{ matrix.cp }}/bin/python setup.py build install
+              /opt/python/${{ matrix.cp }}/bin/python setup.py build
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1`
+              /opt/python/${{ matrix.cp }}/bin/python setup.py install
           - name: Test kiwipiepy
             run: |
               /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
@@ -145,7 +147,9 @@ jobs:
         cd ..
         
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 python setup.py build
-        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py build install
+        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py build
+        python -m pip install numpy==`python .github/workflows/numpy_version.py v1`
+        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py install
     - name: Archive binary
       uses: actions/upload-artifact@v3
       with:
@@ -190,7 +194,9 @@ jobs:
         cd model
         python setup.py build install
         cd ..
-        $env:USE_MIMALLOC = 1; python setup.py build install
+        $env:USE_MIMALLOC = 1; python setup.py build
+        python -m pip install numpy==$(python .github/workflows/numpy_version.py v1)
+        $env:USE_MIMALLOC = 1; python setup.py install
     - name: Archive binary
       uses: actions/upload-artifact@v3
       with:
@@ -237,7 +243,9 @@ jobs:
           cd model
           /opt/python/${{ matrix.cp }}/bin/python setup.py build install
           cd ..
-          /opt/python/${{ matrix.cp }}/bin/python setup.py build install bdist_wheel
+          /opt/python/${{ matrix.cp }}/bin/python setup.py build
+          /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1`
+          /opt/python/${{ matrix.cp }}/bin/python setup.py install bdist_wheel
 
           tar -zcvf /artifacts/build.tgz build/*
           cp -r dist /artifacts/
