@@ -37,21 +37,21 @@ jobs:
         mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
         
         yum install libffi-devel -y
-        /opt/python/cp39-cp39/bin/python -m pip install --upgrade pip "setuptools<71"
-        /opt/python/cp39-cp39/bin/python -m pip install "readme-renderer==41.0" "cryptography<38" "twine<4" wheel numpy==`/opt/python/cp39-cp39/bin/python .github/workflows/numpy_version.py`
-        /opt/python/cp39-cp39/bin/python setup.py sdist
-        /opt/python/cp39-cp39/bin/python -m twine upload --repository testpypi dist/*.tar.gz
+        /opt/python/cp38-cp38/bin/python -m pip install --upgrade pip "setuptools<71"
+        /opt/python/cp38-cp38/bin/python -m pip install "readme-renderer==41.0" "cryptography<38" "twine<4" wheel numpy==`/opt/python/cp38-cp38/bin/python .github/workflows/numpy_version.py`
+        /opt/python/cp38-cp38/bin/python setup.py sdist
+        /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi dist/*.tar.gz
         for cp in cp37-cp37m cp38-cp38
         do
           /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
           USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
           auditwheel repair dist/*-${cp}-linux_x86_64.whl
         done
-        /opt/python/cp39-cp39/bin/python -m twine upload --repository testpypi wheelhouse/*.whl
+        /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi wheelhouse/*.whl
         
         cd model
-        /opt/python/cp39-cp39/bin/python setup.py sdist
-        /opt/python/cp39-cp39/bin/python -m twine upload --repository testpypi dist/*.tar.gz
+        /opt/python/cp38-cp38/bin/python setup.py sdist
+        /opt/python/cp38-cp38/bin/python -m twine upload --repository testpypi dist/*.tar.gz
 
   build_manylinux2014:
     name: Build for manylinux2014
