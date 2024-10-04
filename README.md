@@ -347,6 +347,25 @@ True
  Token(form='니', tag='EC', start=5, len=1),
  Token(form='?', tag='SF', start=6, len=1)]
 
+# 0.19.0 버전에서는 장음화 오류(한 음절을 여러 음절로 늘려 적는 오류)가 
+# 포함된 텍스트를 교정하는 기능도 추가되었습니다.
+>>> kiwi = Kiwi(typos='lengthening')
+>>> kiwi.tokenize('지이인짜 귀여워요')
+[Token(form='진짜', tag='MAG', start=0, len=4), 
+ Token(form='귀엽', tag='VA-I', start=5, len=3), 
+ Token(form='어요', tag='EF', start=7, len=2)]
+
+# 기본 오타 교정 + 연철 오타 교정 + 장음화 오류 교정을 함께 사용할 수도 있습니다.
+>>> kiwi = Kiwi(typos='basic_with_continual_and_lengthening')
+>>> kiwi.tokenize('지이인짜 기여워요~ 마니 좋아해')
+[Token(form='진짜', tag='MAG', start=0, len=4),
+ Token(form='귀엽', tag='VA-I', start=5, len=3),
+ Token(form='어요', tag='EF', start=7, len=2), 
+ Token(form='~', tag='SO', start=9, len=1), 
+ Token(form='많이', tag='MAG', start=11, len=2), 
+ Token(form='좋아하', tag='VV', start=14, len=3), 
+ Token(form='어', tag='EF', start=16, len=1)]
+
 # 0.17.0 버전부터는 사용자 사전에 공백이 있는 단어를 추가할 수 있습니다.
 >>> kiwi = Kiwi()
 # '대학생 선교회'라는 단어를 등록합니다.
@@ -408,7 +427,7 @@ kiwi.tokenize('대학생선교회에서')
 >>> tokens = kiwi.tokenize('résumé')
 >>> tokens
 [Token(form='résumé', tag='SL', start=0, len=6)]
-# 참고 v0.17의 결과
+# 참고 v0.17까지의 결과
 # [Token(form='r', tag='SL', start=0, len=1), 
 #  Token(form='é', tag='SW', start=1, len=1), 
 #  Token(form='sum', tag='SL', start=2, len=3), 
@@ -427,6 +446,16 @@ kiwi.tokenize('대학생선교회에서')
 [Token(form='ฉันชอบกินข้าวผัด', tag='SW', start=0, len=16)]
 >>> tokens[0].script
 'Thai'
+
+# 0.18.1버전부터는 받침만으로 구성된 형태소 출력시 
+# 호환용 자모를 사용하는 옵션을 제공합니다.
+>>> kiwi.tokenize('예쁜데')
+[Token(form='예쁘', tag='VA', start=0, len=2),
+ Token(form='ᆫ데', tag='EF', start=1, len=2)]
+>>> kiwi.tokenize('예쁜데', compatible_jamo=True) 
+[Token(form='예쁘', tag='VA', start=0, len=2),
+ Token(form='ㄴ데', tag='EF', start=1, len=2)] 
+# 받침 ᆫ이 호환용 자모인 ㄴ으로 변환되어 출력됨
 ```
 
 ## 시작하기

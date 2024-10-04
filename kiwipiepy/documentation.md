@@ -14,10 +14,10 @@ $ pip install kiwipiepy
 ```
 지원하는 OS와 Python 버전은 다음과 같습니다:
 
-* Python 3.6 이상이 설치된 Linux (x86-64) 
-* Python 3.6 이상이 설치된 macOS 10.13이나 그 이후 버전
-* Python 3.6 이상이 설치된 Windows 7 이나 그 이후 버전 (x86, x86-64)
-* Python 3.6 이상이 설치된 다른 OS: 이 경우 소스 코드 컴파일을 위해 C++11이 지원되는 컴파일러가 필요합니다.
+* Python 3.7 이상이 설치된 Linux (x86-64) 
+* Python 3.7 이상이 설치된 macOS 10.13이나 그 이후 버전
+* Python 3.7 이상이 설치된 Windows 7 이나 그 이후 버전 (x86, x86-64)
+* Python 3.7 이상이 설치된 다른 OS: 이 경우 소스 코드 컴파일을 위해 C++11이 지원되는 컴파일러가 필요합니다.
 
 Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명령어를 실행해보십시오.
 
