@@ -2,6 +2,7 @@ import re
 from functools import partial
 from typing import Callable, List, Dict, Optional, Tuple, Union, Iterable, NamedTuple, NewType, Any
 from dataclasses import dataclass
+import itertools
 import warnings
 
 import _kiwipiepy
@@ -154,6 +155,17 @@ Notes
  Token(form='었', tag='EP', start=4, len=1), 
  Token(form='다', tag='EF', start=5, len=1)]
 ```
+
+서로 다른 오타 생성기를 합치기 위해서 `|` 연산자를 사용할 수 있습니다.
+```python
+>>> typos1 = TypoTransformer([
+    TypoDefinition(["ㅐ", "ㅔ"], ["ㅐ", "ㅔ"], 1.),
+    ])
+>>> typos2 = TypoTransformer([
+    TypoDefinition(["ㅔ"], ["ㅖ"], 2.),
+    ])
+>>> typos = typos1 | typos2 # typos1과 typos2를 합친 오타 생성기 생성
+```
     '''
 
     def __init__(self,
@@ -191,11 +203,15 @@ errors: List[Tuple[str, float]]
         return super().generate(text, cost_threshold)
 
     def copy(self) -> 'TypoTransformer':
-        '''현재 오타 생성기의 복사본을 생성합니다.'''
+        '''.. versionadded:: 0.19.0
+        
+        현재 오타 생성기의 복사본을 생성합니다.'''
         return super().copy(TypoTransformer)
 
     def update(self, other:'TypoTransformer'):
-        '''다른 오타 생성기의 오타 정의를 현재 오타 생성기에 추가합니다.'''
+        '''.. versionadded:: 0.19.0
+        
+        다른 오타 생성기의 오타 정의를 현재 오타 생성기에 추가합니다.'''
         super().update(other)
 
     def scale_cost(self, scale:float):
@@ -232,7 +248,9 @@ errors: List[Tuple[str, float]]
     
     @property
     def lengthening_typo_cost(self) -> float:
-        '''장음화에 대한 교정 비용'''
+        '''.. versionadded:: 0.19.0
+        
+        장음화에 대한 교정 비용'''
         return self._lengthening_typo_cost
 
     def __repr__(self):
@@ -1143,8 +1161,6 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ):
-        import itertools
-
         def _refine_result(results):
             if not split_sents:
                 return results[0][0] if stopwords is None else stopwords.filter(results[0][0])

@@ -471,8 +471,10 @@ Kiwi는 최적의 형태소 조합을 탐색하기 위해 내부적으로 언어
 오타 교정을 위해서는 특정 형태소가 어떤 식으로 오타로 변형되는지 정의한, 오타 정의자가 필요합니다. 패키지에는 다음과 같이 세 종류의 기본 오타 정의자가 내장되어 있습니다.
 
 * `kiwipiepy.basic_typos` (`'basic'`): 형태소 내의 오타를 교정하는 기본적인 오타 정의자입니다.
-* `kiwipiepy.continual_typos` (`'continual'`): 형태소 간의 연철 오타를 교정하는 오타 정의자입니다. (v0.17.1부터 지원)
-* `kiwipiepy.basic_typos_with_continual` (`'basic_with_continual'`): 위 두 오타 정의자를 합친 오타 정의자입니다. (v0.17.1부터 지원)
+* `kiwipiepy.continual_typos` (`'continual'`): 형태소 간의 연철 오타(`책을` <- `채글`)를 교정하는 오타 정의자입니다. (v0.17.1부터 지원)
+* `kiwipiepy.lengthening_typos` (`'lengthening'`): 한 음절을 여러 음절로 늘려 적은 오타(`진짜` <- `지인짜`)를 교정하는 오타 정의자입니다. (v0.19.0부터 지원)
+* `kiwipiepy.basic_typos_with_continual` (`'basic_with_continual'`): basic과 continual 두 오타 정의자를 합친 오타 정의자입니다. (v0.17.1부터 지원)
+* `kiwipiepy.basic_typos_with_continual_and_lengthening` (`'basic_with_continual_and_lengthening'`): basic, continual, lengthening 세 오타 정의자를 합친 오타 정의자입니다. (v0.19.0부터 지원)
 
 위의 기본 오타 정의자를 사용하거나 혹은 직접 오타 정의자를 정의하여 사용할 수 있습니다.
 ```python
@@ -622,6 +624,14 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.19.0 (2024-10-03)
+    * Kiwi 0.19.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.19.0 )이 반영되었습니다.
+        * 장음화 오타 정정 기능 추가(ex: 지인짜 -> 진짜)
+        * 분석 속도 평균 30% 향상
+        * 순서 있는 글머리가 여럿 섞인 문장을 분석할 때 종결어미 `-다.`가 종종 SB 태그로 오분석되는 버그 수정
+    * `Match.JOIN_*` 옵션으로 생성된 형태소 분석결과를 다시 `Kiwi.join`에 넣을 경우 크래시가 발생하던 버그 수정
+    * `TypoTransformer`에 `copy()`, `update()`, `scale_cost()` 메소드 및 `|` 연산자, `*` 연산자 오버로딩이 추가되었습니다.
+
 * 0.18.1 (2024-09-08)
     * Kiwi 0.18.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.18.1 )이 반영되었습니다.
         * PreTokenizedSpan과 SPLIT_COMPLEX를 동시에 사용시 종종 빈 결과값이 나오던 버그가 수정되었습니다.
