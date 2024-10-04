@@ -631,6 +631,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
         * 순서 있는 글머리가 여럿 섞인 문장을 분석할 때 종결어미 `-다.`가 종종 SB 태그로 오분석되는 버그 수정
     * `Match.JOIN_*` 옵션으로 생성된 형태소 분석결과를 다시 `Kiwi.join`에 넣을 경우 크래시가 발생하던 버그 수정
     * `TypoTransformer`에 `copy()`, `update()`, `scale_cost()` 메소드 및 `|` 연산자, `*` 연산자 오버로딩이 추가되었습니다.
+    * Python>=3.9용 패키지에 대해 numpy 2와 호환성을 갖췄습니다.
 
 * 0.18.1 (2024-09-08)
     * Kiwi 0.18.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.18.1 )이 반영되었습니다.
