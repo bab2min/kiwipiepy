@@ -626,7 +626,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 ----
 * 0.19.0 (2024-10-03)
     * Kiwi 0.19.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.19.0 )이 반영되었습니다.
-        * 장음화 오타 정정 기능 추가(ex: 지인짜 -> 진짜)
+        * 장음화 오타 정정 기능 추가(ex: 지인짜 -> 진짜). Kiwi 초기화 시 typos='lengthening' 옵션으로 사용 가능합니다.
         * 분석 속도 평균 30% 향상
         * 순서 있는 글머리가 여럿 섞인 문장을 분석할 때 종결어미 `-다.`가 종종 SB 태그로 오분석되는 버그 수정
     * `Match.JOIN_*` 옵션으로 생성된 형태소 분석결과를 다시 `Kiwi.join`에 넣을 경우 크래시가 발생하던 버그 수정
