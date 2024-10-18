@@ -233,6 +233,11 @@ struct HSDatasetObject : py::CObject<HSDatasetObject>
 		return hsd.getWindowSize();
 	}
 
+	const kiwi::Vector<uint8_t>& getWindowTokenValidness() const
+	{
+		return hsd.getWindowTokenValidness();
+	}
+
 	size_t numSents() const
 	{
 		return hsd.numSents();
@@ -287,6 +292,7 @@ py::TypeWrapper<HSDatasetObject> _HSDatasetSetter{ gModule, [](PyTypeObject& obj
 		{ (char*)"batch_size", PY_GETTER(&HSDatasetObject::getBatchSize), nullptr, "", nullptr },
 		{ (char*)"window_size", PY_GETTER(&HSDatasetObject::getWindowSize), nullptr, "", nullptr },
 		{ (char*)"num_sents", PY_GETTER(&HSDatasetObject::numSents), nullptr, "", nullptr },
+		{ (char*)"window_token_validness", PY_GETTER(&HSDatasetObject::getWindowTokenValidness), nullptr, "", nullptr },
 		{ nullptr },
 	};
 	static PySequenceMethods seq = {
@@ -328,8 +334,9 @@ struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
 	py::UniqueObj iternext()
 	{
 		const size_t batchSize = obj->hsd.getBatchSize();
+		const size_t causalContextSize = obj->hsd.getCausalContextSize();
 		const size_t windowSize = obj->hsd.getWindowSize();
-		npy_intp sizes[2] = { (npy_intp)batchSize * 4, (npy_intp)windowSize };
+		npy_intp sizes[2] = { (npy_intp)batchSize * 4, (npy_intp)(causalContextSize + windowSize) };
 		py::UniqueObj inData{ PyArray_EMPTY(2, sizes, NPY_INT64, 0) };
 		py::UniqueObj outData{ PyArray_EMPTY(1, sizes, NPY_INT64, 0) };
 		py::UniqueObj lmLProbsData{ PyArray_EMPTY(1, sizes, NPY_FLOAT32, 0) };
@@ -910,8 +917,22 @@ struct KiwiObject : py::CObject<KiwiObject>
 	size_t loadUserDictionary(const char* path);
 	py::UniqueObj getMorpheme(size_t id);
 	py::UniqueObj join(PyObject* morphs, bool lmSearch = true, bool returnPositions = false);
-	py::UniqueObj makeHSDataset(PyObject* inputPathes, size_t batchSize, size_t windowSize, size_t numWorkers, 
-		float dropout = 0, PyObject* tokenFilter = nullptr, float splitRatio = 0, bool separateDefaultMorpheme = false, size_t seed = 42) const;
+	
+
+	py::UniqueObj makeHSDataset(PyObject* inputPathes, 
+		size_t batchSize, 
+		size_t causalContextSize, 
+		size_t windowSize, 
+		size_t numWorkers, 
+		float dropout = 0, 
+		PyObject* tokenFilter = nullptr, 
+		PyObject* windowFilter = nullptr, 
+		float splitRatio = 0, 
+		bool separateDefaultMorpheme = false, 
+		PyObject* morphemeDefPath = nullptr,
+		size_t morphemeDefMinCnt = 0,
+		size_t seed = 42) const;
+
 	py::UniqueObj listAllScripts() const;
 
 	float getCutOffThreshold() const
@@ -2511,10 +2532,21 @@ py::UniqueObj KiwiObject::join(PyObject* morphs, bool lmSearch, bool returnPosit
 	}
 }
 
-py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, size_t batchSize, size_t windowSize, size_t numWorkers, 
-	float dropout, PyObject* tokenFilter, float splitRatio, bool separateDefaultMorpheme, size_t seed) const
+py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, 
+	size_t batchSize, 
+	size_t causalContextSize, 
+	size_t windowSize, 
+	size_t numWorkers, 
+	float dropout, 
+	PyObject* tokenFilter, 
+	PyObject* windowFilter, 
+	float splitRatio, 
+	bool separateDefaultMorpheme, 
+	PyObject* morphemeDefPath,
+	size_t morphemeDefMinCnt,
+	size_t seed) const
 {
-	KiwiBuilder::TokenFilter tf;
+	KiwiBuilder::TokenFilter tf, wf;
 	if (tokenFilter && tokenFilter != Py_None)
 	{
 		tf = [&](const u16string& form, POSTag tag)
@@ -2526,9 +2558,38 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, size_t batchSize,
 			return !!truth;
 		};
 	}
+	if (windowFilter && windowFilter != Py_None)
+	{
+		wf = [&](const u16string& form, POSTag tag)
+		{
+			py::UniqueObj ret{ PyObject_CallObject(windowFilter, py::buildPyTuple(form, tagToString(tag)).get()) };
+			if (!ret) throw py::ExcPropagation{};
+			auto truth = PyObject_IsTrue(ret.get());
+			if (truth < 0) throw py::ExcPropagation{};
+			return !!truth;
+		};
+	}
+
+	string morphemeDefPathStr;
+	if (morphemeDefPath && morphemeDefPath != Py_None)
+	{
+		morphemeDefPathStr = py::toCpp<string>(morphemeDefPath);
+	}
 
 	HSDataset anotherDataset;
-	auto dataset = builder.makeHSDataset(py::toCpp<vector<string>>(inputPathes), batchSize, windowSize, numWorkers, dropout, tf, splitRatio, separateDefaultMorpheme, &anotherDataset);
+	auto dataset = builder.makeHSDataset(py::toCpp<vector<string>>(inputPathes), 
+		batchSize, 
+		causalContextSize, 
+		windowSize, 
+		numWorkers, 
+		dropout, 
+		tf, 
+		wf, 
+		splitRatio, 
+		separateDefaultMorpheme, 
+		morphemeDefPathStr,
+		morphemeDefMinCnt,
+		&anotherDataset);
 	dataset.seed(seed);
 	if (splitRatio == 0)
 	{

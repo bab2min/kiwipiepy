@@ -1157,11 +1157,11 @@ namespace py
 	static constexpr force_list_t force_list{};
 
 #ifdef USE_NUMPY
-	template<typename _Ty>
-	struct ValueBuilder<std::vector<_Ty>,
+	template<typename _Ty, typename _Alloc>
+	struct ValueBuilder<std::vector<_Ty, _Alloc>,
 		typename std::enable_if<numpy_able<_Ty>::value>::type>
 	{
-		UniqueObj operator()(const std::vector<_Ty>& v)
+		UniqueObj operator()(const std::vector<_Ty, _Alloc>& v)
 		{
 			npy_intp size = v.size();
 			UniqueObj obj{ PyArray_EMPTY(1, &size, detail::NpyType<_Ty>::type, 0) };
@@ -1169,7 +1169,7 @@ namespace py
 			return obj;
 		}
 
-		bool _toCpp(PyObject* obj, std::vector<_Ty>& out)
+		bool _toCpp(PyObject* obj, std::vector<_Ty, _Alloc>& out)
 		{
 			if (detail::NpyType<_Ty>::npy_type >= 0 && PyArray_Check(obj) && PyArray_TYPE((PyArrayObject*)obj) == detail::NpyType<_Ty>::npy_type)
 			{
@@ -1181,7 +1181,7 @@ namespace py
 			{
 				UniqueObj iter{ PyObject_GetIter(obj) }, item;
 				if (!iter) return false;
-				std::vector<_Ty> v;
+				std::vector<_Ty, _Alloc> v;
 				while ((item = UniqueObj{ PyIter_Next(iter.get()) }))
 				{
 					_Ty i;
