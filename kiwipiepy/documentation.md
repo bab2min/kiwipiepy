@@ -624,6 +624,13 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.19.0 (2024-10-19)
+    * Kiwi 0.19.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.19.1 )이 반영되었습니다.
+        * 앞쪽의 특수 문자가 형태소와 잘못 결합하여 분석되는 버그 수정
+        * 오타 교정을 켠 상태에서 PretokenizedSpan 혹은 blocklist를 사용할때 오류가 발생하는 버그 수정
+        * XSM 태그가 종종 접두사 위치에 등장하는 버그 수정
+        * `서툰`, `내민` 등의 형태가 명사로 잘못 분석되는 버그 수정
+
 * 0.19.0 (2024-10-03)
     * Kiwi 0.19.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.19.0 )이 반영되었습니다.
         * 장음화 오타 정정 기능 추가(ex: 지인짜 -> 진짜). Kiwi 초기화 시 typos='lengthening' 옵션으로 사용 가능합니다.
