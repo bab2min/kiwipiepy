@@ -1950,15 +1950,34 @@ ValueError: cannot specify format specifier for Kiwi Token
         self,
         inputs:List[str],
         batch_size:int = 128, 
+        causal_context_size:int = 0,
         window_size:int = 8, 
         num_workers:int = 1, 
         dropout:float = 0, 
+        dropout_on_history:float = 0,
         token_filter:Callable[[str, str], bool] = None, 
+        window_filter:Callable[[str, str], bool] = None, 
         split_ratio:float = 0, 
         separate_default_morpheme:bool = False,
+        morpheme_def_path:str = None,
+        morpheme_def_min_cnt:int = 0,
         seed:int = 0,
     ):
-        return super().make_hsdataset(inputs, batch_size, window_size, num_workers, dropout, token_filter, split_ratio, separate_default_morpheme, seed)
+        return super().make_hsdataset(
+            inputs, 
+            batch_size, 
+            causal_context_size, 
+            window_size, 
+            num_workers, 
+            dropout, 
+            dropout_on_history, 
+            token_filter, 
+            window_filter, 
+            split_ratio, 
+            separate_default_morpheme, 
+            morpheme_def_path, 
+            morpheme_def_min_cnt, 
+            seed)
 
 
 def extract_substrings(
