@@ -1713,6 +1713,7 @@ Notes
                 if last < t.start:
                     if (t.tag.startswith('E') or t.tag.startswith('J') or t.tag.startswith('XS')
                         or t.tag == 'VX' and t.form in '하지'
+                        or prev_tag == 'SN' and t.tag == 'NNB'
                     ):
                         s = any_ws.sub('', raw[last:t.start])
                     else:
