@@ -1726,7 +1726,10 @@ Notes
                         # 이전에 공백이 없는 경우만 삽입
                         chunks.append(' ') 
                 if last < t.end:
-                    s = any_ws.sub('', raw[last:t.end])
+                    if t.tag.startswith('NN'):
+                        s = t.form
+                    else:
+                        s = any_ws.sub('', raw[last:t.end])
                     if s: chunks.append(s)
                 last = t.end
                 prev_tag = t.tag
