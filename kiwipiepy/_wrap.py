@@ -929,6 +929,7 @@ result: List[Tuple[str, float, int, float]]
         z_coda:bool = True,
         split_complex:bool = False,
         compatible_jamo:bool = False,
+        saisiot:Optional[bool] = None,
         blocklist:Optional[Union[MorphemeSet, Iterable[str]]] = None,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ) -> List[Tuple[List[Token], float]]:
@@ -954,6 +955,8 @@ z_coda: bool
 split_complex: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 compatible_jamo: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+saistiot: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 blocklist: Union[Iterable[str], MorphemeSet]
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
@@ -1004,6 +1007,11 @@ with open('result.txt', 'w', encoding='utf-8') as output:
             match_options |= Match.SPLIT_COMPLEX
         if compatible_jamo:
             match_options |= Match.COMPATIBLE_JAMO
+        if saisiot is True:
+            match_options = (match_options & ~Match.MERGE_SAISIOT) | Match.SPLIT_SAISIOT
+        elif saisiot is False:
+            match_options = (match_options & ~Match.SPLIT_SAISIOT) | Match.MERGE_SAISIOT
+
         if isinstance(blocklist, MorphemeSet):
             if blocklist.kiwi != self: 
                 warnings.warn("This `MorphemeSet` isn't based on current Kiwi object.")
@@ -1155,6 +1163,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         z_coda:bool = True,
         split_complex:bool = False,
         compatible_jamo:bool = False,
+        saisiot:Optional[bool] = None,
         split_sents:bool = False,
         stopwords:Optional[Stopwords] = None,
         echo:bool = False,
@@ -1181,6 +1190,11 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
             match_options |= Match.SPLIT_COMPLEX
         if compatible_jamo:
             match_options |= Match.COMPATIBLE_JAMO
+        
+        if saisiot is True:
+            match_options = (match_options & ~Match.MERGE_SAISIOT) | Match.SPLIT_SAISIOT
+        elif saisiot is False:
+            match_options = (match_options & ~Match.SPLIT_SAISIOT) | Match.MERGE_SAISIOT
 
         if isinstance(blocklist, MorphemeSet):
             if blocklist.kiwi != self: 
@@ -1209,6 +1223,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         z_coda:bool = True,
         split_complex:bool = False,
         compatible_jamo:bool = False,
+        saisiot:Optional[bool] = None,
         split_sents:bool = False,
         stopwords:Optional[Stopwords] = None,
         echo:bool = False,
@@ -1249,6 +1264,13 @@ compatible_jamo: bool
 
     True인 경우 분석 결과의 첫가끝 자모를 호환용 자모로 변환하여 출력합니다.
     예를 들어 "ᆫ다/EF"는 "ㄴ다/EF"로, "ᆯ/ETM"은 "ㄹ/ETM"으로 변환됩니다.
+saisiot: bool
+
+    .. versionadded:: 0.20.0
+
+    True인 경우 합성명사의 사이시옷을 분리하여 출력하고, False인 경우 사이시옷이 포함된 것으로 추정되는 합성명사를 결합하여 출력합니다.
+    None인 경우 별도의 사이시옷 처리 없이 Kiwi 기본 사전에 등재된 명사 사전에 기반해 분석합니다.
+
 split_sents: bool
     .. versionadded:: 0.10.3
 
@@ -1387,7 +1409,8 @@ Notes
  Token(form='.', tag='SF', start=25, len=1)]
 ```
         '''
-        return self._tokenize(text, match_options, normalize_coda, z_coda, split_complex, compatible_jamo, 
+        return self._tokenize(text, match_options, normalize_coda, 
+                              z_coda, split_complex, compatible_jamo, saisiot,
                               split_sents, stopwords, echo, 
                               blocklist=blocklist, 
                               pretokenized=pretokenized
@@ -1400,6 +1423,7 @@ Notes
         z_coda:bool = True,
         split_complex:bool = False,
         compatible_jamo:bool = False,
+        saisiot:Optional[bool] = None,
         stopwords:Optional[Stopwords] = None,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
         return_tokens:bool = False,
@@ -1425,6 +1449,8 @@ z_coda: bool
 split_complex: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 compatible_jamo: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+saisiot: Optional[bool]
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 stopwords: Stopwords
 
@@ -1532,6 +1558,7 @@ Notes
                                                 z_coda=z_coda, 
                                                 split_complex=split_complex, 
                                                 compatible_jamo=compatible_jamo,
+                                                saisiot=saisiot,
                                                 blocklist=blocklist, 
                                                 split_sents=True), text))
 
@@ -1541,6 +1568,7 @@ Notes
                                                 z_coda=z_coda, 
                                                 split_complex=split_complex, 
                                                 compatible_jamo=compatible_jamo,
+                                                saisiot=saisiot,
                                                 blocklist=blocklist, 
                                                 split_sents=True, 
                                                 echo=True))
