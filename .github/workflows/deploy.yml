@@ -44,7 +44,7 @@ jobs:
         /opt/python/cp38-cp38/bin/python -m pip install "readme-renderer==41.0" "cryptography<38" "twine<4" wheel numpy==`/opt/python/cp38-cp38/bin/python .github/workflows/numpy_version.py`
         /opt/python/cp38-cp38/bin/python setup.py sdist
         /opt/python/cp38-cp38/bin/python -m twine upload dist/*.tar.gz
-        for cp in cp37-cp37m cp38-cp38
+        for cp in cp38-cp38
         do
           /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
           USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
@@ -89,7 +89,7 @@ jobs:
         yum install libffi-devel -y
         /opt/python/cp311-cp311/bin/python -m pip install --upgrade pip setuptools
         /opt/python/cp311-cp311/bin/python -m pip install twine wheel numpy==`/opt/python/cp311-cp311/bin/python .github/workflows/numpy_version.py`
-        for cp in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312
+        for cp in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313
         do
           /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
           USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
@@ -103,7 +103,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.8, 3.9, "3.10", 3.11, 3.12]
+        python-version: [3.8, 3.9, "3.10", 3.11, 3.12, 3.13]
 
     steps:
     - uses: actions/checkout@v2
@@ -131,7 +131,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.7, 3.8, 3.9, "3.10", 3.11, 3.12]
+        python-version: [3.8, 3.9, "3.10", 3.11, 3.12]
         architecture: [x86, x64]
 
     steps:
@@ -181,7 +181,7 @@ jobs:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |          
-          for cp in cp37-cp37m cp38-cp38 cp39-cp39
+          for cp in cp38-cp38 cp39-cp39
           do
             /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
             USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
@@ -223,7 +223,7 @@ jobs:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |          
-          for cp in cp310-cp310 cp311-cp311 cp312-cp312
+          for cp in cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313
           do
             /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
             USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel

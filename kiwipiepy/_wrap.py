@@ -1713,6 +1713,7 @@ Notes
                 if last < t.start:
                     if (t.tag.startswith('E') or t.tag.startswith('J') or t.tag.startswith('XS')
                         or t.tag == 'VX' and t.form in '하지'
+                        or prev_tag == 'SN' and t.tag == 'NNB'
                     ):
                         s = any_ws.sub('', raw[last:t.start])
                     else:
@@ -1726,7 +1727,10 @@ Notes
                         # 이전에 공백이 없는 경우만 삽입
                         chunks.append(' ') 
                 if last < t.end:
-                    s = any_ws.sub('', raw[last:t.end])
+                    if t.tag.startswith('NN'):
+                        s = t.form
+                    else:
+                        s = any_ws.sub('', raw[last:t.end])
                     if s: chunks.append(s)
                 last = t.end
                 prev_tag = t.tag

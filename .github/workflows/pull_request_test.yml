@@ -33,7 +33,7 @@ jobs:
               mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
               mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
 
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
 
               cd model
               /opt/python/${{ matrix.cp }}/bin/python setup.py build install
@@ -66,7 +66,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        cp: [cp39-cp39, cp310-cp310, cp311-cp311, cp312-cp312]
+        cp: [cp39-cp39, cp310-cp310, cp311-cp311, cp312-cp312, cp313-cp313]
 
     steps:
     - uses: actions/checkout@v3
@@ -87,13 +87,13 @@ jobs:
               mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
               mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
 
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
 
               cd model
               /opt/python/${{ matrix.cp }}/bin/python setup.py build install
               cd ..
               /opt/python/${{ matrix.cp }}/bin/python setup.py build
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1`
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1` || true
               /opt/python/${{ matrix.cp }}/bin/python setup.py install
           - name: Test kiwipiepy
             run: |
@@ -121,7 +121,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.8, 3.9, "3.10", 3.11, 3.12]
+        python-version: [3.8, 3.9, "3.10", 3.11, 3.12, 3.13]
 
     steps:
     - uses: actions/checkout@v2
@@ -148,7 +148,7 @@ jobs:
         
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 python setup.py build
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py build
-        python -m pip install numpy==`python .github/workflows/numpy_version.py v1`
+        python -m pip install numpy==`python .github/workflows/numpy_version.py v1` || true
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py install
     - name: Archive binary
       uses: actions/upload-artifact@v3
@@ -195,7 +195,7 @@ jobs:
         python setup.py build install
         cd ..
         $env:USE_MIMALLOC = 1; python setup.py build
-        python -m pip install numpy==$(python .github/workflows/numpy_version.py v1)
+        Try { python -m pip install numpy==$(python .github/workflows/numpy_version.py v1) } Catch {}
         $env:USE_MIMALLOC = 1; python setup.py install
     - name: Archive binary
       uses: actions/upload-artifact@v3
@@ -214,7 +214,7 @@ jobs:
     strategy:
       max-parallel: 8
       matrix:
-        cp: [cp39-cp39, cp310-cp310, cp311-cp311, cp312-cp312]
+        cp: [cp39-cp39, cp310-cp310, cp311-cp311, cp312-cp312, cp313-cp313]
         arch: [aarch64]
 
     steps:
@@ -238,13 +238,13 @@ jobs:
           mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
           mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
 
-          /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
+          /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
 
           cd model
           /opt/python/${{ matrix.cp }}/bin/python setup.py build install
           cd ..
           /opt/python/${{ matrix.cp }}/bin/python setup.py build
-          /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1`
+          /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1` || true
           /opt/python/${{ matrix.cp }}/bin/python setup.py install bdist_wheel
 
           tar -zcvf /artifacts/build.tgz build/*
