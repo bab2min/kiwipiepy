@@ -11,7 +11,7 @@ def tokenize(args, kiwi:Kiwi):
     try:
         while True:
             txt = input('>>> ')
-            for res in kiwi.analyze(txt, args.top_n, normalize_coda=args.normalize_coda):
+            for res in kiwi.analyze(txt, args.top_n, normalize_coda=args.normalize_coda, saisiot=args.saisiot):
                 pprint(res)
     except (EOFError, KeyboardInterrupt):
         print()
@@ -45,7 +45,7 @@ def split(args, kiwi:Kiwi):
     try:
         while True:
             txt = input('>>> ')
-            for res in kiwi.split_into_sents(txt, normalize_coda=args.normalize_coda):
+            for res in kiwi.split_into_sents(txt, normalize_coda=args.normalize_coda, saisiot=args.saisiot):
                 pprint(res)
     except (EOFError, KeyboardInterrupt):
         print()
@@ -66,13 +66,15 @@ def main(args):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_path')
-    parser.add_argument('--model_type', default='knlm', choices=['knlm', 'sbg'])
-    parser.add_argument('--top_n', default=1, type=int)
-    parser.add_argument('--normalize_coda', default=False, action='store_true')
-    parser.add_argument('--reset_whitespace', default=False, action='store_true')
+    parser.add_argument('--model-path')
+    parser.add_argument('--model-type', default='knlm', choices=['knlm', 'sbg'])
+    parser.add_argument('--top-n', default=1, type=int)
+    parser.add_argument('--normalize-coda', default=False, action='store_true')
+    parser.add_argument('--reset-whitespace', default=False, action='store_true')
     parser.add_argument('--task', default='tokenize', choices=['tokenize', 'space', 'join', 'split'])
     parser.add_argument('--typos')
-    parser.add_argument('--typo_cost_threshold', default=2.5, type=float)
+    parser.add_argument('--typo-cost-threshold', default=2.5, type=float)
+    parser.add_argument('--saisiot', default=None, action='store_true')
+    parser.add_argument('--no-saisiot', action='store_false', dest='saisiot')
     
     main(parser.parse_args())
