@@ -628,7 +628,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
     * Kiwi 0.20.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.20.0 )이 반영되었습니다.
         * 사이시옷을 위한 품사 태그인 Z_SIOT 추가
         * 사이시옷이 포함된 합성명사를 분할하거나, 사이시옷 앞뒤의 명사를 결합하여 출력하는 옵션 추가
-    * 버그 수정
+    * `Kiwi.space()` 버그 수정
         * 공백이 있는 사용자 단어를 등록해도 space()시 공백이 사라지는 버그 수정
         * 숫자 + 의존명사는 붙여적도록 수정
 
