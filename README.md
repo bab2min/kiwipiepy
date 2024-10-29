@@ -456,6 +456,26 @@ kiwi.tokenize('대학생선교회에서')
 [Token(form='예쁘', tag='VA', start=0, len=2),
  Token(form='ㄴ데', tag='EF', start=1, len=2)] 
 # 받침 ᆫ이 호환용 자모인 ㄴ으로 변환되어 출력됨
+
+# 0.20.0버전에서는 사이시옷 분석을 수행하는 옵션이 추가되었습니다.
+
+# 사전에 등재되어 있지 않은, 사이시옷이 들어간 합성명사는
+# 다음과 같이 잘못 분석되는 경우가 많습니다.
+>>> kiwi.tokenize('시곗바늘')
+[Token(form='시곗', tag='NNG', start=0, len=2),
+ Token(form='바늘', tag='NNG', start=2, len=2)]
+
+# saisiot=True 옵션을 주면 사이시옷을 형태소로 간주하여
+# 다음과 같이 분리해줍니다.
+>>> kiwi.tokenize('시곗바늘', saisiot=True)
+[Token(form='시계', tag='NNG', start=0, len=2),
+ Token(form='ᆺ', tag='Z_SIOT', start=1, len=1),
+ Token(form='바늘', tag='NNG', start=2, len=2)]
+
+# saisiot=False 옵션을 주면 사이시옷이 들어간 합성 명사 전체를
+# 하나의 형태소로 합쳐서 출력합니다.
+>>> kiwi.tokenize('시곗바늘', saisiot=False)
+[Token(form='시곗바늘', tag='NNG', start=0, len=4)]
 ```
 
 ## 시작하기
@@ -658,8 +678,6 @@ score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
 # (형태) \t (원형태소/품사태그 + 원형태소/품사태그 + ...) \t (점수)
 # * (점수)는 생략시 0으로 처리됩니다.
 사겼다	사귀/VV + 었/EP + 다/EF	-1.0
-#
-# 현재는 공백을 포함하는 다어절 형태를 등록할 수 없습니다.
 ```
 사전 파일을 성공적으로 읽어들이면, 사전을 통해 새로 추가된 형태소의 개수를 반환합니다. 
 
@@ -673,9 +691,9 @@ kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완�
 형태소 분석, 문장 분리, 띄어쓰기 교정, 문장 복원 등의 작업을 수행할 수 있습니다.
 
 ```python
-Kiwi.tokenize(text, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, blocklist=None)
-Kiwi.analyze(text, top_n, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, blocklist=None)
-Kiwi.split_into_sents(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, blocklist=None, return_tokens=False)
+Kiwi.tokenize(text, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None)
+Kiwi.analyze(text, top_n, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None)
+Kiwi.split_into_sents(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None, return_tokens=False)
 Kiwi.glue(text_chunks, insert_new_lines=None, return_space_insertions=False)
 Kiwi.space(text, reset_whitespace=False)
 Kiwi.join(morphs, lm_search=True)
@@ -683,7 +701,7 @@ Kiwi.template(format_str, cache=True)
 ``` 
 
 <details>
-<summary><code>tokenize(text, match_option=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, blocklist=None)</code></summary>
+<summary><code>tokenize(text, match_option=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None)</code></summary>
  
 입력된 `text`를 형태소 분석하여 그 결과를 간단하게 반환합니다. 분석결과는 다음과 같이 `Token`의 리스트 형태로 반환됩니다.
 
@@ -709,7 +727,7 @@ Kiwi.template(format_str, cache=True)
 <hr>
 
 <details>
-<summary><code>analyze(text, top_n=1, match_option=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, blocklist=None)</code></summary>
+<summary><code>analyze(text, top_n=1, match_option=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None)</code></summary>
  
 입력된 `text`를 형태소 분석하여 그 결과를 반환합니다. 총 top_n개의 결과를 자세하게 출력합니다. 반환값은 다음과 같이 구성됩니다.
  
@@ -774,6 +792,7 @@ SystemError: <built-in function next> returned a result with an error set
     z_coda=True, 
     split_complex=False, 
     compatible_jamo=False,
+    saisiot=None,
     return_tokens=False
 )</code></summary>
 입력 텍스트를 문장 단위로 분할하여 반환합니다. 
@@ -1046,7 +1065,8 @@ ValueError: cannot specify format specifier for Kiwi Token
 <tr><td>W_MENTION</td><td>멘션(@abcd)<sup>*</sup></td></tr>
 <tr><td>W_SERIAL</td><td>일련번호(전화번호, 통장번호, IP주소 등)<sup>*</sup></td></tr>
 <tr><td>W_EMOJI</td><td>이모지<sup>*</sup></td></tr>
-<tr><th rowspan='2'>기타</th><td>Z_CODA</td><td>덧붙은 받침<sup>*</sup></td></tr>
+<tr><th rowspan='3'>기타</th><td>Z_CODA</td><td>덧붙은 받침<sup>*</sup></td></tr>
+<tr><td>Z_SIOT</td><td>사이시옷<sup>*</sup></td></tr>
 <tr><td>USER0~4</td><td>사용자 정의 태그<sup>*</sup></td></tr>
 </table>
 
