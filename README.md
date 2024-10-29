@@ -691,9 +691,9 @@ kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완�
 형태소 분석, 문장 분리, 띄어쓰기 교정, 문장 복원 등의 작업을 수행할 수 있습니다.
 
 ```python
-Kiwi.tokenize(text, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, blocklist=None)
-Kiwi.analyze(text, top_n, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, blocklist=None)
-Kiwi.split_into_sents(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, blocklist=None, return_tokens=False)
+Kiwi.tokenize(text, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None)
+Kiwi.analyze(text, top_n, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None)
+Kiwi.split_into_sents(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None, return_tokens=False)
 Kiwi.glue(text_chunks, insert_new_lines=None, return_space_insertions=False)
 Kiwi.space(text, reset_whitespace=False)
 Kiwi.join(morphs, lm_search=True)
