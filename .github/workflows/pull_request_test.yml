@@ -203,7 +203,7 @@ jobs:
     - name: Test kiwipiepy
       run: |
         python -m pip install pytest
-        python -m pytest -svv test/test_kiwipiepy.py
+        python -m pytest -vv test/test_kiwipiepy.py
 
   build_other_arch:
     name: Build for manylinux (other arch)
