@@ -956,7 +956,7 @@ split_complex: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 compatible_jamo: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
-saistiot: bool
+saisiot: bool
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 blocklist: Union[Iterable[str], MorphemeSet]
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
@@ -1407,6 +1407,25 @@ Notes
  Token(form='었', tag='EP', start=23, len=1), 
  Token(form='다', tag='EF', start=24, len=1), 
  Token(form='.', tag='SF', start=25, len=1)]
+
+# saisiot 인자를 통해 사이시옷이 포함된 합성명사를 분리하거나 결합하여 출력할 수 있습니다.
+# 사전에 등재되어 있지 않은 사이시옷이 들어간 합성명사는
+# 다음과 같이 잘못 분석되는 경우가 많습니다.
+>>> kiwi.tokenize('시곗바늘')
+[Token(form='시곗', tag='NNG', start=0, len=2),
+ Token(form='바늘', tag='NNG', start=2, len=2)]
+
+# saisiot=True 옵션을 주면 사이시옷을 형태소로 간주하여
+# 다음과 같이 분리해줍니다.
+>>> kiwi.tokenize('시곗바늘', saisiot=True)
+[Token(form='시계', tag='NNG', start=0, len=2),
+ Token(form='ᆺ', tag='Z_SIOT', start=1, len=1),
+ Token(form='바늘', tag='NNG', start=2, len=2)]
+
+# saisiot=False 옵션을 주면 사이시옷이 들어간 합성 명사 전체를
+# 하나의 형태소로 합쳐서 출력합니다.
+>>> kiwi.tokenize('시곗바늘', saisiot=False)
+[Token(form='시곗바늘', tag='NNG', start=0, len=4)]
 ```
         '''
         return self._tokenize(text, match_options, normalize_coda, 

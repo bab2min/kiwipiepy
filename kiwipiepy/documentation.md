@@ -624,7 +624,12 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
-* 0.19.0 (2024-10-19)
+* 0.20.0 (2024-10-29)
+    * Kiwi 0.20.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.20.0 )이 반영되었습니다.
+        * 사이시옷을 위한 품사 태그인 Z_SIOT 추가
+        * 사이시옷이 포함된 합성명사를 분할하거나, 사이시옷 앞뒤의 명사를 결합하여 출력하는 옵션 추가
+
+* 0.19.1 (2024-10-19)
     * Kiwi 0.19.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.19.1 )이 반영되었습니다.
         * 앞쪽의 특수 문자가 형태소와 잘못 결합하여 분석되는 버그 수정
         * 오타 교정을 켠 상태에서 PretokenizedSpan 혹은 blocklist를 사용할때 오류가 발생하는 버그 수정
