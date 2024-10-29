@@ -895,3 +895,16 @@ def test_issue_176():
     text = "접사를 결합해 출력합니다."
     tokens = kiwi.tokenize(text, match_options=Match.JOIN_AFFIX)
     assert kiwi.join(tokens) == text
+
+def test_saisiot():
+    kiwi = Kiwi()
+    for s in ["하굣길", "만둣국", "나뭇잎", "세숫물", "고춧가루", "시곗바늘", "사글셋방"]:
+        tokens = kiwi.tokenize(s, saisiot=True)
+        assert len(tokens) == 3
+        assert tokens[0].tag == "NNG"
+        assert tokens[1].tag == "Z_SIOT"
+        assert tokens[2].tag == "NNG"
+
+        tokens = kiwi.tokenize(s, saisiot=False)
+        assert len(tokens) == 1
+        assert tokens[0].tag == "NNG"
