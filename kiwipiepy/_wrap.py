@@ -1756,7 +1756,7 @@ Notes
             chunks = []
             last = 0
             prev_tag = None
-            for t in tokens:
+            for i, t in enumerate(tokens):
                 if last < t.start:
                     if (t.tag.startswith('E') or t.tag.startswith('J') or t.tag.startswith('XS')
                         or t.tag == 'VX' and t.form in '하지'
@@ -1774,7 +1774,7 @@ Notes
                         # 이전에 공백이 없는 경우만 삽입
                         chunks.append(' ') 
                 if last < t.end:
-                    if t.tag.startswith('NN'):
+                    if t.tag.startswith('NN') and (i + 1 >= len(tokens) or t.end <= tokens[i + 1].start):
                         s = t.form
                     else:
                         s = any_ws.sub('', raw[last:t.end])
