@@ -624,6 +624,15 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.20.1 (2024-11-03)
+    * Kiwi 0.20.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.20.0 )이 반영되었습니다.
+        * Continual Typo 사용시 `Z_CODA`, `Z_SIOT` 태그가 제대로 매칭되지 않는 버그 수정
+        * splitSaisiot, mergeSaisiot 사용시의 정확도 개선
+        * saisiot 기능 추가 이후 GCC에서 Pretokenized Span을 사용할때 발생하는 segmentation fault 해결
+        * 누락되었던 C API 상수 보완
+    * `Kiwi.space()` 버그 수정
+        * 0.20.0에서 새로 발생한, space()시 내용이 바뀌는 버그 수정
+
 * 0.20.0 (2024-10-29)
     * Kiwi 0.20.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.20.0 )이 반영되었습니다.
         * 사이시옷을 위한 품사 태그인 Z_SIOT 추가
