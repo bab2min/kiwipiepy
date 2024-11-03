@@ -702,6 +702,11 @@ def test_space_of_sn_nnb():
     assert kiwi.space('3 시 30 분 45 초') == '3시 30분 45초'
     assert kiwi.space('3시30분45초') == '3시 30분 45초'
 
+def test_space_issue_187():
+    kiwi = Kiwi()
+    assert kiwi.space('잡는게 아님') == '잡는 게 아님'
+    assert kiwi.space('때문일겁니다') == '때문일 겁니다'
+
 def test_glue():
     chunks = """KorQuAD 2.0은 총 100,000+ 쌍으로 구성된 한국어 질의응답 데이터셋이다. 기존 질의응답 표준 데이
 터인 KorQuAD 1.0과의 차이점은 크게 세가지가 있는데 첫 번째는 주어지는 지문이 한두 문단이 아닌 위
