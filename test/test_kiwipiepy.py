@@ -707,6 +707,12 @@ def test_space_issue_187():
     assert kiwi.space('잡는게 아님') == '잡는 게 아님'
     assert kiwi.space('때문일겁니다') == '때문일 겁니다'
 
+def test_space_issue_189():
+    kiwi = Kiwi()
+    kiwi.add_user_word('팩', 'NNB')
+    assert kiwi.space('담아 1팩 무료') == '담아 1팩 무료'
+    assert kiwi.space('골라 2팩 무료') == '골라 2팩 무료'
+
 def test_glue():
     chunks = """KorQuAD 2.0은 총 100,000+ 쌍으로 구성된 한국어 질의응답 데이터셋이다. 기존 질의응답 표준 데이
 터인 KorQuAD 1.0과의 차이점은 크게 세가지가 있는데 첫 번째는 주어지는 지문이 한두 문단이 아닌 위
