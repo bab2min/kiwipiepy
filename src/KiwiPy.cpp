@@ -273,6 +273,11 @@ struct HSDatasetObject : py::CObject<HSDatasetObject>
 			return py::buildPyValueTransform(sent.begin(), sent.end(), [](size_t v) { return (uint32_t)v; });
 		}
 	}
+
+	std::vector<std::pair<std::vector<uint32_t>, size_t>> extractPrefixes(size_t minCnt, size_t maxLength, size_t numWorkers = 1) const
+	{
+		return hsd.extractPrefixes(minCnt, maxLength, numWorkers);
+	}
 };
 
 py::TypeWrapper<HSDatasetObject> _HSDatasetSetter{ gModule, [](PyTypeObject& obj)
@@ -282,6 +287,7 @@ py::TypeWrapper<HSDatasetObject> _HSDatasetSetter{ gModule, [](PyTypeObject& obj
 		{ "get_vocab_info", PY_METHOD(&HSDatasetObject::getVocabInfo), METH_VARARGS | METH_KEYWORDS, ""},
 		{ "get_sent", PY_METHOD(&HSDatasetObject::getSent), METH_VARARGS | METH_KEYWORDS, ""},
 		{ "estim_vocab_frequency", PY_METHOD(&HSDatasetObject::estimVocabFrequency), METH_VARARGS | METH_KEYWORDS, ""},
+		{ "extract_prefixes", PY_METHOD(&HSDatasetObject::extractPrefixes), METH_VARARGS | METH_KEYWORDS, ""},
 		{ nullptr }
 	};
 	static PyGetSetDef getsets[] =
@@ -918,6 +924,11 @@ struct KiwiObject : py::CObject<KiwiObject>
 	py::UniqueObj getMorpheme(size_t id);
 	py::UniqueObj join(PyObject* morphs, bool lmSearch = true, bool returnPositions = false);
 	
+	void convertHSData(
+		PyObject* inputPathes, 
+		const char* outputPath,
+		PyObject* morphemeDefPath = nullptr,
+		size_t morphemeDefMinCnt = 0) const;
 
 	py::UniqueObj makeHSDataset(PyObject* inputPathes, 
 		size_t batchSize, 
@@ -925,6 +936,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 		size_t windowSize, 
 		size_t numWorkers, 
 		float dropout = 0, 
+		float dropoutOnHistory = 0,
 		PyObject* tokenFilter = nullptr, 
 		PyObject* windowFilter = nullptr, 
 		float splitRatio = 0, 
@@ -1034,6 +1046,7 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ gModule, [](PyTypeObject& obj)
 		{ "analyze", PY_METHOD(&KiwiObject::analyze), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "morpheme", PY_METHOD(&KiwiObject::getMorpheme), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "join", PY_METHOD(&KiwiObject::join), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "convert_hsdata", PY_METHOD(&KiwiObject::convertHSData), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "make_hsdataset", PY_METHOD(&KiwiObject::makeHSDataset), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "list_all_scripts", PY_METHOD(&KiwiObject::listAllScripts), METH_VARARGS | METH_KEYWORDS, "" },
 		{ nullptr }
@@ -2532,12 +2545,30 @@ py::UniqueObj KiwiObject::join(PyObject* morphs, bool lmSearch, bool returnPosit
 	}
 }
 
+void KiwiObject::convertHSData(
+	PyObject* inputPathes,
+	const char* outputPath,
+	PyObject* morphemeDefPath,
+	size_t morphemeDefMinCnt
+) const
+{
+	
+	string morphemeDefPathStr;
+	if (morphemeDefPath && morphemeDefPath != Py_None)
+	{
+		morphemeDefPathStr = py::toCpp<string>(morphemeDefPath);
+	}
+
+	builder.convertHSData(py::toCpp<vector<string>>(inputPathes), outputPath, morphemeDefPathStr, morphemeDefMinCnt);
+}
+
 py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, 
 	size_t batchSize, 
 	size_t causalContextSize, 
 	size_t windowSize, 
 	size_t numWorkers, 
 	float dropout, 
+	float dropoutOnHistory,
 	PyObject* tokenFilter, 
 	PyObject* windowFilter, 
 	float splitRatio, 
@@ -2583,6 +2614,7 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 		windowSize, 
 		numWorkers, 
 		dropout, 
+		dropoutOnHistory,
 		tf, 
 		wf, 
 		splitRatio, 

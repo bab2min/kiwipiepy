@@ -1997,6 +1997,17 @@ ValueError: cannot specify format specifier for Kiwi Token
     def list_all_scripts(self) -> List[str]:
         return super().list_all_scripts()
 
+    def convert_hsdata(
+        self,
+        input_path:Union[str, List[str]],
+        output_path:str,
+        morpheme_def_path:str = None,
+        morpheme_def_min_cnt:int = 0,
+    ):
+        if isinstance(input_path, str):
+            input_path = [input_path]
+        return super().convert_hsdata(input_path, output_path, morpheme_def_path, morpheme_def_min_cnt)
+
     def make_hsdataset(
         self,
         inputs:List[str],
