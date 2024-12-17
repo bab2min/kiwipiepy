@@ -624,6 +624,10 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.20.3 (2024-12-17)
+    * Kiwi 0.20.3의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.20.3 )이 반영되었습니다.
+        * 오타 교정 기능을 사용할 때 사용자 사전에 등록한 복합 명사가 인식되지 않는 버그 수정
+
 * 0.20.2 (2024-11-21)
     * Kiwi 0.20.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.20.2 )이 반영되었습니다.
         * SN이나 W 태그가 나타날 위치에서 종종 바로 앞의 문자열이 중복되어 엉뚱한 태그가 발생하는 버그 수정
