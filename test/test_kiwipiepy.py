@@ -919,3 +919,18 @@ def test_saisiot():
         tokens = kiwi.tokenize(s, saisiot=False)
         assert len(tokens) == 1
         assert tokens[0].tag == "NNG"
+
+def test_issue_kiwi_205():
+    if sys.maxsize <= 2**32:
+        print("[skipped this test in 32bit OS.]", file=sys.stderr)
+        return
+
+    kiwi = Kiwi()
+    kiwi.add_user_word('함박 스테이크')
+    res = kiwi.tokenize('함박 스테이크를 먹었습니다.')
+    assert res[0].form == '함박 스테이크'
+
+    kiwi = Kiwi(typos='basic_with_continual')
+    kiwi.add_user_word('함박 스테이크')
+    res = kiwi.tokenize('함박 스테이크를 먹었습니다.')
+    assert res[0].form == '함박 스테이크'
