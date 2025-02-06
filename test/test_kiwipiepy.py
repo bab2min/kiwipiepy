@@ -5,7 +5,7 @@ import tempfile
 import itertools
 
 from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings, Match
-from kiwipiepy.utils import Stopwords
+from kiwipiepy.utils import Stopwords, Synonyms
 
 curpath = os.path.dirname(os.path.abspath(__file__))
 
@@ -934,3 +934,25 @@ def test_issue_kiwi_205():
     kiwi.add_user_word('함박 스테이크')
     res = kiwi.tokenize('함박 스테이크를 먹었습니다.')
     assert res[0].form == '함박 스테이크'
+
+def test_two_way_synonyms():
+    kiwi = Kiwi()
+    synonyms = Synonyms()
+    synonym_token = synonyms.expand_synonym(kiwi.tokenize("나는 chocolate 아이스크림을 좋아한다"), check_tag=False)
+    synonym_token2 = synonyms.expand_synonym(kiwi.tokenize("나는 초콜릿 아이스크림을 좋아한다"))
+
+    print([token.form for token in synonym_token])
+    print([token.form for token in synonym_token2])
+
+
+def test_one_way_synonyms():
+    kiwi = Kiwi()
+    synonyms = Synonyms()
+    kiwi.add_user_word("미니pc", 'NNG')
+    kiwi.add_user_word("슬림pc", 'NNG')
+
+    synonym_token1 = [token.form for token in synonyms.expand_synonym(kiwi.tokenize("나는 LG에서 미니pc를 구매했다"), check_tag=False)]
+    print(synonym_token1)
+
+    synonym_token2 = [token.form for token in synonyms.expand_synonym(kiwi.tokenize("나는 LG에서 슬림pc를 구매했다"), check_tag=False)]
+    print(synonym_token2)
