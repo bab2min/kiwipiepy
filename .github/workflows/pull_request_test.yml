@@ -55,7 +55,7 @@ jobs:
               done
     - run: tar -zcvf build.tgz build
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Linux Binary ${{ matrix.cp }}
         path: build.tgz
@@ -109,7 +109,7 @@ jobs:
               done
     - run: tar -zcvf build.tgz build
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Linux Binary ${{ matrix.cp }}
         path: build.tgz
@@ -149,7 +149,7 @@ jobs:
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py build install
         python -m pip install numpy==`python .github/workflows/numpy_version.py v1` || true
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: macOS Binary ${{ matrix.python-version }}
         path: |
@@ -165,7 +165,7 @@ jobs:
     strategy:
       max-parallel: 5
       matrix:
-        python-version: [3.8, 3.9, "3.10", 3.11, 3.12]
+        python-version: [3.8, 3.9, "3.10", 3.11, 3.12, 3.13]
         architecture: [x86, x64]
 
     steps:
@@ -195,7 +195,7 @@ jobs:
         $env:USE_MIMALLOC = 1; python setup.py build install
         Try { python -m pip install numpy==$(python .github/workflows/numpy_version.py v1) } Catch {}
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Windows Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
         path: |
@@ -250,12 +250,12 @@ jobs:
           /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py
 
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Linux ${{ matrix.arch }} Binary ${{ matrix.cp }}
         path: artifacts/build.tgz
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Linux ${{ matrix.arch }} Wheel ${{ matrix.cp }}
         path: artifacts/dist/*.whl
