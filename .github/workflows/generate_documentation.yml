@@ -30,7 +30,7 @@ jobs:
         python3 -m pip install --upgrade pip
     - name: build
       run: |
-        python3 -m pip install pdoc3==0.10.0 numpy transformers
+        python3 -m pip install pdoc3==0.10.0 wheel setuptools transformers
 
         mv Kiwi/models/base/sj.* model/kiwipiepy_model/
         mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
