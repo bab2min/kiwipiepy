@@ -19,7 +19,7 @@ jobs:
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@multiple-step
+    - uses: bab2min/run-on-arch-action@multiple-step-v2
       id: runcmd
       with:
         image: quay.io/pypa/manylinux2010_x86_64
@@ -73,7 +73,7 @@ jobs:
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@multiple-step
+    - uses: bab2min/run-on-arch-action@multiple-step-v2
       id: runcmd
       with:
         image: quay.io/pypa/manylinux2014_x86_64
@@ -219,7 +219,7 @@ jobs:
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@use-custom-image
+    - uses: bab2min/run-on-arch-action@multiple-step-v2
       id: runcmd
       with:
         image: quay.io/pypa/manylinux2014_${{ matrix.arch }}
@@ -228,26 +228,32 @@ jobs:
           mkdir -p "${PWD}/artifacts"
         dockerRunArgs: |
           --volume "${PWD}/artifacts:/artifacts"
-        run: |
-          mv Kiwi/models/base/sj.* model/kiwipiepy_model/
-          mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
-          mv Kiwi/models/base/*.dict model/kiwipiepy_model/
-          mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
-          mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
-
-          /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
-
-          cd model
-          /opt/python/${{ matrix.cp }}/bin/python setup.py build install
-          cd ..
-          /opt/python/${{ matrix.cp }}/bin/python setup.py build install bdist_wheel
-          /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1` || true
-
-          tar -zcvf /artifacts/build.tgz build/*
-          cp -r dist /artifacts/
-
-          /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
-          /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py
+        multipleRun: |
+          - name: Copy Model files
+            run: |
+              mv Kiwi/models/base/sj.* model/kiwipiepy_model/
+              mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
+              mv Kiwi/models/base/*.dict model/kiwipiepy_model/
+              mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
+              mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
+          - name: Install dependencies
+            run: |
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
+          - name: Build model
+            run: |
+              cd model
+              /opt/python/${{ matrix.cp }}/bin/python setup.py build install
+              cd ..
+          - name: Build
+            run: |
+              /opt/python/${{ matrix.cp }}/bin/python setup.py build install bdist_wheel
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1` || true
+              tar -zcvf /artifacts/build.tgz build/*
+              cp -r dist /artifacts/
+          - name: Test
+            run: |
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
+              /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py
 
     - name: Archive binary
       uses: actions/upload-artifact@v4
