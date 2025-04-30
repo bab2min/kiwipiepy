@@ -2003,10 +2003,12 @@ ValueError: cannot specify format specifier for Kiwi Token
         output_path:str,
         morpheme_def_path:str = None,
         morpheme_def_min_cnt:int = 0,
+        generate_oov_dict:bool = False,
+        transform:Iterable[Tuple[Tuple[str, str], Tuple[str, str]]] = None,
     ):
         if isinstance(input_path, str):
             input_path = [input_path]
-        return super().convert_hsdata(input_path, output_path, morpheme_def_path, morpheme_def_min_cnt)
+        return super().convert_hsdata(input_path, output_path, morpheme_def_path, morpheme_def_min_cnt, generate_oov_dict, transform)
 
     def make_hsdataset(
         self,
@@ -2017,13 +2019,17 @@ ValueError: cannot specify format specifier for Kiwi Token
         num_workers:int = 1, 
         dropout:float = 0, 
         dropout_on_history:float = 0,
+        noun_augmenting_prob:float = 0,
         token_filter:Callable[[str, str], bool] = None, 
         window_filter:Callable[[str, str], bool] = None, 
         split_ratio:float = 0, 
         separate_default_morpheme:bool = False,
         morpheme_def_path:str = None,
         morpheme_def_min_cnt:int = 0,
+        contextual_mapper:List[Tuple[int, List[int]]] = None,
+        transform:Iterable[Tuple[Tuple[str, str], Tuple[str, str]]] = None,
         seed:int = 0,
+        generate_unlikelihoods:int = -1,
     ):
         return super().make_hsdataset(
             inputs, 
@@ -2033,12 +2039,16 @@ ValueError: cannot specify format specifier for Kiwi Token
             num_workers, 
             dropout, 
             dropout_on_history, 
+            noun_augmenting_prob,
+            generate_unlikelihoods,
             token_filter, 
             window_filter, 
             split_ratio, 
             separate_default_morpheme, 
             morpheme_def_path, 
             morpheme_def_min_cnt, 
+            contextual_mapper or [],
+            transform,
             seed)
 
 
