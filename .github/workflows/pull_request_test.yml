@@ -19,7 +19,7 @@ jobs:
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@multiple-step
+    - uses: bab2min/run-on-arch-action@multiple-step-v2
       id: runcmd
       with:
         image: quay.io/pypa/manylinux2010_x86_64
@@ -55,7 +55,7 @@ jobs:
               done
     - run: tar -zcvf build.tgz build
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Linux Binary ${{ matrix.cp }}
         path: build.tgz
@@ -73,7 +73,7 @@ jobs:
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@multiple-step
+    - uses: bab2min/run-on-arch-action@multiple-step-v2
       id: runcmd
       with:
         image: quay.io/pypa/manylinux2014_x86_64
@@ -109,7 +109,7 @@ jobs:
               done
     - run: tar -zcvf build.tgz build
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Linux Binary ${{ matrix.cp }}
         path: build.tgz
@@ -149,7 +149,7 @@ jobs:
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py build install
         python -m pip install numpy==`python .github/workflows/numpy_version.py v1` || true
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: macOS Binary ${{ matrix.python-version }}
         path: |
@@ -165,7 +165,7 @@ jobs:
     strategy:
       max-parallel: 5
       matrix:
-        python-version: [3.8, 3.9, "3.10", 3.11, 3.12]
+        python-version: [3.8, 3.9, "3.10", 3.11, 3.12, 3.13]
         architecture: [x86, x64]
 
     steps:
@@ -195,7 +195,7 @@ jobs:
         $env:USE_MIMALLOC = 1; python setup.py build install
         Try { python -m pip install numpy==$(python .github/workflows/numpy_version.py v1) } Catch {}
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Windows Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
         path: |
@@ -219,7 +219,7 @@ jobs:
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@use-custom-image
+    - uses: bab2min/run-on-arch-action@multiple-step-v2
       id: runcmd
       with:
         image: quay.io/pypa/manylinux2014_${{ matrix.arch }}
@@ -228,34 +228,40 @@ jobs:
           mkdir -p "${PWD}/artifacts"
         dockerRunArgs: |
           --volume "${PWD}/artifacts:/artifacts"
-        run: |
-          mv Kiwi/models/base/sj.* model/kiwipiepy_model/
-          mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
-          mv Kiwi/models/base/*.dict model/kiwipiepy_model/
-          mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
-          mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
-
-          /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
-
-          cd model
-          /opt/python/${{ matrix.cp }}/bin/python setup.py build install
-          cd ..
-          /opt/python/${{ matrix.cp }}/bin/python setup.py build install bdist_wheel
-          /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1` || true
-
-          tar -zcvf /artifacts/build.tgz build/*
-          cp -r dist /artifacts/
-
-          /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
-          /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py
+        multipleRun: |
+          - name: Copy Model files
+            run: |
+              mv Kiwi/models/base/sj.* model/kiwipiepy_model/
+              mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
+              mv Kiwi/models/base/*.dict model/kiwipiepy_model/
+              mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
+              mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
+          - name: Install dependencies
+            run: |
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
+          - name: Build model
+            run: |
+              cd model
+              /opt/python/${{ matrix.cp }}/bin/python setup.py build install
+              cd ..
+          - name: Build
+            run: |
+              /opt/python/${{ matrix.cp }}/bin/python setup.py build install bdist_wheel
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1` || true
+              tar -zcvf /artifacts/build.tgz build/*
+              cp -r dist /artifacts/
+          - name: Test
+            run: |
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
+              /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py
 
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Linux ${{ matrix.arch }} Binary ${{ matrix.cp }}
         path: artifacts/build.tgz
     - name: Archive binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Linux ${{ matrix.arch }} Wheel ${{ matrix.cp }}
         path: artifacts/dist/*.whl

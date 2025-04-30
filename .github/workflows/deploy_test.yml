@@ -128,7 +128,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.8, 3.9, "3.10", 3.11, 3.12]
+        python-version: [3.8, 3.9, "3.10", 3.11, 3.12, 3.13]
         architecture: [x86, x64]
 
     steps:
@@ -164,7 +164,7 @@ jobs:
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@use-custom-image
+    - uses: bab2min/run-on-arch-action@multiple-step-v2
       name: Deploy
       id: runcmd
       with:
@@ -177,15 +177,17 @@ jobs:
         env: |
           TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
-        run: |          
-          for cp in cp39-cp39
-          do
-            /opt/python/${cp}/bin/python -m pip install --upgrade pip setuptools
-            /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
-            USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
-            auditwheel repair dist/*-${cp}-*.whl
-          done
-          mv wheelhouse/*.whl /artifacts/
+        multipleRun: |
+          - name: Build
+            run: |
+              for cp in cp39-cp39
+              do
+                /opt/python/${cp}/bin/python -m pip install --upgrade pip setuptools
+                /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
+                USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
+                auditwheel repair dist/*-${cp}-*.whl
+              done
+              mv wheelhouse/*.whl /artifacts/
     - name: Upload wheels
       env:
         TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
@@ -207,7 +209,7 @@ jobs:
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@use-custom-image
+    - uses: bab2min/run-on-arch-action@multiple-step-v2
       name: Deploy
       id: runcmd
       with:
@@ -220,15 +222,17 @@ jobs:
         env: |
           TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
-        run: |
-          for cp in cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313
-          do
-            /opt/python/${cp}/bin/python -m pip install --upgrade pip setuptools
-            /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
-            USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
-            auditwheel repair dist/*-${cp}-*.whl
-          done
-          mv wheelhouse/*.whl /artifacts/
+        multipleRun: |
+          - name: Build
+            run: |
+              for cp in cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313
+              do
+                /opt/python/${cp}/bin/python -m pip install --upgrade pip setuptools
+                /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
+                USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
+                auditwheel repair dist/*-${cp}-*.whl
+              done
+              mv wheelhouse/*.whl /artifacts/
     - name: Upload wheels
       env:
         TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
