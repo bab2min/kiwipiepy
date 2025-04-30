@@ -1,4 +1,4 @@
-#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
+﻿#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
 
 #include <stdexcept>
 #include <fstream>
@@ -274,9 +274,9 @@ struct HSDatasetObject : py::CObject<HSDatasetObject>
 		}
 	}
 
-	std::vector<std::pair<std::vector<uint32_t>, size_t>> extractPrefixes(size_t minCnt, size_t maxLength, size_t numWorkers = 1) const
+	std::vector<std::pair<std::vector<uint32_t>, size_t>> extractPrefixes(size_t minCnt, size_t maxLength, size_t numWorkers = 1, bool exclusiveCnt = false) const
 	{
-		return hsd.extractPrefixes(minCnt, maxLength, numWorkers);
+		return hsd.extractPrefixes(minCnt, maxLength, numWorkers, exclusiveCnt);
 	}
 };
 
@@ -347,8 +347,18 @@ struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
 		py::UniqueObj outData{ PyArray_EMPTY(1, sizes, NPY_INT64, 0) };
 		py::UniqueObj lmLProbsData{ PyArray_EMPTY(1, sizes, NPY_FLOAT32, 0) };
 		py::UniqueObj outNgramNodeData{ PyArray_EMPTY(1, sizes, NPY_INT64, 0) };
+		py::UniqueObj ulInData;
+		py::UniqueObj ulOutData;
+
+		if (obj->hsd.doesGenerateUnlikelihoods())
+		{
+			ulInData = py::UniqueObj{ PyArray_EMPTY(2, sizes, NPY_INT64, 0) };
+			ulOutData = py::UniqueObj{ PyArray_EMPTY(1, sizes, NPY_INT64, 0) };
+		}
+
 		float restLm = 0;
 		uint32_t restLmCnt = 0;
+		size_t ulDataSize = 0;
 
 		const size_t sz = obj->hsd.next(
 			(int64_t*)PyArray_DATA((PyArrayObject*)inData.get()),
@@ -356,7 +366,10 @@ struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
 			(float*)PyArray_DATA((PyArrayObject*)lmLProbsData.get()),
 			(int64_t*)PyArray_DATA((PyArrayObject*)outNgramNodeData.get()),
 			restLm,
-			restLmCnt
+			restLmCnt,
+			ulInData ? (int64_t*)PyArray_DATA((PyArrayObject*)ulInData.get()) : nullptr,
+			ulOutData ? (int64_t*)PyArray_DATA((PyArrayObject*)ulOutData.get()) : nullptr,
+			&ulDataSize
 		);
 		if (!sz) throw py::ExcPropagation{};
 
@@ -367,8 +380,21 @@ struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
 			outData = py::UniqueObj{ PyObject_GetItem(outData.get(), slice.get())};
 			lmLProbsData = py::UniqueObj{ PyObject_GetItem(lmLProbsData.get(), slice.get())};
 			outNgramNodeData = py::UniqueObj{ PyObject_GetItem(outNgramNodeData.get(), slice.get())};
+			if (ulInData)
+			{
+				py::UniqueObj slice{ PySlice_New(nullptr, py::buildPyValue(ulDataSize).get(), nullptr) };
+				ulInData = py::UniqueObj{ PyObject_GetItem(ulInData.get(), slice.get()) };
+				ulOutData = py::UniqueObj{ PyObject_GetItem(ulOutData.get(), slice.get()) };
+			}
 		}
+		if (ulInData)
+		{
+			return py::buildPyTuple(inData, outData, lmLProbsData, outNgramNodeData, restLm, restLmCnt, ulInData, ulOutData);
+		}
+		else
+		{
 		return py::buildPyTuple(inData, outData, lmLProbsData, outNgramNodeData, restLm, restLmCnt);
+		}
 	}
 };
 
@@ -928,7 +954,9 @@ struct KiwiObject : py::CObject<KiwiObject>
 		PyObject* inputPathes, 
 		const char* outputPath,
 		PyObject* morphemeDefPath = nullptr,
-		size_t morphemeDefMinCnt = 0) const;
+		size_t morphemeDefMinCnt = 0,
+		bool generateOovDict = false,
+		PyObject* transform = nullptr) const;
 
 	py::UniqueObj makeHSDataset(PyObject* inputPathes, 
 		size_t batchSize, 
@@ -937,12 +965,16 @@ struct KiwiObject : py::CObject<KiwiObject>
 		size_t numWorkers, 
 		float dropout = 0, 
 		float dropoutOnHistory = 0,
+		float nounAugmentingProb = 0,
+		size_t generateUnlikelihoods = -1,
 		PyObject* tokenFilter = nullptr, 
 		PyObject* windowFilter = nullptr, 
 		float splitRatio = 0, 
 		bool separateDefaultMorpheme = false, 
 		PyObject* morphemeDefPath = nullptr,
 		size_t morphemeDefMinCnt = 0,
+		const std::vector<std::pair<size_t, std::vector<uint32_t>>>& contextualMapper = {},
+		PyObject* transform = nullptr,
 		size_t seed = 42) const;
 
 	py::UniqueObj listAllScripts() const;
@@ -2549,7 +2581,9 @@ void KiwiObject::convertHSData(
 	PyObject* inputPathes,
 	const char* outputPath,
 	PyObject* morphemeDefPath,
-	size_t morphemeDefMinCnt
+	size_t morphemeDefMinCnt,
+	bool generateOovDict,
+	PyObject* transform
 ) const
 {
 	
@@ -2559,7 +2593,38 @@ void KiwiObject::convertHSData(
 		morphemeDefPathStr = py::toCpp<string>(morphemeDefPath);
 	}
 
-	builder.convertHSData(py::toCpp<vector<string>>(inputPathes), outputPath, morphemeDefPathStr, morphemeDefMinCnt);
+	vector<pair<pair<string, POSTag>, pair<string, POSTag>>> transformMap;
+	if (transform && transform != Py_None)
+	{
+		py::UniqueObj iter{ PyObject_GetIter(transform) };
+		if (!iter) throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
+		py::foreach<PyObject*>(iter.get(), [&](PyObject* item)
+		{
+			if (PyTuple_Check(item) && PyTuple_Size(item) == 2)
+			{
+				auto a = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 0));
+				auto b = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 1));
+				POSTag aTag = parseTag(a.second.c_str());
+				POSTag bTag = parseTag(b.second.c_str());
+				transformMap.emplace_back(
+					make_pair(a.first, aTag),
+					make_pair(b.first, bTag)
+				);
+			}
+			else
+			{
+				throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
+			}
+		}, "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`.");
+	}
+
+	builder.convertHSData(py::toCpp<vector<string>>(inputPathes), 
+		outputPath, 
+		morphemeDefPathStr, 
+		morphemeDefMinCnt, 
+		generateOovDict,
+		transformMap.empty() ? nullptr : &transformMap
+	);
 }
 
 py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, 
@@ -2569,13 +2634,18 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 	size_t numWorkers, 
 	float dropout, 
 	float dropoutOnHistory,
+	float nounAugmentingProb,
+	size_t generateUnlikelihoods,
 	PyObject* tokenFilter, 
 	PyObject* windowFilter, 
 	float splitRatio, 
 	bool separateDefaultMorpheme, 
 	PyObject* morphemeDefPath,
 	size_t morphemeDefMinCnt,
-	size_t seed) const
+	const std::vector<std::pair<size_t, std::vector<uint32_t>>>& contextualMapper,
+	PyObject* transform,
+	size_t seed
+) const
 {
 	KiwiBuilder::TokenFilter tf, wf;
 	if (tokenFilter && tokenFilter != Py_None)
@@ -2601,6 +2671,31 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 		};
 	}
 
+	vector<pair<pair<string, POSTag>, pair<string, POSTag>>> transformMap;
+	if (transform && transform != Py_None)
+	{
+		py::UniqueObj iter{ PyObject_GetIter(transform) };
+		if (!iter) throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
+		py::foreach<PyObject*>(iter.get(), [&](PyObject* item)
+		{
+			if (PyTuple_Check(item) && PyTuple_Size(item) == 2)
+			{
+				auto a = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 0));
+				auto b = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 1));
+				POSTag aTag = parseTag(a.second.c_str());
+				POSTag bTag = parseTag(b.second.c_str());
+				transformMap.emplace_back(
+					make_pair(a.first, aTag), 
+					make_pair(b.first, bTag)
+				);
+			}
+			else
+			{
+				throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
+			}
+		}, "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`.");
+	}
+
 	string morphemeDefPathStr;
 	if (morphemeDefPath && morphemeDefPath != Py_None)
 	{
@@ -2615,13 +2710,17 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 		numWorkers, 
 		dropout, 
 		dropoutOnHistory,
+		nounAugmentingProb,
+		generateUnlikelihoods,
 		tf, 
 		wf, 
 		splitRatio, 
 		separateDefaultMorpheme, 
 		morphemeDefPathStr,
 		morphemeDefMinCnt,
-		&anotherDataset);
+		contextualMapper,
+		&anotherDataset,
+		transformMap.empty() ? nullptr : &transformMap);
 	dataset.seed(seed);
 	if (splitRatio == 0)
 	{
