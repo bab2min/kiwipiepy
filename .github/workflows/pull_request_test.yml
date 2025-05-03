@@ -6,67 +6,13 @@ on:
       - main
 
 jobs:
-  build_manylinux:
-    name: Build for manylinux2010
-    runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 4
-      matrix:
-        cp: [cp38-cp38]
-
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
-        lfs: true
-    - uses: bab2min/run-on-arch-action@multiple-step-v2
-      id: runcmd
-      with:
-        image: quay.io/pypa/manylinux2010_x86_64
-        githubToken: ${{ github.token }}
-        multipleRun: |
-          - name: Build
-            run: |
-              mv Kiwi/models/base/sj.* model/kiwipiepy_model/
-              mv Kiwi/models/base/extract.mdl model/kiwipiepy_model/
-              mv Kiwi/models/base/*.dict model/kiwipiepy_model/
-              mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
-              mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
-
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
-
-              cd model
-              /opt/python/${{ matrix.cp }}/bin/python setup.py build install
-              cd ..
-              /opt/python/${{ matrix.cp }}/bin/python setup.py build install
-          - name: Test kiwipiepy
-            run: |
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
-              /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py
-          - name: Test transformers_addon
-            run: |
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install -U pip
-              for v in {12..42}
-              do
-                echo "Test with transformers 4.$v ..."
-                if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
-                  /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
-                fi
-              done
-    - run: tar -zcvf build.tgz build
-    - name: Archive binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: Linux Binary ${{ matrix.cp }}
-        path: build.tgz
-
   build_manylinux2014:
     name: Build for manylinux2014
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 4
       matrix:
-        cp: [cp39-cp39, cp310-cp310, cp311-cp311, cp312-cp312, cp313-cp313]
+        cp: [cp310-cp310, cp311-cp311, cp312-cp312, cp313-cp313]
 
     steps:
     - uses: actions/checkout@v3
@@ -86,6 +32,10 @@ jobs:
               mv Kiwi/models/base/*.dict model/kiwipiepy_model/
               mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
               mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
+
+              /opt/python/${{ matrix.cp }}/bin/pip install "cmake<4"
+              rm /usr/local/bin/cmake || true
+              ln -s /opt/python/${{ matrix.cp }}/bin/cmake /usr/local/bin/cmake
 
               /opt/python/${{ matrix.cp }}/bin/python -m pip install setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
 
@@ -120,7 +70,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.8, 3.9, "3.10", 3.11, 3.12, 3.13]
+        python-version: ["3.10", 3.11, 3.12, 3.13]
 
     steps:
     - uses: actions/checkout@v2
@@ -165,7 +115,7 @@ jobs:
     strategy:
       max-parallel: 5
       matrix:
-        python-version: [3.8, 3.9, "3.10", 3.11, 3.12, 3.13]
+        python-version: ["3.10", 3.11, 3.12, 3.13]
         architecture: [x86, x64]
 
     steps:
@@ -207,11 +157,11 @@ jobs:
 
   build_other_arch:
     name: Build for manylinux (other arch)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     strategy:
       max-parallel: 8
       matrix:
-        cp: [cp39-cp39, cp310-cp310, cp311-cp311, cp312-cp312, cp313-cp313]
+        cp: [cp310-cp310, cp311-cp311, cp312-cp312, cp313-cp313]
         arch: [aarch64]
 
     steps:
@@ -238,6 +188,10 @@ jobs:
               mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
           - name: Install dependencies
             run: |
+              /opt/python/${{ matrix.cp }}/bin/pip install "cmake<4"
+              rm /usr/local/bin/cmake || true
+              ln -s /opt/python/${{ matrix.cp }}/bin/cmake /usr/local/bin/cmake
+
               /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py`
           - name: Build model
             run: |
