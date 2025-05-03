@@ -11,7 +11,7 @@ on:
 jobs:
   build_manylinux:
     name: Build for manylinux
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       max-parallel: 1
       matrix:

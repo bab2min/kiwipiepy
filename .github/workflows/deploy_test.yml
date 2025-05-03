@@ -36,6 +36,10 @@ jobs:
         mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
         mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
         
+        /opt/python/cp38-cp38/bin/pip install "cmake<4"
+        rm /usr/local/bin/cmake || true
+        ln -s /opt/python/cp38-cp38/bin/cmake /usr/local/bin/cmake
+
         yum install libffi-devel -y
         /opt/python/cp38-cp38/bin/python -m pip install --upgrade pip "setuptools<71"
         /opt/python/cp38-cp38/bin/python -m pip install "readme-renderer==41.0" "cryptography<38" "twine<4" wheel numpy==`/opt/python/cp38-cp38/bin/python .github/workflows/numpy_version.py`
@@ -63,14 +67,6 @@ jobs:
     - uses: actions/checkout@v1
       with:
         submodules: recursive
-    - name: Install Git LFS
-      run: |
-        mkdir gitlfs && pushd gitlfs
-        curl -L https://github.com/git-lfs/git-lfs/releases/download/v2.13.2/git-lfs-linux-amd64-v2.13.2.tar.gz | tar -zxv
-        ./install.sh
-        popd
-    - name: Pull LFS files
-      run: cd Kiwi && git config --global --add safe.directory /__w/kiwipiepy/kiwipiepy/Kiwi && git lfs pull
     - name: Deploy
       continue-on-error: True
       env:
@@ -83,6 +79,10 @@ jobs:
         mv Kiwi/models/base/combiningRule.txt model/kiwipiepy_model/
         mv Kiwi/models/base/skipbigram.mdl model/kiwipiepy_model/
         
+        /opt/python/cp311-cp311/bin/pip install "cmake<4"
+        rm /usr/local/bin/cmake || true
+        ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
+
         yum install libffi-devel -y
         /opt/python/cp311-cp311/bin/python -m pip install --upgrade pip setuptools
         /opt/python/cp311-cp311/bin/python -m pip install twine wheel numpy==`/opt/python/cp311-cp311/bin/python .github/workflows/numpy_version.py`
@@ -106,7 +106,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
-        lfs: true
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
@@ -135,7 +134,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
-        lfs: true
     - name: Set up Python ${{ matrix.python-version }} ${{ matrix.architecture }}
       uses: actions/setup-python@v1
       with:
@@ -152,54 +150,9 @@ jobs:
         $env:USE_MIMALLOC = 1; python setup.py bdist_wheel
         twine upload --repository testpypi dist/*
 
-  build_other_arch_old:
-    name: Build for manylinux (other arch, old)
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [aarch64]
-
-    steps:        
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-        lfs: true
-    - uses: bab2min/run-on-arch-action@multiple-step-v2
-      name: Deploy
-      id: runcmd
-      with:
-        image: quay.io/pypa/manylinux2014_${{ matrix.arch }}
-        githubToken: ${{ github.token }}
-        setup: |
-          mkdir -p "${PWD}/artifacts"
-        dockerRunArgs: |
-          --volume "${PWD}/artifacts:/artifacts"
-        env: |
-          TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
-          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
-        multipleRun: |
-          - name: Build
-            run: |
-              for cp in cp39-cp39
-              do
-                /opt/python/${cp}/bin/python -m pip install --upgrade pip setuptools
-                /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
-                USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
-                auditwheel repair dist/*-${cp}-*.whl
-              done
-              mv wheelhouse/*.whl /artifacts/
-    - name: Upload wheels
-      env:
-        TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
-      run: |
-        python3 -m pip install --upgrade pip setuptools
-        python3 -m pip install twine wheel
-        python3 -m twine upload --repository testpypi artifacts/*.whl
-
   build_other_arch:
     name: Build for manylinux (other arch)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
         arch: [aarch64]
@@ -208,7 +161,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
-        lfs: true
     - uses: bab2min/run-on-arch-action@multiple-step-v2
       name: Deploy
       id: runcmd
@@ -225,7 +177,10 @@ jobs:
         multipleRun: |
           - name: Build
             run: |
-              for cp in cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313
+              /opt/python/cp311-cp311/bin/pip install "cmake<4"
+              rm /usr/local/bin/cmake || true
+              ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
+              for cp in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313
               do
                 /opt/python/${cp}/bin/python -m pip install --upgrade pip setuptools
                 /opt/python/${cp}/bin/python -m pip install wheel numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
