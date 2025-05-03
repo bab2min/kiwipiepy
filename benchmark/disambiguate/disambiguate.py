@@ -6,8 +6,8 @@ class Model:
 
     @staticmethod
     def from_name(name, kiwi_model_path=None, bareun_api_key=None):
-        if name == 'kiwi': return KiwiModel(kiwi_model_path, 'knlm')
-        if name == 'kiwi_sbg': return KiwiModel(kiwi_model_path, 'sbg')
+        if name == 'kiwi': return KiwiModel(kiwi_model_path)
+        if name == 'kiwi-largest': return KiwiModel(kiwi_model_path, 'largest')
         if name == 'komoran': return KomoranModel()
         if name == 'kkma': return KkmaModel()
         if name == 'hannanum': return HannanumModel()
@@ -195,9 +195,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('datasets', nargs='+')
-    parser.add_argument('--target', default='kiwi', help='kiwi,kiwi_sbg,komoran,mecab,kkma,hannanum,okt,khaiii,bareun')
-    parser.add_argument('--error_output_dir')
-    parser.add_argument('--print_all_results', default=False, action='store_true')
-    parser.add_argument('--kiwi_model_path')
-    parser.add_argument('--bareun_api_key')
+    parser.add_argument('--target', default='kiwi', help='kiwi,kiwi-largest,komoran,mecab,kkma,hannanum,okt,khaiii,bareun')
+    parser.add_argument('--error-output-dir')
+    parser.add_argument('--print-all-results', default=False, action='store_true')
+    parser.add_argument('--kiwi-model-path')
+    parser.add_argument('--bareun-api-key')
     main(parser.parse_args())
