@@ -2268,7 +2268,9 @@ struct SwTokenizerResTEIter : public py::ResultIter<SwTokenizerResTEIter, TokenE
 	future<TokenEncodeResult> feedNext(py::SharedObj&& next)
 	{
 		if (!PyUnicode_Check(next)) throw py::ValueError{ "`tokenize_encode` requires an instance of `str` or an iterable of `str`." };
-		return tokenizer->kiwi->kiwi.getThreadPool()->enqueue([&](size_t, const string& text)
+		auto* pool = tokenizer->kiwi->kiwi.getThreadPool();
+		if (!pool) throw py::RuntimeError{ "async mode is unavailable in num_workers == 0" };
+		return pool->enqueue([&](size_t, const string& text)
 		{
 			vector<pair<uint32_t, uint32_t>> offsets;
 			auto res = tokenizer->kiwi->kiwi.analyze(text, 1, Match::allWithNormalizing | Match::zCoda);
