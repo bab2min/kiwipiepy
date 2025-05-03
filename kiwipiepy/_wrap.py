@@ -396,7 +396,9 @@ class Kiwi(_Kiwi):
 Parameters
 ----------
 num_workers: int
-    내부적으로 멀티스레딩에 사용할 스레드 개수. 0으로 설정시 시스템 내 가용한 모든 코어 개수만큼 스레드가 생성됩니다.
+    내부적으로 멀티스레딩에 사용할 스레드 개수. -1으로 설정시 시스템 내 가용한 모든 코어 개수만큼 스레드가 생성됩니다.
+    0으로 설정 시 단일 스레드에서 동작하며 async 기능을 지원하지 않습니다.
+    1 이상으로 설정 시 멀티스레드로 동작하며 async 기능을 지원합니다.
     멀티스레딩은 extract 계열 함수에서 단어 후보를 탐색할 때와 analyze 함수에서만 사용됩니다.
 model_path: str
     읽어들일 모델 파일의 경로. 모델 파일의 위치를 옮긴 경우 이 값을 지정해주어야 합니다.
@@ -448,7 +450,7 @@ typo_cost_threshold: float
         typo_cost_threshold: float = 2.5,
     ) -> None:
         if num_workers is None:
-            num_workers = 0
+            num_workers = -1
         
         if integrate_allomorph is None:
             integrate_allomorph = True
