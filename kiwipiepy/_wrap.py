@@ -400,6 +400,11 @@ num_workers: int
     0으로 설정 시 단일 스레드에서 동작하며 async 기능을 지원하지 않습니다.
     1 이상으로 설정 시 멀티스레드로 동작하며 async 기능을 지원합니다.
     멀티스레딩은 extract 계열 함수에서 단어 후보를 탐색할 때와 analyze 함수에서만 사용됩니다.
+
+    .. versionchanged:: 0.21.0
+        이전까지는 num_workers=0일때 자동으로 가용한 코어 개수만큼 스레드가 생성되었으나, v0.21.0부터는 num_workers=0일 경우 단일 스레드로 동작합니다.
+        이전과 동일하게 자동으로 코어 개수를 선택하려면 num_workers=-1로 설정해야 합니다.
+
 model_path: str
     읽어들일 모델 파일의 경로. 모델 파일의 위치를 옮긴 경우 이 값을 지정해주어야 합니다.
 
@@ -449,6 +454,9 @@ typo_cost_threshold: float
         typos: Optional[Union[str, TypoTransformer]] = None,
         typo_cost_threshold: float = 2.5,
     ) -> None:
+        if num_workers == 0:
+            warnings.warn("behavior of `num_workers=0` is changed since v0.21.0. If you want to keep the previous behavior, please set `num_workers=-1`.", DeprecationWarning, 2)
+
         if num_workers is None:
             num_workers = -1
         
