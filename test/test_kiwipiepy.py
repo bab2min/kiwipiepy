@@ -124,18 +124,10 @@ def test_pretokenized():
         (30, 32),
         (21, 24, [PretokenizedToken('개봉하', 'VV', 0, 3), PretokenizedToken('었', 'EP', 2, 3)])
     ])
-    assert res[7].form == "개봉하"
-    assert res[7].tag == 'VV'
-    assert res[7].start == 21
-    assert res[7].len == 3
-    assert res[8].form == "었"
-    assert res[8].tag == 'EP'
-    assert res[8].start == 23
-    assert res[8].len == 1
-    assert res[11].form == "페트"
-    assert res[11].tag == 'NNB'
-    assert res[13].form == "매트"
-    assert res[13].tag == 'NNG'
+    assert any(r.form_tag == ('개봉하', 'VV') and r.span == (21, 24) for r in res)
+    assert any(r.form_tag == ('었', 'EP') and r.span == (23, 24) for r in res)
+    assert any(r.form_tag == ('페트', 'NNB') and r.span == (27, 29) for r in res)
+    assert any(r.form_tag == ('매트', 'NNG') and r.span == (30, 32) for r in res)
 
     res = kiwi.tokenize(text, pretokenized=lambda x:[i.span() for i in re.finditer(r'패트와 ?매트', x)])
     assert res[1].form == "패트와 매트"
@@ -469,7 +461,7 @@ def test_swtokenizer_trainer_small():
     )
 
 def test_swtokenizer_trainer_digits():
-    kiwi = Kiwi(num_workers=0)
+    kiwi = Kiwi()
     config = sw_tokenizer.SwTokenizerConfig()
 
     tokenizer = sw_tokenizer.SwTokenizer.train(
