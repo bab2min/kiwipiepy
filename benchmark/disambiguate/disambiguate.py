@@ -177,6 +177,9 @@ def main(args):
     else:
         error_outputs = None
 
+    if args.write_comparison:
+        comp_out = open(args.write_comparison, 'w', encoding='utf-8')
+
     print('', *model_names, sep='\t')
     for dataset in args.datasets:
         ds = load_dataset(dataset)
@@ -184,11 +187,23 @@ def main(args):
         for i, model in enumerate(models):
             acc = evaluate(ds, model, error_output=(error_outputs[i] if error_outputs else None), print_all_results=args.print_all_results)
             scores.append(acc)
-        
-        print(os.path.basename(dataset), *((f'{s:.3f}' if s is not None else '-') for s in scores), sep='\t')
+        if args.write_comparison:
+            print(f'<table>', file=comp_out)
+            print(f'<caption>{dataset}</caption>', file=comp_out)
+            print(f'<tr><th>입력</th><th>분석기</th><th>출력</th></tr>', file=comp_out)
+            for exam, *results in zip(*all_results):
+                print(f'<tr><th rowspan="{len(results)}">{exam}</th><th>{model_names[0]}</th><td>{" ".join(flatten_morph(*r) for r in results[0])}</td></tr>', file=comp_out)
+                for model_name, result in zip(model_names[1:], results[1:]):
+                    print(f'<tr><th>{model_name}</th><td>{" ".join(flatten_morph(*r) for r in result)}</td></tr>', file=comp_out)
+            print(f'</table>', file=comp_out)
+
+        print(os.path.basename(dataset), *((f'{s:.4f}' if s is not None else '-') for s in scores), sep='\t')
     
     if error_outputs:
         for f in error_outputs: f.close()
+    
+    if args.write_comparison:
+        comp_out.close()
             
 if __name__ == '__main__':
     import argparse
@@ -198,6 +213,7 @@ if __name__ == '__main__':
     parser.add_argument('--target', default='kiwi', help='kiwi,kiwi-largest,komoran,mecab,kkma,hannanum,okt,khaiii,bareun')
     parser.add_argument('--error-output-dir')
     parser.add_argument('--print-all-results', default=False, action='store_true')
+    parser.add_argument('--write-comparison')
     parser.add_argument('--kiwi-model-path')
     parser.add_argument('--bareun-api-key')
     main(parser.parse_args())
