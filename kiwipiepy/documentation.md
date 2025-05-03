@@ -624,6 +624,11 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.21.0 (2025-05-04)
+    * Kiwi 0.21.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.21.0 )이 반영되었습니다.
+        * 형태소 분석 모델 정확도 개선
+        * 새로운 형태소 분석 모델인 CoNg (Contextual N-gram embedding)을 구현 (실험적 요소)
+
 * 0.20.4 (2025-03-09)
     * Kiwi 0.20.4의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.20.4 )이 반영되었습니다.
         * `splitComplex` 옵션 사용시에도 종종 `어요/EF`가 `어/EF` `요/JX`로 분할되지 않는 버그 수정
