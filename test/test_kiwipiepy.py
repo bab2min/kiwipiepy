@@ -936,6 +936,9 @@ def test_issue_195():
     assert len(res) > 0
 
 def test_cong_model():
+    if sys.maxsize <= 2**32:
+        print("[skipped this test in 32bit OS.]", file=sys.stderr)
+        return
     kiwi = Kiwi(model_path='Kiwi/models/cong/base')
     assert kiwi.model_type in ('cong', 'cong-fp32')
     kiwi.tokenize('Cong 모델의 형태소 분석 테스트')
