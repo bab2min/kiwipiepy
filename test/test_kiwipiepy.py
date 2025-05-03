@@ -347,7 +347,7 @@ def test_words_with_space():
     assert res5[1].line_number == 2
 
 def test_swtokenizer():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json', num_workers=1)
     print(tokenizer.vocab)
     print(tokenizer.config)
     strs = [
@@ -365,7 +365,7 @@ def test_swtokenizer():
         assert s == decoded
 
 def test_swtokenizer_batch():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json', num_workers=1)
     strs = [
         "",
         "한국어에 특화된 토크나이저입니다.", 
@@ -379,7 +379,7 @@ def test_swtokenizer_batch():
         assert s == decoded
 
 def test_swtokenizer_morph():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json', num_workers=1)
     
     token_ids = tokenizer.encode("한국어에 특화된 토크나이저입니다.")
 
@@ -404,7 +404,7 @@ def test_swtokenizer_morph():
     assert offsets.tolist() == [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [5, 6], [5, 6], [6, 7], [7, 8], [8, 9]]
 
 def test_swtokenizer_tokenize_encode():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json', num_workers=1)
     sents = [
         "한국어에 특화된 토크나이저입니다.",
         "홈페이지는 https://bab2min.github.io/kiwipiepy 입니다."
@@ -424,7 +424,7 @@ def test_swtokenizer_tokenize_encode():
         assert token_ids.tolist() == ref_token_ids.tolist()
 
 def test_swtokenizer_offset():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json', num_workers=1)
     for sent in [
         '🔴🟠🟡🟢🔵🟣🟤⚫⚪\n'
     ]:
@@ -432,7 +432,7 @@ def test_swtokenizer_offset():
         assert len(token_ids) == len(offsets)
 
 def test_swtokenizer_morph_offset():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json', num_workers=1)
     morphs = [
         ('칼슘', 'NNG', True), 
         ('·', 'SP', False), 
