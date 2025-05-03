@@ -149,31 +149,31 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
             raise AttributeError("can't set attribute 'eos_token'")
 
     @property
-    def unk_token_id(self) -> str:
+    def unk_token_id(self) -> int:
         return self._tokenizer.unk_token_id
 
     @property
-    def cls_token_id(self) -> str:
+    def cls_token_id(self) -> int:
         return self._tokenizer.cls_token_id
 
     @property
-    def sep_token_id(self) -> str:
+    def sep_token_id(self) -> int:
         return self._tokenizer.sep_token_id
     
     @property
-    def pad_token_id(self) -> str:
+    def pad_token_id(self) -> int:
         return self._tokenizer.pad_token_id
 
     @property
-    def mask_token_id(self) -> str:
+    def mask_token_id(self) -> int:
         return self._tokenizer.mask_token_id
     
     @property
-    def bos_token_id(self) -> str:
+    def bos_token_id(self) -> int:
         return self._tokenizer.bos_token_id
     
     @property
-    def eos_token_id(self) -> str:
+    def eos_token_id(self) -> int:
         return self._tokenizer.eos_token_id
 
     def _batch_encode_plus(
@@ -417,8 +417,12 @@ class KiwiTokenizer(PreTrainedTokenizerBase):
         clean_up_tokenization_spaces = True,
     ):
         if isinstance(token_ids, int): token_ids = [token_ids]
+        special_ids = set()
+        for i in [self.unk_token_id, self.pad_token_id, self.cls_token_id, self.sep_token_id, self.mask_token_id, self.bos_token_id, self.eos_token_id]:
+            if i is not None: special_ids.add(i)
+
         if skip_special_tokens:
-            token_ids = [i for i in token_ids if i not in self.all_special_ids]
+            token_ids = [i for i in token_ids if i not in special_ids]
         return self._tokenizer.decode(token_ids)
 
     def get_added_vocab(self) -> Dict[str, int]:
