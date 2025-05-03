@@ -124,18 +124,10 @@ def test_pretokenized():
         (30, 32),
         (21, 24, [PretokenizedToken('개봉하', 'VV', 0, 3), PretokenizedToken('었', 'EP', 2, 3)])
     ])
-    assert res[7].form == "개봉하"
-    assert res[7].tag == 'VV'
-    assert res[7].start == 21
-    assert res[7].len == 3
-    assert res[8].form == "었"
-    assert res[8].tag == 'EP'
-    assert res[8].start == 23
-    assert res[8].len == 1
-    assert res[11].form == "페트"
-    assert res[11].tag == 'NNB'
-    assert res[13].form == "매트"
-    assert res[13].tag == 'NNG'
+    assert any(r.form_tag == ('개봉하', 'VV') and r.span == (21, 24) for r in res)
+    assert any(r.form_tag == ('었', 'EP') and r.span == (23, 24) for r in res)
+    assert any(r.form_tag == ('페트', 'NNB') and r.span == (27, 29) for r in res)
+    assert any(r.form_tag == ('매트', 'NNG') and r.span == (30, 32) for r in res)
 
     res = kiwi.tokenize(text, pretokenized=lambda x:[i.span() for i in re.finditer(r'패트와 ?매트', x)])
     assert res[1].form == "패트와 매트"
@@ -347,7 +339,7 @@ def test_words_with_space():
     assert res5[1].line_number == 2
 
 def test_swtokenizer():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json', num_workers=1)
     print(tokenizer.vocab)
     print(tokenizer.config)
     strs = [
@@ -365,7 +357,7 @@ def test_swtokenizer():
         assert s == decoded
 
 def test_swtokenizer_batch():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json', num_workers=1)
     strs = [
         "",
         "한국어에 특화된 토크나이저입니다.", 
@@ -379,7 +371,7 @@ def test_swtokenizer_batch():
         assert s == decoded
 
 def test_swtokenizer_morph():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json', num_workers=1)
     
     token_ids = tokenizer.encode("한국어에 특화된 토크나이저입니다.")
 
@@ -404,7 +396,7 @@ def test_swtokenizer_morph():
     assert offsets.tolist() == [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [5, 6], [5, 6], [6, 7], [7, 8], [8, 9]]
 
 def test_swtokenizer_tokenize_encode():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json', num_workers=1)
     sents = [
         "한국어에 특화된 토크나이저입니다.",
         "홈페이지는 https://bab2min.github.io/kiwipiepy 입니다."
@@ -424,7 +416,7 @@ def test_swtokenizer_tokenize_encode():
         assert token_ids.tolist() == ref_token_ids.tolist()
 
 def test_swtokenizer_offset():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json', num_workers=1)
     for sent in [
         '🔴🟠🟡🟢🔵🟣🟤⚫⚪\n'
     ]:
@@ -432,7 +424,7 @@ def test_swtokenizer_offset():
         assert len(token_ids) == len(offsets)
 
 def test_swtokenizer_morph_offset():
-    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json')
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json', num_workers=1)
     morphs = [
         ('칼슘', 'NNG', True), 
         ('·', 'SP', False), 
@@ -469,7 +461,7 @@ def test_swtokenizer_trainer_small():
     )
 
 def test_swtokenizer_trainer_digits():
-    kiwi = Kiwi(num_workers=0)
+    kiwi = Kiwi()
     config = sw_tokenizer.SwTokenizerConfig()
 
     tokenizer = sw_tokenizer.SwTokenizer.train(
@@ -942,3 +934,58 @@ def test_issue_195():
     kiwi = Kiwi(num_workers=0, model_type='sbg', typos='basic_with_continual_and_lengthening')
     res = kiwi.tokenize('“타지크인은 …… 사마르칸트와 부하라를 우즈베키스탄으로 할당한 사실에 대해 매우 고통스러워했다. 타지크인에게 두 도시는 프랑스의 파리와 같은 의미를 지닌 도시였다.” - 131쪽\xa0\xa0중앙아시아는 서쪽의 카스피해에서 동쪽의 천산산맥까지, 그리고 남쪽의 아프가니스탄에서 북쪽의 러시아 타이가 지대까지 뻗어있다. 우즈베키스탄, 카자흐스탄, 키르기스스탄, 타지키스탄, 투르크메니스탄 등 5개의 구소련 공화국이 있는 이 지역의 총면적은 4,003,451㎢로 한국의 약 40배에 달한다. 중앙아시아는 아시아와 유럽을 연결하는 실크로드의 중심으로 수십 세기 동안 수많은 제국과 국가들이 흥망성쇠를 거듭했다. 또한, 다양한 유목민의 이동 통로였는데, 고대 스키타이족부터 돌궐족, 페르시아 왕조, 몽골족, 그리고 투르크족이 중앙아시아를 지배했다. 19세기 중반부터 20세기 말까지 중앙아시아는 러시아와 소비에트 제국령이었다. \xa0\xa0유목민은 역사를 기록으로 남기지 않는다. 이러한 이유로 중앙아시아의 역사는 수많은 논쟁과 국가 이데올로기의 경쟁 무대가 되었으며, 그 역사는 원주민의 언어가 아니라 페르시아어, 아랍어, 몽골어, 중국어, 러시아어 등으로 연구할 수밖에 없다. 최근 들어 한국 중앙아시아 학계에서도 이 지역 연구에 관한 중요한 업적들이 하나둘씩 소개되고 있다. 과거 영미 학자들의 번역서에서 이후 중국어와 러시아어를 바탕으로 이 지역을 심층적으로 연구하는 논문과 책들이 쏟아져 나왔다. 최근에는 페르시아어와 몽골 큽착어와 우즈베크어 등 투르크어를 원전으로 하는 연구들 또한 빠르게 진행되고 있다. \xa0\xa0정세진 교수의 『쉽게 읽는 중앙아시아 이야기』는 러시아어 원전을 바탕으로 쓴 중앙아시아 역사서이다. 정 교수는 이 책에서 중앙아시아 역사의 가장 논쟁적인 초점인 ‘우즈베크－타지크 역사 기원과 논쟁’을 다루고 있는데 이 내용은 다른 어떤 중앙아시아 관련 서적에서 나오지 않는 내용이다. 흔히 중앙아시아의 황금시대는 S. 프레더릭 스타의 『잃어버린 계몽의 시대』에서 잘 묘사한 9∼15세기 부하라와 사마르칸트이다. 당시 부하라는 세계 최고의 과학 문명을 자랑했으며 정복자 티무르는 사마르칸트에 기념비적인 건축물을 남겼다. 문제는 이것이 누구의 유산인가 하는 것이다. \xa0\xa01991년 중앙아시아 국가들은 갑작스러운 소연방의 해체 이후 준비되지 않은 상태에서 독립을 맞이하게 되었다. 소련공산당 핵심 당원이었던 중앙아시아 지도자들은 그들의 지위를 영원히 보장할 수 있는 절호의 기회임을 깨닫고, 공산주의를 버리고 민족주의를 내세우게 된다. 그들은 구소련이 인위적으로 그어준 소비에트 공화국을 민족의 경계 구역으로 확정하고, 나아가 공화국의 이름으로 새로운 민족을 창조해나간다. 1992년부터 중앙아시아 모든 국가는 과거 구소련 시절에 유명무실했던 ‘공화국 역사연구소’를 가장 중요한 국책 연구소로 승격시키고 엄청난 예산을 쏟아부어 신화 창조에 나서게 된다. 우즈베키스탄의 카리모프 대통령은 우즈베크인과 전혀 상관없는 투르크인 아미르 티무르를 우즈베키스탄의 건국 시조로 규정하고, 수도 타슈켄트의 도시공원에 놓인 엥겔스의 동상을 치우고 티무르의 동상을 올렸다. 카자흐스탄의 나자르바예프 대통령은 유목 민족 카자흐의 조상은 고대 스키타이인이며 이들은 흉노와 돌궐, 그리고 카자흐까지 이어졌다는 주장을 무려 자신의 이름으로 논문화하여 발표한다. \xa0\xa0투르크메니스탄의 나야조프 초대 대통령은 투르크멘 민족 창조까지는 시도하지 않았지만, 자신과 자신의 일가를 절대 우상화하여 다른 중앙아시아 국가와의 차별성을 강조했다. 이러한 역사 창조 과정에서 가장 소외된 국가는 타지키스탄이었다. 타지키스탄은 1992년 발생한 내전으로 국토의 3분의 1이 전쟁터화되고, 수많은 난민이 발생하면서 역사에 관심을 쏟을 여유가 없었다. 이 결과, 타지키스탄은 자신의 가장 중요한 유산인 중앙아시아의 황금시대를 우즈베키스탄에 그냥 넘겨주게 되었다. 우즈베키스탄은 자신의 역사가 실크로드의 역사라고 주장하지만, 이것은 전혀 사실에 맞지 않는다. 7세기부터 15세기까지 동서양을 연결하는 실크로드 역사의 주역은 타지크족인 소그드였으며, 이들은 페르시아의 문명을 받아들여 9세기에 세계 최고의 과학기술을 자랑했다.\xa0\xa0정세진 교수는 타지키스탄의 역사학자인 가푸로프와 마소프의 논문을 추적하여 타지키스탄이 실크로드, 부하라와 사마르칸트 황금시대의 주역이었음을 규명한다. 이에 대항하는 우즈베키스탄 역사학자는 타지크족이 산악 민족이라고 반박하지만, 이들의 주장은 별 설득력이 없다. 오늘날 사마르칸트 인구의 절반 이상은 타지크족이며 이들은 자신의 영혼은 부하라와 사마르칸트에 닿아 있다고 믿는다. 정세진 교수의 이 기념비적인 작품은 향후 후학들이 러시아어가 아닌 페르시아어, 큽착 몽골어 등으로 더 규명하여야 할 것이다. 이 책에서 가장 아쉬운 점은 결론 장이 없다는 점이다. 논쟁적인 주장들과 중앙아시아의 문명사적 특징을 결론에서 잘 정리했다면 독자들의 이해를 도왔을 것이다.\n')
     assert len(res) > 0
+
+def test_cong_model():
+    if sys.maxsize <= 2**32:
+        print("[skipped this test in 32bit OS.]", file=sys.stderr)
+        return
+    kiwi = Kiwi(model_path='Kiwi/models/cong/base')
+    assert kiwi.model_type in ('cong', 'cong-fp32')
+    kiwi.tokenize('Cong 모델의 형태소 분석 테스트')
+
+    kiwi = Kiwi(model_path='Kiwi/models/cong/base', model_type='largest')
+    assert kiwi.model_type in ('cong-global', 'cong-global-fp32')
+    kiwi.tokenize('Cong 모델의 형태소 분석 테스트')
+
+def test_cong_functions():
+    kiwi = Kiwi(model_path='Kiwi/models/cong/base')
+    sims = kiwi.most_similar_morphemes('언어', top_n=10)
+    print(sims)
+    assert len(sims) == 10
+    sims = kiwi.most_similar_morphemes(('언어', 'NNG'), top_n=10)
+    print(sims)
+    assert len(sims) == 10
+    
+    target_id = sims[0].id
+    target_ft = sims[0].form_tag
+    target_score = sims[0].score
+    score = kiwi.morpheme_similarity('언어', target_ft)
+    assert abs(score - target_score) < 1e-4
+    
+    sims = kiwi.most_similar_morphemes(target_id, top_n=10)
+    print(sims)
+    assert len(sims) == 10
+
+    sims = kiwi.most_similar_contexts('오늘 점심은', top_n=10)
+    print(sims)
+    print(sims[0].forms)
+    print(sims[0].analyses)
+    assert len(sims) == 10
+
+    target_id = sims[1].id
+    target_form = sims[1].repr_form
+    target_score = sims[1].score    
+    score = kiwi.context_similarity('오늘 점심은', target_form)
+    assert abs(score - target_score) < 1e-4
+
+    sims = kiwi.most_similar_contexts(context_id=target_id, top_n=10)
+    print(sims)
+    assert len(sims) == 10
+
+    sims = kiwi.predict_next_morpheme('오늘 점심은', top_n=10)
+    print(sims)
+    assert len(sims) == 10
+
+    sims = kiwi.predict_next_morpheme('오늘 점심은', bg_weight=0.5, top_n=10)
+    print(sims)
+    assert len(sims) == 10

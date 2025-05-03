@@ -13,8 +13,14 @@ from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match
 from kiwipiepy.template import Template
 
-Sentence = NamedTuple('Sentence', [('text', str), ('start', int), ('end', int), ('tokens', Optional[List[Token]]), ('subs', Optional[List['Sentence']])])
-Sentence.__doc__ = '문장 분할 결과를 담기 위한 `namedtuple`입니다.'
+class Sentence(NamedTuple):
+    '''문장 분할 결과를 담기 위한 `namedtuple`입니다.'''
+    text: str
+    start: int
+    end: int
+    tokens: Optional[List[Token]]
+    subs: Optional[List['Sentence']]
+
 Sentence.text.__doc__ = '분할된 문장의 텍스트'
 Sentence.start.__doc__ = '전체 텍스트 내에서 분할된 문장이 시작하는 위치 (문자 단위)'
 Sentence.end.__doc__ = '전체 텍스트 내에서 분할된 문장이 끝나는 위치 (문자 단위)'
@@ -25,15 +31,75 @@ Sentence.subs.__doc__ = '''.. versionadded:: 0.14.0
 '''
 
 POSTag = NewType('POSTag', str)
-PretokenizedToken = NamedTuple('PretokenizedToken', [('form', str), ('tag', POSTag), ('start', int), ('end', int)])
-PretokenizedToken.__doc__ = '''미리 분석된 형태소를 나타내는 데 사용하는 `namedtuple`입니다.'''
+
+class PretokenizedToken(NamedTuple):
+    '''미리 분석된 형태소를 나타내는 데 사용하는 `namedtuple`입니다.'''
+    form: str
+    tag: POSTag
+    start: int
+    end: int
+
 PretokenizedToken.form.__doc__ = '형태소의 형태'
 PretokenizedToken.tag.__doc__ = '형태소의 품사 태그'
 PretokenizedToken.start.__doc__ = '주어진 구간에서 형태소가 시작하는 시작 위치 (문자 단위)'
 PretokenizedToken.end.__doc__ = '주어진 구간에서 형태소가 끝나는 시작 위치 (문자 단위)'
 PretokenizedTokenList = List[Union[Tuple[int, int], Tuple[int, int, POSTag], Tuple[int, int, PretokenizedToken], Tuple[int, int, List[PretokenizedToken]]]]
 
-NgramCandidate = NamedTuple('NgramCandidate', [('text', str), ('tokens', List[Tuple[str, str]]), ('token_scores', List[float]), ('cnt', int), ('df', int), ('score', float), ('npmi', float), ('lb_entropy', float), ('rb_entropy', float), ('lm_score', float)])
+class SimilarMorpheme(NamedTuple):
+    '''의미적으로 유사한 형태소 정보를 담는 `namedtuple`입니다.'''
+    form: str
+    tag: POSTag
+    id: int
+    score: float
+
+    @property
+    def form_tag(self) -> Tuple[str, POSTag]:
+        return (self.form, self.tag)
+    
+    def __repr__(self):
+        return f'SimilarMorpheme(form={self.form!r}, tag={self.tag!r}, id={self.id!r}, score={self.score:.4g})'
+
+SimilarMorpheme.form.__doc__ = '형태소의 형태'
+SimilarMorpheme.tag.__doc__ = '형태소의 품사 태그'
+SimilarMorpheme.id.__doc__ = '형태소의 고유 ID'
+SimilarMorpheme.score.__doc__ = '형태소의 유사도 점수'
+
+class SimilarContext(NamedTuple):
+    '''의미적으로 유사한 문맥 정보를 담는 `namedtuple`입니다.'''
+    forms: List[str]
+    analyses: List[List[Tuple[str, POSTag]]]
+    id: int
+    score: float
+
+    @property
+    def repr_form(self) -> str:
+        '''문맥들의 대표 형태'''
+        return self.forms[0]
+
+    @property
+    def repr_analyses(self) -> List[Tuple[str, POSTag]]:
+        '''문맥들의 대표 형태의 형태소 분석 결과'''
+        return self.analyses[0]
+
+    def __repr__(self):
+        return f'SimilarContext(repr_form={self.repr_form!r}, id={self.id!r}, score={self.score:.4g})'
+
+SimilarContext.forms.__doc__ = '동일 클러스터에 속하는 문맥들의 형태'
+SimilarContext.analyses.__doc__ = '동일 클러스터에 속하는 문맥들의 형태소 분석 결과'
+SimilarContext.id.__doc__ = '문맥의 고유 ID'
+SimilarContext.score.__doc__ = '문맥의 유사도 점수'
+
+class NgramCandidate(NamedTuple):
+    text: str
+    tokens: List[Tuple[str, str]]
+    token_scores: List[float]
+    cnt: int
+    df: int
+    score: float
+    npmi: float
+    lb_entropy: float
+    rb_entropy: float
+    lm_score: float
 
 class NgramExtractor(_NgramExtractor):
     def __init__(self, kiwi, gather_lm_score=True):
@@ -330,8 +396,15 @@ class Kiwi(_Kiwi):
 Parameters
 ----------
 num_workers: int
-    내부적으로 멀티스레딩에 사용할 스레드 개수. 0으로 설정시 시스템 내 가용한 모든 코어 개수만큼 스레드가 생성됩니다.
+    내부적으로 멀티스레딩에 사용할 스레드 개수. -1으로 설정시 시스템 내 가용한 모든 코어 개수만큼 스레드가 생성됩니다.
+    0으로 설정 시 단일 스레드에서 동작하며 async 기능을 지원하지 않습니다.
+    1 이상으로 설정 시 멀티스레드로 동작하며 async 기능을 지원합니다.
     멀티스레딩은 extract 계열 함수에서 단어 후보를 탐색할 때와 analyze 함수에서만 사용됩니다.
+
+    .. versionchanged:: 0.21.0
+        이전까지는 num_workers=0일때 자동으로 가용한 코어 개수만큼 스레드가 생성되었으나, v0.21.0부터는 num_workers=0일 경우 단일 스레드로 동작합니다.
+        이전과 동일하게 자동으로 코어 개수를 선택하려면 num_workers=-1로 설정해야 합니다.
+
 model_path: str
     읽어들일 모델 파일의 경로. 모델 파일의 위치를 옮긴 경우 이 값을 지정해주어야 합니다.
 
@@ -377,12 +450,15 @@ typo_cost_threshold: float
         load_default_dict: Optional[bool] = None,
         load_typo_dict: Optional[bool] = None,
         load_multi_dict: Optional[bool] = None,
-        model_type: str = 'knlm',
+        model_type: Optional[str] = None,
         typos: Optional[Union[str, TypoTransformer]] = None,
         typo_cost_threshold: float = 2.5,
     ) -> None:
+        if num_workers == 0:
+            warnings.warn("behavior of `num_workers=0` is changed since v0.21.0. If you want to keep the previous behavior, please set `num_workers=-1`.", DeprecationWarning, 2)
+
         if num_workers is None:
-            num_workers = 0
+            num_workers = -1
         
         if integrate_allomorph is None:
             integrate_allomorph = True
@@ -393,8 +469,10 @@ typo_cost_threshold: float
         if load_multi_dict is None:
             load_multi_dict = True
 
-        if model_type not in ('knlm', 'sbg'):
-            raise ValueError("`model_type` should be one of ('knlm', 'sbg'), but {}".format(model_type))
+        if model_type is None:
+            model_type = 'none'
+        if model_type not in ('none', 'largest', 'knlm', 'sbg', 'cong', 'cong-global'):
+            raise ValueError("`model_type` should be one of ('none', 'largest', 'knlm', 'sbg', 'cong', 'cong-global'), but {}".format(model_type))
         
         import kiwipiepy
         if typos == 'basic': 
@@ -419,7 +497,7 @@ typo_cost_threshold: float
             load_default_dict,
             load_typo_dict,
             load_multi_dict,
-            (model_type=='sbg'),
+            model_type,
             rtypos,
             typo_cost_threshold,
         )
@@ -432,7 +510,6 @@ typo_cost_threshold: float
         self._ns_max_unk_form_size = 6
         self._ns_space_tolerance = 0
         self._ns_typo_cost_weight = 6.
-        self._ns_model_type = model_type
         self._model_path = model_path
         self._load_default_dict = load_default_dict
         self._load_typo_dict = load_typo_dict
@@ -931,6 +1008,7 @@ result: List[Tuple[str, float, int, float]]
         compatible_jamo:bool = False,
         saisiot:Optional[bool] = None,
         blocklist:Optional[Union[MorphemeSet, Iterable[str]]] = None,
+        open_ending:bool = False,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ) -> List[Tuple[List[Token], float]]:
         '''형태소 분석을 실시합니다.
@@ -1025,7 +1103,7 @@ with open('result.txt', 'w', encoding='utf-8') as output:
             raise ValueError("`pretokenized` must be a callable if `text` is an iterable of str.")
         pretokenized = partial(self._make_pretokenized_spans, pretokenized) if self._pretokenized_pats or pretokenized else None
 
-        return super().analyze(text, top_n, match_options, False, blocklist, pretokenized)
+        return super().analyze(text, top_n, match_options, False, blocklist, open_ending, pretokenized)
     
     def morpheme(self,
         idx:int,
@@ -1141,7 +1219,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
 
 형태소 분석에 사용 중인 언어 모델의 종류 (읽기 전용)
         '''
-        return self._ns_model_type
+        return self._model_type
 
     @property
     def typo_cost_threshold(self):
@@ -1168,6 +1246,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         stopwords:Optional[Stopwords] = None,
         echo:bool = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
+        open_ending:bool = False,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ):
         def _refine_result(results):
@@ -1212,9 +1291,9 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
 
         if isinstance(text, str):
             echo = False
-            return _refine_result(super().analyze(text, 1, match_options, False, blocklist, pretokenized))
+            return _refine_result(super().analyze(text, 1, match_options, False, blocklist, open_ending, pretokenized))
         
-        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist, pretokenized))
+        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist, open_ending, pretokenized))
 
     def tokenize(self, 
         text:Union[str, Iterable[str]], 
@@ -1228,6 +1307,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         stopwords:Optional[Stopwords] = None,
         echo:bool = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
+        open_ending:bool = False,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ) -> Union[List[Token], Iterable[List[Token]], List[List[Token]], Iterable[List[List[Token]]]]:
         '''.. versionadded:: 0.10.2
@@ -1432,6 +1512,7 @@ Notes
                               z_coda, split_complex, compatible_jamo, saisiot,
                               split_sents, stopwords, echo, 
                               blocklist=blocklist, 
+                              open_ending=open_ending,
                               pretokenized=pretokenized
         )
 
@@ -1662,7 +1743,7 @@ Notes
             while 1:
                 yield False
 
-        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL, False, None, None)
+        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL, False, None, False, None)
             
         if insert_new_lines is None: 
             insert_new_lines = _repeat_false()
@@ -1787,10 +1868,10 @@ Notes
 
         if isinstance(text, str):
             if reset_whitespace: text = _reset(text)
-            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA, False, None, None), text))
+            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA, False, None, False, None), text))
         else:
             if reset_whitespace: text = map(_reset, text)
-            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, True, None, None))
+            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, True, None, False, None))
 
     def join(self, 
         morphs:Iterable[Tuple[str, str]],
@@ -1997,16 +2078,373 @@ ValueError: cannot specify format specifier for Kiwi Token
     def list_all_scripts(self) -> List[str]:
         return super().list_all_scripts()
 
+    def _convert_input_to_token_list(self, inp, name):
+        if isinstance(inp, str):
+            inp = self.tokenize(inp, Match.ALL, normalize_coda=True, z_coda=True, open_ending=True)
+        if not isinstance(inp, list):
+            raise TypeError(f'`{name}` must be str, List[Tuple[str, str]], List[Token] or List[int]')
+        if isinstance(inp[0], Token):
+            inp = [t.id for t in inp]
+        return inp
+
+    def most_similar_morphemes(
+        self,
+        target:Union[str, Tuple[str, POSTag], Token, int],
+        top_n:int = 10,
+    ) -> List[SimilarMorpheme]:
+        '''..versionadded:: 0.21.0
+
+내장 언어 모델을 이용하여 주어진 형태소와 의미적으로 유사한 형태소들을 찾습니다. 
+model_type이 'cong', 'cong-global'인 경우에만 사용 가능합니다.
+
+Parameters
+----------
+target: Union[str, Tuple[str, POSTag], Token, int]
+    입력 형태소. 단일 문자열 혹은 (형태, 품사태그)로 구성된 tuple, Token 객체, 혹은 Token 객체의 id를 입력할 수 있습니다.
+top_n: int
+    반환할 형태소의 개수입니다. 기본값은 10입니다.
+
+Returns
+-------
+similar_morphemes: List[SimilarMorpheme]
+    입력 형태소와 의미적으로 유사한 형태소들의 목록입니다. 유사도 기준 내림차순으로 정렬되어 반환됩니다.
+
+Notes
+-----
+이 메소드는 CoNgram 모델의 임베딩을 사용하여 형태소 간의 코사인 유사도를 계산합니다. 
+유사도 값은 모델의 추정치일뿐 실제로 형태소 간의 의미적인 유사성을 완벽하게 반영하지는 않을 수 있습니다.
+
+```python
+>>> kiwi = Kiwi(model_path='path/to/cong_model')
+
+# 품사가 유일한 형태소의 경우 품사 태그 없이 형태만 입력할 수 있습니다.
+>>> kiwi.most_similar_morphemes('사랑', top_n=5)
+[SimilarMorpheme(form='애정', tag='NNG', id=3581, score=0.6435),
+ SimilarMorpheme(form='행복', tag='NNG', id=1157, score=0.5847),
+ SimilarMorpheme(form='증오', tag='NNG', id=5913, score=0.554), 
+ SimilarMorpheme(form='존경', tag='NNG', id=3598, score=0.5535), 
+ SimilarMorpheme(form='아름답', tag='VA-I', id=849, score=0.5498)]
+
+# 그러나 형태가 동일한 형태소가 여럿 있을 경우 형태만 입력하면 예외가 발생합니다.
+>>> kiwi.most_similar_morphemes('먹', top_n=5)
+ValueError: Multiple morphemes found for the given form: 먹/VV, 먹/VX, 먹/NNG
+# 이 경우 형태와 품사 태그를 모두 입력해야 합니다.
+>>> kiwi.most_similar_morphemes(('먹', 'VV'), top_n=5)
+[SimilarMorpheme(form='드시', tag='VV', id=10057, score=0.7231),
+ SimilarMorpheme(form='마시', tag='VV', id=837, score=0.6722),
+ SimilarMorpheme(form='먹이', tag='VV', id=2327, score=0.6713),
+ SimilarMorpheme(form='씹', tag='VV', id=3897, score=0.6258),
+ SimilarMorpheme(form='맛있', tag='VA', id=1576, score=0.6216)]
+
+# 형태소의 고유 ID를 아는 경우 ID를 직접 입력할 수도 있습니다.
+>>> kiwi.most_similar_morphemes(837, top_n=5) # 837은 마시/VV의 고유 ID
+[SimilarMorpheme(form='들이켜', tag='VV', id=12971, score=0.7749),
+ SimilarMorpheme(form='들이키', tag='VV', id=15413, score=0.7575),
+ SimilarMorpheme(form='한잔', tag='NNG', id=4982, score=0.7416),
+ SimilarMorpheme(form='벌컥벌컥', tag='MAG', id=22886, score=0.7323),
+ SimilarMorpheme(form='드시', tag='VV', id=10057, score=0.7321)]
+```
+
+See Also
+--------
+- `Kiwi.most_similar_contexts`: 주어진 문맥과 의미적으로 유사한 문맥들을 찾습니다.
+- `Kiwi.morpheme_similarity`: 두 형태소 간의 유사도를 계산합니다.
+        '''
+        if top_n <= 0:
+            raise ValueError('`top_n` must be greater than 0')
+
+        if isinstance(target, Token):
+            target = target.id
+
+        return super().most_similar_morphemes(SimilarMorpheme, target, top_n)
+
+    def most_similar_contexts(
+        self,
+        target:Optional[Union[str, List[Tuple[str, POSTag]], List[Token], List[int]]] = None,
+        context_id:Optional[int] = None,
+        top_n:int = 10,
+    ) -> List[SimilarContext]:
+        '''..versionadded:: 0.21.0
+
+내장 언어 모델을 이용하여 주어진 문맥과 의미적으로 유사한 문맥들을 찾습니다. 
+model_type이 'cong', 'cong-global'인 경우에만 사용 가능합니다.
+
+Parameters
+----------
+target: Union[str, List[Tuple[str, POSTag]], List[Token], List[int]]
+    입력 문맥. 단일 문자열 혹은 (형태, 품사태그)로 구성된 tuple의 list, Token 객체의 list, 혹은 형태소 고유ID의 list로 입력할 수 있습니다.
+    이 값은 `context_id`와 함께 사용될 수 없습니다.
+context_id: int
+    입력 문맥의 고유 ID입니다. 이 값은 `target`과 함께 사용될 수 없습니다.
+top_n: int
+    반환할 문맥의 개수입니다. 기본값은 10입니다.
+
+Returns
+-------
+similar_contexts: List[SimilarContext]
+    입력 문맥과 의미적으로 유사한 문맥들의 목록입니다. 유사도 기준 내림차순으로 정렬되어 반환됩니다.
+
+Notes
+-----
+이 메소드는 CoNgram 모델의 임베딩을 사용하여 문맥 간의 코사인 유사도를 계산합니다. 
+CoNgram 모델에서는 동일한 의미를 가지는 여러 문맥을 하나의 문맥 클러스터로 묶어 처리합니다.
+따라서 유사도 계산도 문맥 클러스터 단위로 이루어집니다.
+유사도 값은 모델의 추정치일뿐 실제로 문맥 간의 의미적인 유사성을 완벽하게 반영하지는 않을 수 있습니다.
+
+```python
+>>> kiwi = Kiwi(model_path='path/to/cong_model')
+
+# 일반적인 텍스트를 문맥 target으로 입력할 수 있습니다. 
+# 이 경우 텍스트가 자동으로 형태소로 분석되고 그 결과가 사용됩니다.
+>>> kiwi.most_similar_contexts('오늘 점심은', top_n=5)
+[SimilarContext(repr_form='저녁은', id=54068, score=1),
+ SimilarContext(repr_form='. 밥은', id=46606, score=0.5083),
+ SimilarContext(repr_form='점심을', id=6730, score=0.4576),
+ SimilarContext(repr_form='함께 아침을', id=30151, score=0.4482),
+ SimilarContext(repr_form='저녁으로', id=51959, score=0.441)]
+
+# 혹은 직접 형태소 리스트를 문맥 target으로 입력할 수도 있습니다.
+>>> kiwi.most_similar_contexts([('오늘', 'MAG'), ('점심', 'NNG'), ('은', 'JX')], top_n=5)
+[SimilarContext(repr_form='저녁은', id=54068, score=1),
+ SimilarContext(repr_form='. 밥은', id=46606, score=0.5083),
+ SimilarContext(repr_form='점심을', id=6730, score=0.4576),
+ SimilarContext(repr_form='함께 아침을', id=30151, score=0.4482),
+ SimilarContext(repr_form='저녁으로', id=51959, score=0.441)]
+
+# 문맥의 고유 ID를 아는 경우 ID를 직접 입력할 수도 있습니다.
+>>> kiwi.most_similar_contexts(context_id=54068, top_n=5) # 54068은 '저녁은'의 고유 ID
+[SimilarContext(repr_form='저녁은', id=54068, score=1),
+ SimilarContext(repr_form='. 밥은', id=46606, score=0.5083),
+ SimilarContext(repr_form='점심을', id=6730, score=0.4576),
+ SimilarContext(repr_form='함께 아침을', id=30151, score=0.4482),
+ SimilarContext(repr_form='저녁으로', id=51959, score=0.441)]
+```
+
+See Also
+--------
+- `Kiwi.most_similar_morphemes`: 주어진 형태소와 의미적으로 유사한 형태소들을 찾습니다.
+- `Kiwi.context_similarity`: 두 문맥 간의 유사도를 계산합니다.
+        '''
+        if target is None and context_id is None:
+            raise ValueError('Either `target` or `context_id` must be provided')
+        if target is not None and context_id is not None:
+            raise ValueError('Only one of `target` or `context_id` can be provided')
+
+        if top_n <= 0:
+            raise ValueError('`top_n` must be greater than 0')
+
+        if target is not None:        
+            target = self._convert_input_to_token_list(target, 'target')
+        else:
+            if not isinstance(context_id, int):
+                raise TypeError('`context_id` must be int if provided')
+
+        return super().most_similar_contexts(SimilarContext, target, context_id, top_n)
+
+    def predict_next_morpheme(
+        self,
+        prefix:Union[str, List[Tuple[str, POSTag]], List[Token], List[int]],
+        bg_prefix:Optional[Union[str, List[Tuple[str, POSTag]], List[int]]] = None,
+        bg_weight:float = 0.0,
+        top_n:int = 10,
+    ) -> List[SimilarMorpheme]:
+        '''..versionadded:: 0.21.0
+
+내장 언어 모델을 이용하여 주어진 문맥 바로 다음에 등장할 형태소를 예측합니다.
+model_type이 'cong', 'cong-global'인 경우에만 사용 가능합니다.
+
+Parameters
+----------
+prefix: Union[str, List[Tuple[str, POSTag]], List[Token], List[int]]
+    입력 문맥. 단일 문자열 혹은 (형태, 품사태그)로 구성된 tuple의 list, Token 객체의 list, 혹은 형태소 고유ID의 list로 입력할 수 있습니다.
+bg_prefix: Optional[Union[str, List[Tuple[str, POSTag]], List[int]]]
+    배경으로 사용할 문맥. bg_weight가 0보다 클 경우에만 사용됩니다. 입력 타입은 prefix와 동일합니다. 
+    이 값이 생략되었는데 bg_weight가 0보다 클 경우, prefix의 마지막 형태소를 배경 문맥으로 사용합니다.
+bg_weight: float
+    배경 문맥의 가중치입니다. 배경 문맥을 사용할 경우 0보다 큰 값이어야 하며, 0 이하인 경우 bg_prefix는 무시됩니다.
+    bg_weight가 0보다 큰 경우, 다음 형태소를 예측할때 배경 문맥에서 등장할 확률대비 입력 문맥에서 등장할 확률이 얼마나 높은지를 계산하게 됩니다.
+top_n: int
+    반환할 형태소의 개수입니다. 기본값은 10입니다.
+
+Returns
+-------
+predicted_morphemes: List[SimilarMorpheme]
+    입력 문맥 다음에 등장할 것으로 예측되는 형태소의 리스트. 로그 확률 기준 내림차순으로 정렬되어 반환됩니다.
+
+Notes
+-----
+이 메소드는 CoNgram 모델의 임베딩을 사용하여 입력 문맥 다음에 등장할 형태소를 예측합니다.
+CoNgram 모델은 몇 단어 내외의 짧은 문맥만 고려할 수 있으므로 이 결과는 참고용으로만 사용하시기 바랍니다.
+
+```python
+>>> kiwi = Kiwi(model_path='path/to/cong_model')
+
+# 일반적인 텍스트를 문맥 target으로 입력할 수 있습니다. 
+# 이 경우 텍스트가 자동으로 형태소로 분석되고 그 결과가 사용됩니다.
+>>> kiwi.predict_next_morpheme('오늘 점심은', top_n=5)
+[SimilarMorpheme(form='먹', tag='VV', id=246, score=-2.175),
+ SimilarMorpheme(form='어떻', tag='VA-I', id=285, score=-3.636),
+ SimilarMorpheme(form='무엇', tag='NP', id=317, score=-3.861),
+ SimilarMorpheme(form='꼭', tag='MAG', id=688, score=-4.505),
+ SimilarMorpheme(form='', tag='NP', id=9, score=-4.66)]
+
+# 혹은 직접 형태소 리스트를 문맥 target으로 입력할 수도 있습니다.
+>>> kiwi.predict_next_morpheme([('오늘', 'MAG'), ('점심', 'NNG'), ('은', 'JX')], top_n=5)
+[SimilarMorpheme(form='먹', tag='VV', id=246, score=-2.175),
+ SimilarMorpheme(form='어떻', tag='VA-I', id=285, score=-3.636),
+ SimilarMorpheme(form='무엇', tag='NP', id=317, score=-3.861),
+ SimilarMorpheme(form='꼭', tag='MAG', id=688, score=-4.505),
+ SimilarMorpheme(form='', tag='NP', id=9, score=-4.66)]
+
+# 예측 결과에 너무 고빈도 형태소가 많이 포함되는 경우 bg_weight를 올려서 
+# 일반적으로는 덜 등장하지만, 현재 입력 문맥에서 특히 더 등장하는 형태소들을
+# 높은 순위로 예측할 수 있습니다.
+# bg_weight은 0.25~0.75 사이의 값이 일반적으로 적당하며 
+# 값이 너무 클 경우 관계 없는 형태소들이 예측될 수 있습니다.
+>>> kiwi.predict_next_morpheme('오늘 점심은', bg_weight=0.25, top_n=5)
+[SimilarMorpheme(form='먹', tag='VV', id=246, score=0.2052),
+ SimilarMorpheme(form='드시', tag='VV', id=10057, score=-2.348),
+ SimilarMorpheme(form='어떻', tag='VA-I', id=285, score=-2.431),
+ SimilarMorpheme(form='무엇', tag='NP', id=317, score=-2.631),
+ SimilarMorpheme(form='꼭', tag='MAG', id=688, score=-2.679)]
+>>> kiwi.predict_next_morpheme('오늘 점심은', bg_weight=0.5, top_n=5)
+[SimilarMorpheme(form='먹', tag='VV', id=246, score=2.585),
+ SimilarMorpheme(form='드시', tag='VV', id=10057, score=0.9805),
+ SimilarMorpheme(form='잡수', tag='VV', id=9577, score=0.2013),
+ SimilarMorpheme(form='도시락', tag='NNG', id=7128, score=0.1372),
+ SimilarMorpheme(form='간식', tag='NNG', id=10021, score=-0.1676)]
+```
+
+See Also
+--------
+- `Kiwi.most_similar_morphemes`: 주어진 형태소와 의미적으로 유사한 형태소들을 찾습니다.
+- `Kiwi.most_similar_contexts`: 주어진 문맥과 의미적으로 유사한 문맥들을 찾습니다.
+        '''
+        if top_n <= 0:
+            raise ValueError('`top_n` must be greater than 0')
+
+        prefix = self._convert_input_to_token_list(prefix, 'prefix')
+        if bg_prefix is None:
+            bg_prefix = prefix[-1:] if bg_weight > 0 and len(prefix) > 1 else None
+        else:
+            bg_prefix = self._convert_input_to_token_list(bg_prefix, 'bg_prefix')
+            if bg_weight == 0:
+                warnings.warn('`bg_weight` is 0 but `bg_prefix` is not None. `bg_prefix` will be ignored.')
+
+        return super().predict_next_morpheme(SimilarMorpheme, prefix, bg_prefix, bg_weight, top_n)
+
+    def morpheme_similarity(
+        self,
+        morpheme1:Union[str, Tuple[str, POSTag], Token, int],
+        morpheme2:Union[str, Tuple[str, POSTag], Token, int]
+    ) -> float:
+        '''..versionadded:: 0.21.0
+
+내장 언어 모델을 이용하여 두 형태소 간의 의미적 유사도를 계산합니다.
+model_type이 'cong', 'cong-global'인 경우에만 사용 가능합니다.
+
+Parameters
+----------
+morpheme1: Union[str, Tuple[str, POSTag], Token, int]
+    첫번째 입력 형태소. 단일 문자열 혹은 (형태, 품사태그)로 구성된 tuple, Token 객체, 혹은 Token 객체의 id를 입력할 수 있습니다.
+morpheme2: Union[str, Tuple[str, POSTag], Token, int]
+    두번째 입력 형태소. 타입은 morpheme1과 동일합니다.
+
+Returns
+-------
+similarity: float
+    두 형태소 간의 의미적 유사도입니다. -1 ~ 1 사이의 값을 가집니다.
+
+Notes
+-----
+이 메소드는 CoNgram 모델의 임베딩을 사용하여 두 형태소 간의 코사인 유사도를 계산합니다.
+유사도 값은 모델의 추정치일뿐 실제로 형태소 간의 의미적인 유사성을 완벽하게 반영하지는 않을 수 있습니다.
+
+```python
+>>> kiwi = Kiwi(model_path='path/to/cong_model')
+
+>>> kiwi.morpheme_similarity('사랑', '애정')
+0.6434643268585205
+
+>>> kiwi.morpheme_similarity('사랑', '알고리즘')
+0.17435617744922638
+
+>>> kiwi.morpheme_similarity(('고려', 'NNP'), ('조선', 'NNP'))
+0.7597792148590088
+```
+
+See Also
+--------
+- `Kiwi.context_similarity`: 두 문맥 간의 의미적 유사도를 계산합니다.
+- `Kiwi.most_similar_morphemes`: 주어진 형태소와 의미적으로 유사한 형태소들을 찾습니다.
+        '''
+        if isinstance(morpheme1, Token):
+            morpheme1 = morpheme1.id
+        if isinstance(morpheme2, Token):
+            morpheme2 = morpheme2.id
+        return super().morpheme_similarity(morpheme1, morpheme2)
+
+    def context_similarity(
+        self,
+        context1:Union[str, List[Tuple[str, POSTag]], List[Token], List[int]],
+        context2:Union[str, List[Tuple[str, POSTag]], List[Token], List[int]]
+    ) -> float:
+        '''..versionadded:: 0.21.0
+
+내장 언어 모델을 이용하여 두 문맥 간의 의미적 유사도를 계산합니다.
+model_type이 'cong', 'cong-global'인 경우에만 사용 가능합니다.
+
+Parameters
+----------
+context1: Union[str, List[Tuple[str, POSTag]], List[Token], List[int]]
+    첫번째 입력 문맥. 단일 문자열 혹은 (형태, 품사태그)로 구성된 tuple의 list, Token 객체의 list, 혹은 형태소 고유ID의 list로 입력할 수 있습니다.
+context2: Union[str, List[Tuple[str, POSTag]], List[Token], List[int]]
+    두번째 입력 문맥. 타입은 context1과 동일합니다.
+
+Returns
+-------
+similarity: float
+    두 문맥 간의 의미적 유사도입니다. -1 ~ 1 사이의 값을 가집니다.
+
+Notes
+-----
+이 메소드는 CoNgram 모델의 임베딩을 사용하여 두 문맥 간의 코사인 유사도를 계산합니다.
+유사도 값은 모델의 추정치일뿐 실제로 문맥 간의 의미적인 유사성을 완벽하게 반영하지는 않을 수 있습니다.
+
+```python
+>>> kiwi = Kiwi(model_path='path/to/cong_model')
+
+>>> kiwi.context_similarity('오늘 점심은', '오늘 저녁은')
+0.5015822052955627
+
+>>> kiwi.context_similarity('아침 일찍', '집에 가')
+0.03654039651155472
+
+>>> kiwi.context_similarity([('사람', 'NNG'), ('이', 'JKS')], [('사람', 'NNG'), ('은', 'JX')])
+0.5711478590965271
+```
+
+See Also
+--------
+- `Kiwi.morpheme_similarity`: 두 형태소 간의 의미적 유사도를 계산합니다.
+- `Kiwi.most_similar_contexts`: 주어진 문맥과 의미적으로 유사한 문맥들을 찾습니다.
+'''
+        context1 = self._convert_input_to_token_list(context1, 'context1')
+        context2 = self._convert_input_to_token_list(context2, 'context2')
+        return super().context_similarity(context1, context2)
+
     def convert_hsdata(
         self,
         input_path:Union[str, List[str]],
         output_path:str,
         morpheme_def_path:str = None,
         morpheme_def_min_cnt:int = 0,
+        generate_oov_dict:bool = False,
+        transform:Iterable[Tuple[Tuple[str, str], Tuple[str, str]]] = None,
     ):
         if isinstance(input_path, str):
             input_path = [input_path]
-        return super().convert_hsdata(input_path, output_path, morpheme_def_path, morpheme_def_min_cnt)
+        return super().convert_hsdata(input_path, output_path, morpheme_def_path, morpheme_def_min_cnt, generate_oov_dict, transform)
 
     def make_hsdataset(
         self,
@@ -2017,13 +2455,17 @@ ValueError: cannot specify format specifier for Kiwi Token
         num_workers:int = 1, 
         dropout:float = 0, 
         dropout_on_history:float = 0,
+        noun_augmenting_prob:float = 0,
         token_filter:Callable[[str, str], bool] = None, 
         window_filter:Callable[[str, str], bool] = None, 
         split_ratio:float = 0, 
         separate_default_morpheme:bool = False,
         morpheme_def_path:str = None,
         morpheme_def_min_cnt:int = 0,
+        contextual_mapper:List[Tuple[int, List[int]]] = None,
+        transform:Iterable[Tuple[Tuple[str, str], Tuple[str, str]]] = None,
         seed:int = 0,
+        generate_unlikelihoods:int = -1,
     ):
         return super().make_hsdataset(
             inputs, 
@@ -2033,12 +2475,16 @@ ValueError: cannot specify format specifier for Kiwi Token
             num_workers, 
             dropout, 
             dropout_on_history, 
+            noun_augmenting_prob,
+            generate_unlikelihoods,
             token_filter, 
             window_filter, 
             split_ratio, 
             separate_default_morpheme, 
             morpheme_def_path, 
             morpheme_def_min_cnt, 
+            contextual_mapper or [],
+            transform,
             seed)
 
 

@@ -1,4 +1,4 @@
-#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
+﻿#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
 
 #include <stdexcept>
 #include <fstream>
@@ -274,9 +274,9 @@ struct HSDatasetObject : py::CObject<HSDatasetObject>
 		}
 	}
 
-	std::vector<std::pair<std::vector<uint32_t>, size_t>> extractPrefixes(size_t minCnt, size_t maxLength, size_t numWorkers = 1) const
+	std::vector<std::pair<std::vector<uint32_t>, size_t>> extractPrefixes(size_t minCnt, size_t maxLength, size_t numWorkers = 1, bool exclusiveCnt = false) const
 	{
-		return hsd.extractPrefixes(minCnt, maxLength, numWorkers);
+		return hsd.extractPrefixes(minCnt, maxLength, numWorkers, exclusiveCnt);
 	}
 };
 
@@ -347,8 +347,18 @@ struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
 		py::UniqueObj outData{ PyArray_EMPTY(1, sizes, NPY_INT64, 0) };
 		py::UniqueObj lmLProbsData{ PyArray_EMPTY(1, sizes, NPY_FLOAT32, 0) };
 		py::UniqueObj outNgramNodeData{ PyArray_EMPTY(1, sizes, NPY_INT64, 0) };
+		py::UniqueObj ulInData;
+		py::UniqueObj ulOutData;
+
+		if (obj->hsd.doesGenerateUnlikelihoods())
+		{
+			ulInData = py::UniqueObj{ PyArray_EMPTY(2, sizes, NPY_INT64, 0) };
+			ulOutData = py::UniqueObj{ PyArray_EMPTY(1, sizes, NPY_INT64, 0) };
+		}
+
 		float restLm = 0;
 		uint32_t restLmCnt = 0;
+		size_t ulDataSize = 0;
 
 		const size_t sz = obj->hsd.next(
 			(int64_t*)PyArray_DATA((PyArrayObject*)inData.get()),
@@ -356,7 +366,10 @@ struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
 			(float*)PyArray_DATA((PyArrayObject*)lmLProbsData.get()),
 			(int64_t*)PyArray_DATA((PyArrayObject*)outNgramNodeData.get()),
 			restLm,
-			restLmCnt
+			restLmCnt,
+			ulInData ? (int64_t*)PyArray_DATA((PyArrayObject*)ulInData.get()) : nullptr,
+			ulOutData ? (int64_t*)PyArray_DATA((PyArrayObject*)ulOutData.get()) : nullptr,
+			&ulDataSize
 		);
 		if (!sz) throw py::ExcPropagation{};
 
@@ -367,8 +380,21 @@ struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
 			outData = py::UniqueObj{ PyObject_GetItem(outData.get(), slice.get())};
 			lmLProbsData = py::UniqueObj{ PyObject_GetItem(lmLProbsData.get(), slice.get())};
 			outNgramNodeData = py::UniqueObj{ PyObject_GetItem(outNgramNodeData.get(), slice.get())};
+			if (ulInData)
+			{
+				py::UniqueObj slice{ PySlice_New(nullptr, py::buildPyValue(ulDataSize).get(), nullptr) };
+				ulInData = py::UniqueObj{ PyObject_GetItem(ulInData.get(), slice.get()) };
+				ulOutData = py::UniqueObj{ PyObject_GetItem(ulOutData.get(), slice.get()) };
+			}
 		}
+		if (ulInData)
+		{
+			return py::buildPyTuple(inData, outData, lmLProbsData, outNgramNodeData, restLm, restLmCnt, ulInData, ulOutData);
+		}
+		else
+		{
 		return py::buildPyTuple(inData, outData, lmLProbsData, outNgramNodeData, restLm, restLmCnt);
+		}
 	}
 };
 
@@ -822,6 +848,13 @@ py::TypeWrapper<KNLangModelObject> _KNLangModelObjectSetter{ gModule, [](PyTypeO
 	obj.tp_getset = getsets;
 } };
 
+struct ContextSpan
+{
+	const uint32_t* data = nullptr;
+	size_t size = 0;
+
+	ContextSpan(const uint32_t* _data = nullptr, size_t _size = 0) : data(_data), size(_size) {}
+};
 
 struct KiwiObject : py::CObject<KiwiObject>
 {
@@ -833,6 +866,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 	Kiwi kiwi;
 	TypoTransformerObject* typos = nullptr;
 	float typoCostThreshold = 2.5f;
+	Vector<vector<u16string>> contextForms;
+	Vector<pair<Vector<uint32_t>, Vector<size_t>>> contextAnalyses;
 
 	using _InitArgs = std::tuple<
 		size_t,
@@ -841,7 +876,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 		bool,
 		bool,
 		bool,
-		bool,
+		std::string,
 		PyObject*,
 		float
 	>;
@@ -854,7 +889,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 		bool loadDefaultDict = true, 
 		bool loadTypoDict = true, 
 		bool loadMultiDict = true,
-		bool sbg = false, 
+		const std::string& modelType = {},
 		PyObject* _typos = nullptr, 
 		float _typoCostThreshold = 2.5f
 	)
@@ -895,7 +930,37 @@ struct KiwiObject : py::CObject<KiwiObject>
 			spath = py::toCpp<string>(pathRet.get());
 		}
 
-		builder = KiwiBuilder{ spath, numThreads, (BuildOption)boptions, !!sbg };
+		ModelType mtype = ModelType::none;
+		if (modelType.empty() || modelType == "none")
+		{
+			mtype = ModelType::none;
+		}
+		else if (modelType == "largest")
+		{
+			mtype = ModelType::largest;
+		}
+		else if (modelType == "knlm")
+		{
+			mtype = ModelType::knlm;
+		}
+		else if (modelType == "sbg")
+		{
+			mtype = ModelType::sbg;
+		}
+		else if (modelType == "cong")
+		{
+			mtype = ModelType::cong;
+		}
+		else if (modelType == "cong-global")
+		{
+			mtype = ModelType::congGlobal;
+		}
+		else
+		{
+			throw py::ValueError{ "invalid model type: " + modelType };
+		}
+
+		builder = KiwiBuilder{ spath, numThreads, (BuildOption)boptions, mtype };
 	}
 
 	void doPrepare()
@@ -914,21 +979,86 @@ struct KiwiObject : py::CObject<KiwiObject>
 		}
 	}
 
+	void convertContextToReadableForm(const vector<uint32_t>& context, vector<u16string>& forms, pair<Vector<uint32_t>, Vector<size_t>>& analyses) const
+	{
+		Vector<ContextSpan> spans;
+		const uint32_t delimiter = -1;
+		size_t start = 0;
+		for (size_t i = 0; i < context.size(); ++i)
+		{
+			if (context[i] == delimiter)
+			{
+				spans.emplace_back(context.data() + start, i - start);
+				start = i + 1;
+			}
+		}
+		if (start < context.size())
+		{
+			spans.emplace_back(context.data() + start, context.size() - start);
+		}
+
+		sort(spans.begin(), spans.end(), [](const ContextSpan& a, const ContextSpan& b)
+		{
+			if (a.size < b.size) return true;
+			if (a.size > b.size) return false;
+			for (size_t i = 0; i < a.size; ++i)
+			{
+				if (a.data[i] < b.data[i]) return true;
+				if (a.data[i] > b.data[i]) return false;
+			}
+			return false;
+		});
+
+		for (auto& span : spans)
+		{
+			auto joiner = kiwi.newJoiner(false);
+			for (size_t i = 0; i < span.size; ++i)
+			{
+				joiner.add(span.data[i]);
+				analyses.first.emplace_back(span.data[i]);
+			}
+			forms.emplace_back(joiner.getU16());
+			analyses.second.push_back(analyses.first.size());
+		}
+	}
+
+	void prepareContextMap(const lm::CoNgramModelBase* cong)
+	{
+		if (!contextForms.empty()) return;
+
+		auto contextMap = cong->getContextWordMap();
+		for (size_t i = 0; i < contextMap.size(); ++i)
+		{
+			vector<u16string> forms;
+			pair<Vector<uint32_t>, Vector<size_t>> analyses;
+			convertContextToReadableForm(contextMap[i], forms, analyses);
+			contextForms.emplace_back(std::move(forms));
+			contextAnalyses.emplace_back(std::move(analyses));
+		}
+	}
+
 	std::pair<uint32_t, bool> addUserWord(const char* word, const char* tag = "NNP", float score = 0, std::optional<const char*> origWord = {});
 	bool addPreAnalyzedWord(const char* form, PyObject* oAnalyzed = nullptr, float score = 0);
 	std::vector<std::pair<uint32_t, std::u16string>> addRule(const char* tag, PyObject* replacer, float score = 0);
-	py::UniqueObj analyze(PyObject* text, size_t topN = 1, Match matchOptions = Match::all, bool echo = false, PyObject* blockList = Py_None, PyObject* pretokenized = Py_None);
+	py::UniqueObj analyze(PyObject* text, size_t topN = 1, Match matchOptions = Match::all, bool echo = false, PyObject* blockList = Py_None, bool openEnding = false, PyObject* pretokenized = Py_None);
 	py::UniqueObj extractAddWords(PyObject* sentences, size_t minCnt = 10, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true);
 	py::UniqueObj extractWords(PyObject* sentences, size_t minCnt, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true) const;
 	size_t loadUserDictionary(const char* path);
 	py::UniqueObj getMorpheme(size_t id);
 	py::UniqueObj join(PyObject* morphs, bool lmSearch = true, bool returnPositions = false);
+	py::UniqueObj mostSimilarMorphemes(PyObject* retTy, PyObject* target, size_t topN);
+	py::UniqueObj mostSimilarContexts(PyObject* retTy, PyObject* target, PyObject* contextId, size_t topN);
+	py::UniqueObj predictNextMorpheme(PyObject* retTy, PyObject* prefix, PyObject* bgPrefix, float bgWeight, size_t topN);
+	float morphemeSimilarity(PyObject* a, PyObject* b);
+	float contextSimilarity(PyObject* a, PyObject* b);
 	
 	void convertHSData(
 		PyObject* inputPathes, 
 		const char* outputPath,
 		PyObject* morphemeDefPath = nullptr,
-		size_t morphemeDefMinCnt = 0) const;
+		size_t morphemeDefMinCnt = 0,
+		bool generateOovDict = false,
+		PyObject* transform = nullptr) const;
 
 	py::UniqueObj makeHSDataset(PyObject* inputPathes, 
 		size_t batchSize, 
@@ -937,12 +1067,16 @@ struct KiwiObject : py::CObject<KiwiObject>
 		size_t numWorkers, 
 		float dropout = 0, 
 		float dropoutOnHistory = 0,
+		float nounAugmentingProb = 0,
+		size_t generateUnlikelihoods = -1,
 		PyObject* tokenFilter = nullptr, 
 		PyObject* windowFilter = nullptr, 
 		float splitRatio = 0, 
 		bool separateDefaultMorpheme = false, 
 		PyObject* morphemeDefPath = nullptr,
 		size_t morphemeDefMinCnt = 0,
+		const std::vector<std::pair<size_t, std::vector<uint32_t>>>& contextualMapper = {},
+		PyObject* transform = nullptr,
 		size_t seed = 42) const;
 
 	py::UniqueObj listAllScripts() const;
@@ -1031,6 +1165,12 @@ struct KiwiObject : py::CObject<KiwiObject>
 	{
 		return kiwi.getNumThreads();
 	}
+
+	const char* getModelType()
+	{
+		doPrepare();
+		return modelTypeToStr(kiwi.getLangModel()->getType());
+	}
 };
 
 py::TypeWrapper<KiwiObject> _KiwiSetter{ gModule, [](PyTypeObject& obj)
@@ -1049,6 +1189,11 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ gModule, [](PyTypeObject& obj)
 		{ "convert_hsdata", PY_METHOD(&KiwiObject::convertHSData), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "make_hsdataset", PY_METHOD(&KiwiObject::makeHSDataset), METH_VARARGS | METH_KEYWORDS, "" },
 		{ "list_all_scripts", PY_METHOD(&KiwiObject::listAllScripts), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "most_similar_morphemes", PY_METHOD(&KiwiObject::mostSimilarMorphemes), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "most_similar_contexts", PY_METHOD(&KiwiObject::mostSimilarContexts), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "predict_next_morpheme", PY_METHOD(&KiwiObject::predictNextMorpheme), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "morpheme_similarity", PY_METHOD(&KiwiObject::morphemeSimilarity), METH_VARARGS | METH_KEYWORDS, "" },
+		{ "context_similarity", PY_METHOD(&KiwiObject::contextSimilarity), METH_VARARGS | METH_KEYWORDS, "" },
 		{ nullptr }
 	};
 	static PyGetSetDef getsets[] =
@@ -1063,6 +1208,7 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ gModule, [](PyTypeObject& obj)
 		{ (char*)"_typo_cost_weight", PY_GETTER(&KiwiObject::getTypoCostWeight), PY_SETTER(&KiwiObject::setTypoCostWeight), "", nullptr },
 		{ (char*)"_typo_cost_threshold", PY_GETTER(&KiwiObject::typoCostThreshold), PY_SETTER(&KiwiObject::typoCostThreshold), "", nullptr },
 		{ (char*)"_num_workers", PY_GETTER(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
+		{ (char*)"_model_type", PY_GETTER(&KiwiObject::getModelType), nullptr, "", nullptr },
 		{ nullptr },
 	};
 	obj.tp_methods = methods;
@@ -1427,7 +1573,7 @@ struct MorphemeSetObject : py::CObject<MorphemeSetObject>
 				{
 					tag = parseTag(stag.c_str());
 				}
-				auto m = kiwi->kiwi.findMorpheme(utf8To16(form), tag);
+				auto m = kiwi->kiwi.findMorphemes(utf8To16(form), tag);
 				morphSet.insert(m.begin(), m.end());
 			}
 			else
@@ -1977,6 +2123,7 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 	py::UniqueObj pretokenizedCallable;
 	size_t topN = 1;
 	Match matchOptions = Match::all;
+	bool openEnding = false;
 
 	KiwiResIter() = default;
 	KiwiResIter(KiwiResIter&&) = default;
@@ -2017,7 +2164,10 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 			updatePretokenizedSpanToU16(pretokenized.first, so);
 		}
 		return makeFutureCarrier(
-			kiwi->kiwi.asyncAnalyze(move(so.str), topN, matchOptions, blocklist ? &blocklist->morphSet : nullptr, move(pretokenized.first)), 
+			kiwi->kiwi.asyncAnalyze(move(so.str), topN, 
+				AnalyzeOption{ matchOptions, blocklist ? &blocklist->morphSet : nullptr, openEnding }, 
+				move(pretokenized.first)
+			),
 			move(pretokenized.second)
 		);
 	}
@@ -2118,7 +2268,9 @@ struct SwTokenizerResTEIter : public py::ResultIter<SwTokenizerResTEIter, TokenE
 	future<TokenEncodeResult> feedNext(py::SharedObj&& next)
 	{
 		if (!PyUnicode_Check(next)) throw py::ValueError{ "`tokenize_encode` requires an instance of `str` or an iterable of `str`." };
-		return tokenizer->kiwi->kiwi.getThreadPool()->enqueue([&](size_t, const string& text)
+		auto* pool = tokenizer->kiwi->kiwi.getThreadPool();
+		if (!pool) throw py::RuntimeError{ "async mode is unavailable in num_workers == 0" };
+		return pool->enqueue([&](size_t, const string& text)
 		{
 			vector<pair<uint32_t, uint32_t>> offsets;
 			auto res = tokenizer->kiwi->kiwi.analyze(text, 1, Match::allWithNormalizing | Match::zCoda);
@@ -2378,7 +2530,7 @@ py::UniqueObj KiwiObject::extractAddWords(PyObject* sentences, size_t minCnt, si
 	return retList;
 }
 
-py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOptions, bool echo, PyObject* blockList, PyObject* pretokenized)
+py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOptions, bool echo, PyObject* blockList, bool openEnding, PyObject* pretokenized)
 {
 	doPrepare();
 	if (PyUnicode_Check(text))
@@ -2408,7 +2560,7 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOption
 			updatePretokenizedSpanToU16(pretokenizedSpans.first, so);
 		}
 
-		auto res = kiwi.analyze(so.str, topN, matchOptions, morphs, pretokenizedSpans.first);
+		auto res = kiwi.analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs, openEnding }, pretokenizedSpans.first);
 		if (res.size() > topN) res.erase(res.begin() + topN, res.end());
 		return resToPyList(move(res), this, move(pretokenizedSpans.second));
 	}
@@ -2423,6 +2575,7 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOption
 		ret->inputIter = move(iter);
 		ret->topN = topN;
 		ret->matchOptions = matchOptions;
+		ret->openEnding = openEnding;
 		ret->echo = !!echo;
 		if (blockList != Py_None)
 		{
@@ -2545,11 +2698,234 @@ py::UniqueObj KiwiObject::join(PyObject* morphs, bool lmSearch, bool returnPosit
 	}
 }
 
+template<class E>
+inline uint32_t convertToMorphId(const Kiwi& kiwi, PyObject* target, E&& errorMsg)
+{
+	if (PyUnicode_Check(target) || (PyTuple_Check(target) && PyTuple_GET_SIZE(target) == 2))
+	{
+		u16string form;
+		POSTag tag = POSTag::unknown;
+		if (PyUnicode_Check(target))
+		{
+			form = py::toCpp<u16string>(target);
+		}
+		else
+		{
+			form = py::toCpp<u16string>(PyTuple_GET_ITEM(target, 0));
+			tag = parseTag(py::toCpp<u16string>(PyTuple_GET_ITEM(target, 1)));
+		}
+
+		auto cands = kiwi.findMorphemes(form, tag);
+		if (cands.empty())
+		{
+			throw py::ValueError{ "No morpheme found for the given form: " + utf16To8(form) };
+		}
+		if (cands.size() > 1)
+		{
+			string errMsg = "Multiple morphemes found for the given form: ";
+			for (auto c : cands)
+			{
+				errMsg += utf16To8(form);
+				errMsg.push_back('/');
+				errMsg += tagToString(c->tag);
+				errMsg.push_back(',');
+				errMsg.push_back(' ');
+			}
+			errMsg.pop_back();
+			errMsg.pop_back();
+			throw py::ValueError{ errMsg };
+		}
+		return cands[0]->lmMorphemeId;
+	}
+	else if (PyLong_Check(target))
+	{
+		return py::toCpp<uint32_t>(target);
+	}
+	else
+	{
+		throw py::ValueError{ std::forward<E>(errorMsg)};
+	}
+}
+
+inline Vector<uint32_t> convertToIds(const Kiwi& kiwi, PyObject* iterable)
+{
+	Vector<uint32_t> ids;
+	py::foreach<PyObject*>(iterable, [&](PyObject* item)
+	{
+		ids.emplace_back(convertToMorphId(kiwi, item, "`prefix` must be an instance of `str`, `Tuple[str, str]` or `int`."));
+	}, "`prefix` must be an iterable of `Tuple[str, str]` or `int`");
+	return ids;
+}
+
+py::UniqueObj KiwiObject::mostSimilarMorphemes(PyObject* retTy, PyObject* target, size_t topN)
+{
+	doPrepare();
+	auto congLm = dynamic_cast<const lm::CoNgramModelBase*>(kiwi.getLangModel());
+	if (!congLm)
+	{
+		throw py::ValueError{ "`most_similar_morphemes` is supported only for CoNgramModel." };
+	}
+
+	const uint32_t targetId = convertToMorphId(kiwi, target, "`target` must be an instance of `str`, `Tuple[str, str]` or `int`.");
+	Vector<pair<uint32_t, float>> output(topN);
+	output.resize(congLm->mostSimilarWords(targetId, topN, output.data()));
+	
+	py::UniqueObj ret{ PyList_New(output.size()) };
+	for (size_t i = 0; i < output.size(); ++i)
+	{
+		auto* morph = kiwi.idToMorph(output[i].first);
+		PyList_SET_ITEM(ret.get(), i, PyObject_CallObject(retTy, py::buildPyTuple(
+			joinHangul(morph->getForm()), 
+			tagToString(morph->tag),
+			output[i].first,
+			output[i].second
+		).get()));
+	}
+	return ret;
+}
+
+py::UniqueObj KiwiObject::mostSimilarContexts(PyObject* retTy, PyObject* target, PyObject* contextId, size_t topN)
+{
+	doPrepare();
+	auto congLm = dynamic_cast<const lm::CoNgramModelBase*>(kiwi.getLangModel());
+	if (!congLm)
+	{
+		throw py::ValueError{ "`most_similar_contexts` is supported only for CoNgramModel." };
+	}
+
+	Vector<uint32_t> targetIds;
+	if (target != Py_None)
+	{
+		targetIds = convertToIds(kiwi, target);
+	}
+	prepareContextMap(congLm);
+
+	const uint32_t targetContextId = target == Py_None ?
+		PyLong_AsLong(contextId) :
+		congLm->toContextId(targetIds.data(), targetIds.size());
+	Vector<pair<uint32_t, float>> output(topN);
+	if (topN > 1)
+	{
+		output.resize(congLm->mostSimilarContexts(targetContextId, topN - 1, output.data() + 1) + 1);
+	}
+	output[0].first = targetContextId;
+	output[0].second = 1;
+
+	py::UniqueObj ret{ PyList_New(output.size()) };
+	for (size_t i = 0; i < output.size(); ++i)
+	{
+		auto* morph = kiwi.idToMorph(output[i].first);
+		auto& forms = contextForms[output[i].first];
+		auto& analysesData = contextAnalyses[output[i].first].first;
+		auto& analysesPtr = contextAnalyses[output[i].first].second;
+
+		py::UniqueObj analysisList{ PyList_New(analysesPtr.size()) };
+		for (size_t j = 0; j < analysesPtr.size(); ++j)
+		{
+			const size_t start = j > 0 ? analysesPtr[j - 1] : 0;
+			const size_t end = analysesPtr[j];
+			py::UniqueObj morphs{ PyList_New(end - start) };
+			for (size_t k = start; k < end; ++k)
+			{
+				auto* morph = kiwi.idToMorph(analysesData[k]);
+				PyList_SET_ITEM(morphs.get(), k - start, py::buildPyTuple(
+					joinHangul(morph->getForm()),
+					tagToString(morph->tag)
+				).release());
+			}
+			PyList_SET_ITEM(analysisList.get(), j, morphs.release());
+		}
+		PyList_SET_ITEM(ret.get(), i, PyObject_CallObject(retTy, py::buildPyTuple(
+			forms,
+			analysisList.get(),
+			output[i].first,
+			output[i].second
+		).get()));
+	}
+	return ret;
+}
+
+py::UniqueObj KiwiObject::predictNextMorpheme(PyObject* retTy, PyObject* prefix, PyObject* bgPrefix, float bgWeight, size_t topN)
+{
+	doPrepare();
+	auto congLm = dynamic_cast<const lm::CoNgramModelBase*>(kiwi.getLangModel());
+	if (!congLm)
+	{
+		throw py::ValueError{ "`predict_next_morpheme` is supported only for CoNgramModel." };
+	}
+
+	Vector<uint32_t> prefixIds = convertToIds(kiwi, prefix);
+	Vector<uint32_t> bgPrefixIds;
+	if (bgPrefix != Py_None)
+	{
+		bgPrefixIds = convertToIds(kiwi, bgPrefix);
+	}
+
+	const uint32_t prefixContextId = congLm->toContextId(prefixIds.data(), prefixIds.size());
+	Vector<pair<uint32_t, float>> output(topN);
+	if (bgPrefixIds.empty())
+	{
+		output.resize(congLm->predictWordsFromContext(prefixContextId, topN, output.data()));
+	}
+	else
+	{
+		const uint32_t bgPrefixContextId = congLm->toContextId(bgPrefixIds.data(), bgPrefixIds.size());
+		output.resize(congLm->predictWordsFromContextDiff(prefixContextId, bgPrefixContextId, bgWeight, topN, output.data()));
+	}
+
+	py::UniqueObj ret{ PyList_New(output.size()) };
+	for (size_t i = 0; i < output.size(); ++i)
+	{
+		auto* morph = kiwi.idToMorph(output[i].first);
+		PyList_SET_ITEM(ret.get(), i, PyObject_CallObject(retTy, py::buildPyTuple(
+			joinHangul(morph->getForm()),
+			tagToString(morph->tag),
+			output[i].first,
+			output[i].second
+		).get()));
+	}
+	return ret;
+}
+
+float KiwiObject::morphemeSimilarity(PyObject* a, PyObject* b)
+{
+	doPrepare();
+	auto congLm = dynamic_cast<const lm::CoNgramModelBase*>(kiwi.getLangModel());
+	if (!congLm)
+	{
+		throw py::ValueError{ "`morpheme_similarity` is supported only for CoNgramModel." };
+	}
+
+	const uint32_t aId = convertToMorphId(kiwi, a, "`morpheme1` must be an instance of `str`, `Tuple[str, str]` or `int`.");
+	const uint32_t bId = convertToMorphId(kiwi, b, "`morpheme2` must be an instance of `str`, `Tuple[str, str]` or `int`.");
+
+	return congLm->wordSimilarity(aId, bId);
+}
+
+float KiwiObject::contextSimilarity(PyObject* a, PyObject* b)
+{
+	doPrepare();
+	auto congLm = dynamic_cast<const lm::CoNgramModelBase*>(kiwi.getLangModel());
+	if (!congLm)
+	{
+		throw py::ValueError{ "`morpheme_similarity` is supported only for CoNgramModel." };
+	}
+
+	const Vector<uint32_t> aId = convertToIds(kiwi, a);
+	const Vector<uint32_t> bId = convertToIds(kiwi, b);
+
+	const uint32_t aContextId = congLm->toContextId(aId.data(), aId.size());
+	const uint32_t bContextId = congLm->toContextId(bId.data(), bId.size());
+	return congLm->contextSimilarity(aContextId, bContextId);
+}
+
 void KiwiObject::convertHSData(
 	PyObject* inputPathes,
 	const char* outputPath,
 	PyObject* morphemeDefPath,
-	size_t morphemeDefMinCnt
+	size_t morphemeDefMinCnt,
+	bool generateOovDict,
+	PyObject* transform
 ) const
 {
 	
@@ -2559,7 +2935,38 @@ void KiwiObject::convertHSData(
 		morphemeDefPathStr = py::toCpp<string>(morphemeDefPath);
 	}
 
-	builder.convertHSData(py::toCpp<vector<string>>(inputPathes), outputPath, morphemeDefPathStr, morphemeDefMinCnt);
+	vector<pair<pair<string, POSTag>, pair<string, POSTag>>> transformMap;
+	if (transform && transform != Py_None)
+	{
+		py::UniqueObj iter{ PyObject_GetIter(transform) };
+		if (!iter) throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
+		py::foreach<PyObject*>(iter.get(), [&](PyObject* item)
+		{
+			if (PyTuple_Check(item) && PyTuple_Size(item) == 2)
+			{
+				auto a = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 0));
+				auto b = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 1));
+				POSTag aTag = parseTag(a.second.c_str());
+				POSTag bTag = parseTag(b.second.c_str());
+				transformMap.emplace_back(
+					make_pair(a.first, aTag),
+					make_pair(b.first, bTag)
+				);
+			}
+			else
+			{
+				throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
+			}
+		}, "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`.");
+	}
+
+	builder.convertHSData(py::toCpp<vector<string>>(inputPathes), 
+		outputPath, 
+		morphemeDefPathStr, 
+		morphemeDefMinCnt, 
+		generateOovDict,
+		transformMap.empty() ? nullptr : &transformMap
+	);
 }
 
 py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes, 
@@ -2569,13 +2976,18 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 	size_t numWorkers, 
 	float dropout, 
 	float dropoutOnHistory,
+	float nounAugmentingProb,
+	size_t generateUnlikelihoods,
 	PyObject* tokenFilter, 
 	PyObject* windowFilter, 
 	float splitRatio, 
 	bool separateDefaultMorpheme, 
 	PyObject* morphemeDefPath,
 	size_t morphemeDefMinCnt,
-	size_t seed) const
+	const std::vector<std::pair<size_t, std::vector<uint32_t>>>& contextualMapper,
+	PyObject* transform,
+	size_t seed
+) const
 {
 	KiwiBuilder::TokenFilter tf, wf;
 	if (tokenFilter && tokenFilter != Py_None)
@@ -2601,6 +3013,31 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 		};
 	}
 
+	vector<pair<pair<string, POSTag>, pair<string, POSTag>>> transformMap;
+	if (transform && transform != Py_None)
+	{
+		py::UniqueObj iter{ PyObject_GetIter(transform) };
+		if (!iter) throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
+		py::foreach<PyObject*>(iter.get(), [&](PyObject* item)
+		{
+			if (PyTuple_Check(item) && PyTuple_Size(item) == 2)
+			{
+				auto a = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 0));
+				auto b = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 1));
+				POSTag aTag = parseTag(a.second.c_str());
+				POSTag bTag = parseTag(b.second.c_str());
+				transformMap.emplace_back(
+					make_pair(a.first, aTag), 
+					make_pair(b.first, bTag)
+				);
+			}
+			else
+			{
+				throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
+			}
+		}, "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`.");
+	}
+
 	string morphemeDefPathStr;
 	if (morphemeDefPath && morphemeDefPath != Py_None)
 	{
@@ -2615,13 +3052,17 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 		numWorkers, 
 		dropout, 
 		dropoutOnHistory,
+		nounAugmentingProb,
+		generateUnlikelihoods,
 		tf, 
 		wf, 
 		splitRatio, 
 		separateDefaultMorpheme, 
 		morphemeDefPathStr,
 		morphemeDefMinCnt,
-		&anotherDataset);
+		contextualMapper,
+		&anotherDataset,
+		transformMap.empty() ? nullptr : &transformMap);
 	dataset.seed(seed);
 	if (splitRatio == 0)
 	{
