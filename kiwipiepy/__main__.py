@@ -67,7 +67,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--model-path')
-    parser.add_argument('--model-type', default='knlm', choices=['knlm', 'sbg'])
+    parser.add_argument('--model-type', choices=['none', 'largest', 'knlm', 'sbg', 'cong', 'cong-global'])
     parser.add_argument('--top-n', default=1, type=int)
     parser.add_argument('--normalize-coda', default=False, action='store_true')
     parser.add_argument('--reset-whitespace', default=False, action='store_true')
