@@ -1006,6 +1006,105 @@ ValueError: cannot specify format specifier for Kiwi Token
 </details>
 <hr>
 
+### CoNg 모델 사용하기
+v0.21.0버전부터는 대부분의 상황에서 속도가 개선되고 정확도는 향상된 CoNg(Contextual N-gram) 모델을 사용할 수 있습니다.
+다만 현재는 실험 단계이기 때문에 기본 배포 패키지에 모델 파일이 포함되어 있지는 않고 [릴리즈](https://github.com/bab2min/Kiwi/releases/tag/v0.21.0)에서 별도로 다운로드 받아야 합니다. 그리고 다운 받은 모델의 압축을 풀고, `Kiwi` 객체를 생성할 때 `model_path`에 모델 파일이 있는 경로를 지정해주면 됩니다. 
+현재는 x86-64 장비에서만 최적화된 커널이 제공되고 Apple Silicon M 시리즈 칩이나 Arm64 등 다른 아키텍처에서는 느리게 동작하거나 오류가 발생할 수 있습니다. (오류를 제보해주시면 CoNg 모델 커널을 개선하는 데 큰 도움이 됩니다.)
+
+다음은 리눅스 환경에서 모델 파일을 받고 CoNg 모델을 사용하는 방법입니다.
+
+```bash
+$ pip install "kiwipiepy>=0.21"
+$ curl -L https://github.com/bab2min/Kiwi/releases/download/v0.21.0/kiwi_model_v0.21.0_cong_base.tgz -o model.tgz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100 58.7M  100 58.7M    0     0  7981k      0  0:00:07  0:00:07 --:--:-- 10.4M
+$ tar -zxvf model.tgz
+cong-base/
+cong-base/combiningRule.txt
+cong-base/cong.mdl
+cong-base/default.dict
+cong-base/extract.mdl
+cong-base/multi.dict
+cong-base/sj.morph
+cong-base/typo.dict
+$ python
+>>> from kiwipiepy import Kiwi
+>>> kiwi = Kiwi(model_path='./cong-base', model_type='cong')
+>>> kiwi.tokenize('테스트입니다.')
+```
+
+CoNg 모델에서는 모호성 해소 성능이 크게 개선되었습니다.
+```python
+>>> from kiwipiepy import Kiwi
+>>> kiwi = Kiwi() # 기본 모델 (KnLM)
+>>> kiwi.tokenize('한적한 카페에 강도 들었다는 소리 못 들었어?')
+[Token(form='한적', tag='XR', start=0, len=2),
+ Token(form='하', tag='XSA', start=2, len=1), 
+ Token(form='ᆫ', tag='ETM', start=2, len=1), 
+ Token(form='카페', tag='NNG', start==4, len=2), 
+ Token(form='에', tag='JKB', start=6, len=1), 
+ Token(form='강', tag='NNG', start=8, len=1), ####
+ Token(form='도', tag='JX', start=9, len=1), # 강도가 잘못 분석됨
+ Token(form='듣', tag='VV-I', start=11, len=1), 
+ Token(form='었', tag='EP', start=12, len=1), 
+ Token(form='다는', tag='ETM', start=13, len=2), 
+ Token(form='소리', tag='NNG', start=16, len=2), 
+ Token(form='못', tag='MAG', start=19, len=1), 
+ Token(form='듣', tag='VV-I', start=21, len=1), 
+ Token(form='었', tag='EP', start=22, len=1), 
+ Token(form='어', tag='EF', start=23, len=1), 
+ Token(form='?', tag='SF', start=24, len=1)]
+
+>>> kiwi.tokenize('스페인의 강들처럼 이 강도 대서양으로 흘러든다.')
+[Token(form='스페인', tag='NNP', start=0, len=3),
+ Token(form='의', tag='JKG', start=3, len=1),
+ Token(form='강', tag='NNG', start=5, len=1), 
+ Token(form='들', tag='XSN', start=6, len=1), 
+ Token(form='처럼', tag='JKB', start=7, len=2), 
+ Token(form='이', tag='MM', start=10, len=1), 
+ Token(form='강도', tag='NNG', start=12, len=2), # 강+도가 잘못 분석됨
+ Token(form='대서양', tag='NNP', start=15, len=3), 
+ Token(form='으로', tag='JKB', start=18, len=2), 
+ Token(form='흘러들', tag='VV', start=21, len=3), 
+ Token(form='ᆫ다', tag='EF', start=23, len=2), 
+ Token(form='.', tag='SF', start=25, len=1)]
+
+>>> kiwi = Kiwi(model_path=PATH_TO_CONG_MODEL) # CoNg 모델
+>>> kiwi.tokenize('한적한 카페에 강도 들었다는 소리 못 들었어?')
+[Token(form='한적', tag='XR', start=0, len=2),
+ Token(form='하', tag='XSA', start=2, len=1), 
+ Token(form='ᆫ', tag='ETM', start=2, len=1), 
+ Token(form='카페', tag='NNG', start==4, len=2), 
+ Token(form='에', tag='JKB', start=6, len=1), 
+ Token(form='강도', tag='NNG', start=8, len=2), # 강도가 제대로 분석됨
+ Token(form='들', tag='VV', start=11, len=1), 
+ Token(form='었', tag='EP', start=12, len=1), 
+ Token(form='다는', tag='ETM', start=13, len=2), 
+ Token(form='소리', tag='NNG', start=16, len=2), 
+ Token(form='못', tag='MAG', start=19, len=1), 
+ Token(form='듣', tag='VV-I', start=21, len=1), 
+ Token(form='었', tag='EP', start=22, len=1), 
+ Token(form='어', tag='EF', start=23, len=1), 
+ Token(form='?', tag='SF', start=24, len=1)]
+
+>>> kiwi.tokenize('스페인의 강들처럼 이 강도 대서양으로 흘러든다.')
+[Token(form='스페인', tag='NNP', start=0, len=3),
+ Token(form='의', tag='JKG', start=3, len=1), 
+ Token(form='강', tag='NNG', start=5, len=1), 
+ Token(form='들', tag='XSN', start=6, len=1), 
+ Token(form='처럼', tag='JKB', start=7, len=2), 
+ Token(form='이', tag='MM', start=10, len=1), 
+ Token(form='강', tag='NNG', start=12, len=1), ####
+ Token(form='도', tag='JX', start=13, len=1), # 강+도가 제대로 분석됨
+ Token(form='대서양', tag='NNP', start=15, len=3), 
+ Token(form='으로', tag='JKB', start=18, len=2), 
+ Token(form='흘러들', tag='VV', start=21, len=3), 
+ Token(form='ᆫ다', tag='EF', start=23, len=2), 
+ Token(form='.', tag='SF', start=25, len=1)]
+```
+
 ## 품사 태그
 
 세종 품사 태그를 기초로 하되, 일부 품사 태그를 추가/수정하여 사용하고 있습니다.
