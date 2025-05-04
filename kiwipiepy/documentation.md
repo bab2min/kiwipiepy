@@ -425,18 +425,26 @@ kiwi.extract_words(IterableTextFile('test.txt'), 10, 10, 0.25)
 언어 모델
 ---------
 Kiwi는 최적의 형태소 조합을 탐색하기 위해 내부적으로 언어 모델을 사용합니다. 
-0.13.0 버전 이전까지는 Kneser-ney 언어 모델(`knlm`)만을 사용했지만, 0.13.0버전부터 SkipBigram(`sbg`)이라는 새로운 언어 모델에 대한 지원이 추가되었습니다.
+0.13.0 버전 이전까지는 Kneser-ney 언어 모델(`knlm`)만을 사용했지만, 
+0.13.0버전부터는 SkipBigram(`sbg`),
+0.21.0버전부터는 Contextual N-gram(`cong`, `cong-global`)이라는 새로운 언어 모델에 대한 지원이 추가되었습니다.
 기본값은 `knlm`로 설정되어 있지만, 상황에 따라 이용자가 더 적절한 모델을 선택하여 사용할 수 있습니다. 각 모델의 특징은 다음과 같습니다.
 
 * knlm: 0.12.0버전까지 기본적으로 제공되던 모델로, 속도가 빠르고 짧은 거리 내의 형태소(주로 2~3개) 간의 관계를 높은 정확도로 모델링할 수 있습니다.
   그러나 먼 거리의 형태소 간의 관계는 고려하지 못하는 한계가 있습니다.
 * sbg: 0.13.0버전에서 추가된 모델로, sbg를 사용시 내부적으로 knlm의 결과에 SkipBigram 결과를 보정하는 식으로 구동됩니다.
   `knlm`에 비해 약 30%정도 처리 시간이 늘어나지면, 먼 거리의 형태소(실질 형태소 기준 최대 8개까지) 간의 관계를 적당한 정확도로 모델링할 수 있습니다.
+* cong: 0.21.0버전에서 추가된 모델로, 신경망 모델을 도입해 모델이 학습 때 보지 못했던 형태소 조합에 대해서도 적절한 확률을 부여할 수 있습니다.
+  최적화된 커널에서는 `knlm`보다 더 빠른 속도로 동작하며 모호성 해소 정확도가 크게 향상되었습니다.
+* cong-global: 0.21.0버전에서 추가된 모델로, cong와 유사하지만 더 먼 거리의 형태소 간의 관계를 고려하도록 확장되었습니다.
+  속도는 `cong`보다 2배 정도 느려지지만, 더 먼 거리의 형태소 간의 관계를 고려할 수 있습니다.
 
-두 모델 간의 분석 결과 차이는 다음처럼 형태소의 모호성이 먼 거리의 형태소를 통해 해소되는 경우 잘 드러납니다.
+cong, cong-global은 현재 실험 단계이기 때문에 기본 배포 패키지에 모델 파일이 포함되어 있지는 않고 [릴리즈](https://github.com/bab2min/Kiwi/releases/tag/v0.21.0)에서 별도로 cong-base 모델을 다운로드 받아야 합니다. 또한 x86-64를 제외한 아키텍처(Apple Silicon, Arm 등)에서는 현재 최적화된 커널이 제공되지 않기 때문에 속도가 저하될 수 있습니다.
+
+모델 간의 분석 결과 차이는 다음처럼 형태소의 모호성이 존재하는 경우 잘 드러납니다.
 ```python
->> kiwi = Kiwi(model_type='knlm')
->> kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.')
+>>> kiwi = Kiwi(model_type='knlm')
+>>> kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.')
 [Token(form='이', tag='MM', start=0, len=1), 
  Token(form='번호', tag='NNG', start=2, len=2), 
  Token(form='로', tag='JKB', start=4, len=1), 
@@ -445,12 +453,13 @@ Kiwi는 최적의 형태소 조합을 탐색하기 위해 내부적으로 언어
  Token(form='이따가', tag='MAG', start=10, len=3), 
  Token(form='꼭', tag='MAG', start=14, len=1), 
  Token(form='반드시', tag='MAG', start=16, len=3), 
- Token(form='걷', tag='VV-I', start=20, len=1),  # 걷다/걸다 중 틀리게 '걷다'를 선택했음.
+ # 걷다/걸다 중 틀리게 '걷다'를 선택했음.
+ Token(form='걷', tag='VV-I', start=20, len=1),
  Token(form='어', tag='EF', start=21, len=1), 
  Token(form='.', tag='SF', start=22, len=1)]
 
->> kiwi = Kiwi(model_type='sbg')
->> kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.')
+>>> kiwi = Kiwi(model_type='sbg')
+>>> kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.')
 [Token(form='이', tag='MM', start=0, len=1), 
  Token(form='번호', tag='NNG', start=2, len=2), 
  Token(form='로', tag='JKB', start=4, len=1), 
@@ -459,9 +468,43 @@ Kiwi는 최적의 형태소 조합을 탐색하기 위해 내부적으로 언어
  Token(form='이따가', tag='MAG', start=10, len=3), 
  Token(form='꼭', tag='MAG', start=14, len=1), 
  Token(form='반드시', tag='MAG', start=16, len=3), 
- Token(form='걸', tag='VV', start=20, len=1), # 걷다/걸다 중 바르게 '걸다'를 선택했음.
+ # 걷다/걸다 중 바르게 '걸다'를 선택했음.
+ Token(form='걸', tag='VV', start=20, len=1),
  Token(form='어', tag='EC', start=21, len=1), 
  Token(form='.', tag='SF', start=22, len=1)]
+
+>>> kiwi = Kiwi(model_type='knlm')
+>>> kiwi.tokenize('스페인의 강들처럼 이 강도 대서양으로 흘러든다.')
+[Token(form='스페인', tag='NNP', start=0, len=3),
+ Token(form='의', tag='JKG', start=3, len=1),
+ Token(form='강', tag='NNG', start=5, len=1), 
+ Token(form='들', tag='XSN', start=6, len=1), 
+ Token(form='처럼', tag='JKB', start=7, len=2), 
+ Token(form='이', tag='MM', start=10, len=1), 
+ # 명사 '강'에 조사 '도'가 붙은 것을 '강도'로 잘못 분석함.
+ Token(form='강도', tag='NNG', start=12, len=2),
+ Token(form='대서양', tag='NNP', start=15, len=3), 
+ Token(form='으로', tag='JKB', start=18, len=2), 
+ Token(form='흘러들', tag='VV', start=21, len=3), 
+ Token(form='ᆫ다', tag='EF', start=23, len=2), 
+ Token(form='.', tag='SF', start=25, len=1)]
+
+>>> kiwi = Kiwi(model_path=PATH_TO_CONG_MODEL, model_type='cong')
+>>> kiwi.tokenize('스페인의 강들처럼 이 강도 대서양으로 흘러든다.')
+[Token(form='스페인', tag='NNP', start=0, len=3),
+ Token(form='의', tag='JKG', start=3, len=1), 
+ Token(form='강', tag='NNG', start=5, len=1), 
+ Token(form='들', tag='XSN', start=6, len=1), 
+ Token(form='처럼', tag='JKB', start=7, len=2), 
+ Token(form='이', tag='MM', start=10, len=1),
+ # 명사 '강'에 조사 '도'가 붙은 것을 제대로 분석함.
+ Token(form='강', tag='NNG', start=12, len=1),
+ Token(form='도', tag='JX', start=13, len=1),
+ Token(form='대서양', tag='NNP', start=15, len=3), 
+ Token(form='으로', tag='JKB', start=18, len=2), 
+ Token(form='흘러들', tag='VV', start=21, len=3), 
+ Token(form='ᆫ다', tag='EF', start=23, len=2), 
+ Token(form='.', tag='SF', start=25, len=1)]
 ```
 
 오타 교정
