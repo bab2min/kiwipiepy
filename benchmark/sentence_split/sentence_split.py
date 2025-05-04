@@ -1,3 +1,7 @@
+import re
+import time
+from difflib import SequenceMatcher
+
 def load_dataset(path):
     buf = []
     for line in open(path, encoding='utf-8'):
@@ -10,8 +14,6 @@ def load_dataset(path):
     if buf: yield ''.join(buf), buf
 
 def evaluate_split(gold, pred):
-    import re
-    from difflib import SequenceMatcher
     ws = re.compile(r'\s+')
     full_str = ''.join(ws.sub('', g) for g in gold)
     gold_spans = []
@@ -80,7 +82,6 @@ def evaluate_split(gold, pred):
     return final_score, em, em_pred, pred_matches
 
 def run_evaluate(dataset, split_func, result_output=None, err_output=None):
-    import time
     f1, norm_f1, em = [], [], []
     system_sents = 0
     elapsed = 0
@@ -128,9 +129,9 @@ def run_evaluate(dataset, split_func, result_output=None, err_output=None):
         f"Latency: {elapsed*1000:.2f} msec"
     )
     print()
+    return system_sents, em, f1, norm_f1
 
 def baseline_splitter(text):
-    import re
     sents = re.split(r'(?<=[.!?])\s', text)
     return sents
 
@@ -139,19 +140,55 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('datasets', nargs='+')
-    parser.add_argument('--write_result')
-    parser.add_argument('--write_err')
-    parser.add_argument('--model_path')
-    parser.add_argument('--model_type', default='knlm', choices=['knlm', 'sbg'])
+    parser.add_argument('--write-result')
+    parser.add_argument('--write-err')
+    parser.add_argument('--model-path')
+    parser.add_argument('--model-type', choices=['none', 'largest', 'knlm', 'sbg', 'cong', 'cong-global'])
     args = parser.parse_args()
 
     print('======== Baseline Splitter ========')
+    all_system_sents = 0
+    all_em = []
+    all_f1 = []
+    all_norm_f1 = []
     for dataset in args.datasets:
-        run_evaluate(dataset, baseline_splitter)
+        system_sents, em, f1, norm_f1 = run_evaluate(dataset, baseline_splitter)
+        all_system_sents += system_sents
+        all_em += em
+        all_f1 += f1
+        all_norm_f1 += norm_f1
+    
+    print("[Overall]")
+    print(
+        f"Gold: {len(all_f1)} sents, "
+        f"System: {all_system_sents} sents, "
+        f"EM: {sum(all_em) / len(all_em):.5f}, "
+        f"F1: {sum(all_f1) / len(all_f1):.5f}, "
+        f"Normalized F1: {sum(all_norm_f1) / len(all_norm_f1):.5f}"
+    )
+    print()
 
     print('======== Kiwi.split_into_sents ========')
+    all_system_sents = 0
+    all_em = []
+    all_f1 = []
+    all_norm_f1 = []
     from kiwipiepy import Kiwi
     kiwi = Kiwi(model_path=args.model_path, model_type=args.model_type)
     kiwi.tokenize("foo-bar") # warm-up
+    split = lambda text:[sent.text for sent in kiwi.split_into_sents(text, normalize_coda=True)]
     for dataset in args.datasets:
-        run_evaluate(dataset, lambda text:[sent.text for sent in kiwi.split_into_sents(text, normalize_coda=True)], args.write_result, args.write_err)
+        system_sents, em, f1, norm_f1 = run_evaluate(dataset, split, args.write_result, args.write_err)
+        all_system_sents += system_sents
+        all_em += em
+        all_f1 += f1
+        all_norm_f1 += norm_f1
+    
+    print("[Overall]")
+    print(
+        f"Gold: {len(all_f1)} sents, "
+        f"System: {all_system_sents} sents, "
+        f"EM: {sum(all_em) / len(all_em):.5f}, "
+        f"F1: {sum(all_f1) / len(all_f1):.5f}, "
+        f"Normalized F1: {sum(all_norm_f1) / len(all_norm_f1):.5f}"
+    )

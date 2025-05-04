@@ -10,11 +10,12 @@
 * v_ending: 사투리를 비롯한 다양한 종결어미를 포함한 텍스트
 * wikipedia: 위키백과 문서
 
-또한 다음 세 가지 평가 코드를 제공합니다.
+또한 다음 네 가지 평가 코드를 제공합니다.
 
 * sentence_split.py: 베이스라인과 `Kiwi.split_into_sents` 의 성능을 평가합니다.
 * kss_ref.py: [KSS](https://github.com/hyunwoongko/kss)의 성능을 평가합니다.
 * koalanlp_ref.py: [KoalaNLP Python](https://github.com/koalanlp/python-support)에 포함된 다양한 문장 분리기의 성능을 평가합니다.
+* bareun_ref.py: [Bareun](https://docs.bareun.ai/)의 성능을 평가합니다.
 
 
 ## 평가 결과 요약
@@ -31,9 +32,18 @@ Kiwi가 비교적 빠르면서도 높은 정확도를 달성하고 있는 것을
 
 평가에 사용된 라이브러리 버전은 다음과 같습니다.
 
-|  Kiwi  |   KSS   | Koala(Okt) | Koala(Hnn) | Koala(Kmr) | Koala(Rhino) | Koala(Eunjeon) | Koala(Arirang) | Koala(Kkma) |
-|:------:|:-------:|:----------:|:----------:|:----------:|:----------:|:----------:|:----------:|:----------:|
-| 0.19.0 | 3.4.2   | 2.1.4      | 2.1.4      | 2.1.4      | 2.1.5      | 2.1.6      | 2.1.4      | 2.1.4      |
+| 라이브러리         | 버전 |
+|-------------------|-----------|
+| Kiwi              | 0.21.0    |
+| KSS               | 3.4.2     |
+| Koala(Okt)        | 2.1.4     |
+| Koala(Hnn)        | 2.1.4     |
+| Koala(Kmr)        | 2.1.4     |
+| Koala(Rhino)      | 2.1.5     |
+| Koala(Eunjeon)    | 2.1.6     |
+| Koala(Arirang)    | 2.1.4     |
+| Koala(Kkma)       | 2.1.4     |
+| Bareun            | v3.0.rc2  |
 
 ## 직접 평가 실행해보기
 ```console
@@ -64,31 +74,36 @@ Gold: 30 sents, System: 6 sents, EM: 0.00000, F1: 0.11359, Normalized F1: 0.1135
 [Sentence Split Benchmark] Dataset: testset/wikipedia.txt
 Gold: 326 sents, System: 267 sents, EM: 0.66258, F1: 0.76664, Normalized F1: 0.76379, Latency: 0.42 msec
 
+[Overall]
+Gold: 1223 sents, System: 963 sents, EM: 0.52657, F1: 0.65406, Normalized F1: 0.62247
+
 ======== Kiwi.split_into_sents ========
-[Sentence Split Benchmark] Dataset: testset/blogs.txt
-Gold: 170 sents, System: 176 sents, EM: 0.70588, F1: 0.88183, Normalized F1: 0.82171, Latency: 171.42 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\blogs.txt
+Gold: 170 sents, System: 184 sents, EM: 0.80000, F1: 0.93906, Normalized F1: 0.87424, Latency: 136.30 msec
 
-[Sentence Split Benchmark] Dataset: testset/blogs_ko.txt
-Gold: 346 sents, System: 344 sents, EM: 0.64162, F1: 0.85765, Normalized F1: 0.81316, Latency: 318.46 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\blogs_ko.txt
+Gold: 346 sents, System: 356 sents, EM: 0.68786, F1: 0.88602, Normalized F1: 0.83331, Latency: 268.39 msec
 
-[Sentence Split Benchmark] Dataset: testset/etn.txt
-Gold: 39 sents, System: 39 sents, EM: 0.76923, F1: 0.88685, Normalized F1: 0.85661, Latency: 29.17 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\etn.txt
+Gold: 39 sents, System: 38 sents, EM: 0.71795, F1: 0.85762, Normalized F1: 0.82738, Latency: 24.19 msec
 
-[Sentence Split Benchmark] Dataset: testset/nested.txt
-Gold: 91 sents, System: 95 sents, EM: 0.79121, F1: 0.95392, Normalized F1: 0.90797, Latency: 172.75 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\nested.txt
+Gold: 91 sents, System: 95 sents, EM: 0.81319, F1: 0.95302, Normalized F1: 0.91124, Latency: 132.99 msec
 
-[Sentence Split Benchmark] Dataset: testset/sample.txt
-Gold: 43 sents, System: 44 sents, EM: 0.83721, F1: 0.93592, Normalized F1: 0.91465, Latency: 29.83 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\sample.txt
+Gold: 43 sents, System: 41 sents, EM: 0.83721, F1: 0.91470, Normalized F1: 0.91470, Latency: 25.15 msec
 
-[Sentence Split Benchmark] Dataset: testset/tweets.txt
-Gold: 178 sents, System: 169 sents, EM: 0.70787, F1: 0.83580, Normalized F1: 0.79297, Latency: 104.42 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\tweets.txt
+Gold: 178 sents, System: 179 sents, EM: 0.75281, F1: 0.88465, Normalized F1: 0.84078, Latency: 103.92 msec
 
-[Sentence Split Benchmark] Dataset: testset/v_ending.txt
-Gold: 30 sents, System: 16 sents, EM: 0.23333, F1: 0.40282, Normalized F1: 0.37656, Latency: 16.79 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\v_ending.txt
+Gold: 30 sents, System: 21 sents, EM: 0.33333, F1: 0.55124, Normalized F1: 0.55124, Latency: 27.69 msec
 
-[Sentence Split Benchmark] Dataset: testset/wikipedia.txt
-Gold: 326 sents, System: 333 sents, EM: 0.96933, F1: 0.99254, Normalized F1: 0.97473, Latency: 434.14 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\wikipedia.txt
+Gold: 326 sents, System: 329 sents, EM: 0.98160, F1: 0.99463, Normalized F1: 0.98448, Latency: 416.86 msec
 
+[Overall]
+Gold: 1223 sents, System: 1243 sents, EM: 0.79804, F1: 0.91902, Normalized F1: 0.88193
 ```
 
 kss_ref.py의 경우 backend 옵션을 제공합니다. [pecab, mecab, none] 중에 하나를 선택할 수 있습니다. 이에 대한 설명은 [KSS 공식 저장소](https://github.com/hyunwoongko/kss)를 참조하세요.
@@ -188,27 +203,27 @@ Gold: 326 sents, System: 328 sents, EM: 0.67791, F1: 0.98116, Normalized F1: 0.9
 bareun_ref.py를 실행하면 바른 형태소 분석기의 문장 분리 성능을 평가할 수 있습니다. 이를 위해서는 먼저 [바른 형태소 분석기를 설치](https://docs.bareun.ai/install/overview/)하고 API Key를 받아야 합니다. 이에 대한 자세한 내용은 [바른 형태소 분석기 공식 문서](https://docs.bareun.ai/)를 참조하세요.
 ```console
 $ python bareun_ref.py testset/*.txt --api_key=${YOUR_API_KEY}
-[Sentence Split Benchmark] Dataset: testset/blogs.txt
-Gold: 170 sents, System: 115 sents, EM: 0.42941, F1: 0.57341, Normalized F1: 0.56182, Latency: 821.68 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\blogs.txt
+Gold: 170 sents, System: 112 sents, EM: 0.42941, F1: 0.56816, Normalized F1: 0.56364, Latency: 2325.35 msec
 
-[Sentence Split Benchmark] Dataset: testset/blogs_ko.txt
-Gold: 346 sents, System: 183 sents, EM: 0.36994, F1: 0.46045, Normalized F1: 0.45200, Latency: 1324.90 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\blogs_ko.txt
+Gold: 346 sents, System: 190 sents, EM: 0.36705, F1: 0.46984, Normalized F1: 0.46007, Latency: 742.79 msec
 
-[Sentence Split Benchmark] Dataset: testset/etn.txt
-Gold: 39 sents, System: 23 sents, EM: 0.38462, F1: 0.51218, Normalized F1: 0.51218, Latency: 245.26 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\etn.txt
+Gold: 39 sents, System: 24 sents, EM: 0.43590, F1: 0.54637, Normalized F1: 0.54637, Latency: 142.94 msec
 
-[Sentence Split Benchmark] Dataset: testset/nested.txt
-Gold: 91 sents, System: 89 sents, EM: 0.79121, F1: 0.88125, Normalized F1: 0.84130, Latency: 762.98 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\nested.txt
+Gold: 91 sents, System: 87 sents, EM: 0.73626, F1: 0.84394, Normalized F1: 0.80394, Latency: 450.57 msec
 
-[Sentence Split Benchmark] Dataset: testset/sample.txt
-Gold: 43 sents, System: 5 sents, EM: 0.02326, F1: 0.07296, Normalized F1: 0.07296, Latency: 91.03 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\sample.txt
+Gold: 43 sents, System: 20 sents, EM: 0.18605, F1: 0.36379, Normalized F1: 0.36379, Latency: 68.93 msec
 
-[Sentence Split Benchmark] Dataset: testset/tweets.txt
-Gold: 178 sents, System: 107 sents, EM: 0.35955, F1: 0.52089, Normalized F1: 0.51330, Latency: 760.96 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\tweets.txt
+Gold: 178 sents, System: 111 sents, EM: 0.39888, F1: 0.54465, Normalized F1: 0.53523, Latency: 487.32 msec
 
-[Sentence Split Benchmark] Dataset: testset/v_ending.txt
-Gold: 30 sents, System: 6 sents, EM: 0.00000, F1: 0.11359, Normalized F1: 0.11359, Latency: 87.74 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\v_ending.txt
+Gold: 30 sents, System: 6 sents, EM: 0.00000, F1: 0.11359, Normalized F1: 0.11359, Latency: 51.78 msec
 
-[Sentence Split Benchmark] Dataset: testset/wikipedia.txt
-Gold: 326 sents, System: 303 sents, EM: 0.88344, F1: 0.91940, Normalized F1: 0.91940, Latency: 1411.05 msec
+[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\wikipedia.txt
+Gold: 326 sents, System: 302 sents, EM: 0.87730, F1: 0.91588, Normalized F1: 0.91588, Latency: 999.39 msec
 ```
