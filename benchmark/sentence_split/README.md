@@ -23,8 +23,7 @@
 다음은 위의 데이터와 코드를 이용해 평가한 결과를 정리한 것입니다. 
 베이스라인은 . ! ? 문자 뒤에 바로 공백이 있는 경우만 문장 종결로 간주하고 분리합니다. 
 
-![EM](https://bab2min.github.io/kiwipiepy/images/SentSplit_EM.PNG)
-![F1](https://bab2min.github.io/kiwipiepy/images/SentSplit_F1.PNG)
+![Normalized F1](https://bab2min.github.io/kiwipiepy/images/SentSplit_F1.PNG)
 
 ![속도](https://bab2min.github.io/kiwipiepy/images/SentSplit_Speed.PNG)
 
