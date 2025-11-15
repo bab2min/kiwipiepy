@@ -1010,3 +1010,13 @@ def test_cong_functions():
     sims = kiwi.predict_next_morpheme('오늘 점심은', bg_weight=0.5, top_n=10)
     print(sims)
     assert len(sims) == 10
+
+def test_dialect():
+    kiwi = Kiwi(enabled_dialects='jeju,archaic')
+    tokens = kiwi.tokenize("약주 ᄒᆞᆫ 잔 드셧수과?", allowed_dialects='jeju,archaic')
+    assert tokens[0].tagged_form == "약주/NNG"
+    assert tokens[1].tagged_form == "ᄒᆞᆫ/MM"
+    assert tokens[2].tagged_form == "잔/NNG"
+    assert tokens[3].tagged_form == "드시/VV"
+    assert tokens[4].tagged_form == "엇/EP"
+    assert tokens[5].tagged_form == "수과/EF"
