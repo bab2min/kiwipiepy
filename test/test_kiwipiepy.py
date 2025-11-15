@@ -93,6 +93,14 @@ def test_blocklist():
     tokens = kiwi.tokenize("고마움을", blocklist=['고마움'])
     assert tokens[0].form == "고맙"
 
+    ms = MorphemeSet(kiwi, ['고마움'])
+    tokens = kiwi.tokenize("고마움을", blocklist=ms)
+    assert tokens[0].form == "고맙"
+
+    kiwi.add_user_word('TEST1', 'NNP')
+    tokens = kiwi.tokenize("고마움을", blocklist=ms)
+    assert tokens[0].form == "고맙"
+
 def test_pretokenized():
     kiwi = Kiwi(load_multi_dict=False)
     text = "드디어패트와 매트가 2017년에 국내 개봉했다. 패트와매트는 2016년..."
