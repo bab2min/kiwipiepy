@@ -10,7 +10,7 @@ from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset, _MorphemeSet, _Ngram
 from kiwipiepy._c_api import Token
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
-from kiwipiepy.const import Match
+from kiwipiepy.const import Match, Dialect
 from kiwipiepy.template import Template
 
 class Sentence(NamedTuple):
@@ -49,6 +49,7 @@ class SimilarMorpheme(NamedTuple):
     '''의미적으로 유사한 형태소 정보를 담는 `namedtuple`입니다.'''
     form: str
     tag: POSTag
+    sense_id: int
     id: int
     score: float
 
@@ -56,18 +57,23 @@ class SimilarMorpheme(NamedTuple):
     def form_tag(self) -> Tuple[str, POSTag]:
         return (self.form, self.tag)
     
+    @property
+    def form_tag_sense(self) -> Tuple[str, POSTag, int]:
+        return (self.form, self.tag, self.sense_id)
+
     def __repr__(self):
-        return f'SimilarMorpheme(form={self.form!r}, tag={self.tag!r}, id={self.id!r}, score={self.score:.4g})'
+        return f'SimilarMorpheme(form={self.form!r}, tag={self.tag!r}, sense_id={self.sense_id!r}, id={self.id!r}, score={self.score:.4g})'
 
 SimilarMorpheme.form.__doc__ = '형태소의 형태'
 SimilarMorpheme.tag.__doc__ = '형태소의 품사 태그'
+SimilarMorpheme.sense_id.__doc__ = '형태소의 의미 번호'
 SimilarMorpheme.id.__doc__ = '형태소의 고유 ID'
 SimilarMorpheme.score.__doc__ = '형태소의 유사도 점수'
 
 class SimilarContext(NamedTuple):
     '''의미적으로 유사한 문맥 정보를 담는 `namedtuple`입니다.'''
     forms: List[str]
-    analyses: List[List[Tuple[str, POSTag]]]
+    analyses: List[List[Tuple[str, POSTag, int]]]
     id: int
     score: float
 
@@ -77,7 +83,7 @@ class SimilarContext(NamedTuple):
         return self.forms[0]
 
     @property
-    def repr_analyses(self) -> List[Tuple[str, POSTag]]:
+    def repr_analyses(self) -> List[Tuple[str, POSTag, int]]:
         '''문맥들의 대표 형태의 형태소 분석 결과'''
         return self.analyses[0]
 
@@ -180,6 +186,17 @@ def _convert_consonant(s):
             else:
                 ret.append(c)
     return ''.join(ret)
+
+def _convert_dialect(dialect):
+    if isinstance(dialect, str):
+        ds = dialect.upper().split(',')
+        dialect = 0
+        for d in ds:
+            try:
+                dialect |= Dialect[d]
+            except KeyError:
+                raise ValueError(f"Unknown dialect name: {d}")
+    return dialect
 
 class TypoTransformer(_TypoTransformer):
     '''.. versionadded:: 0.13.0
@@ -339,31 +356,32 @@ Parameters
 ----------
 kiwi: Kiwi
     형태소 집합을 정의할 Kiwi의 인스턴스입니다.
-morphs: Iterable[Union[str, Tuple[str, POSTag]]]
+morphs: Iterable[Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int]]]
     집합에 포함될 형태소의 목록입니다. 형태소는 단일 `str`이나 `tuple`로 표기될 수 있습니다.
 
 Notes
 -----
-형태소는 다음과 같이 크게 3가지 방법으로 표현될 수 있습니다.
+형태소는 다음과 같이 크게 4가지 방법으로 표현될 수 있습니다.
 
 ```python
 morphset = MorphemeSet([
-    '고마움' # 형태만을 사용해 표현. 형태가 '고마움'인 모든 형태소가 이 집합에 포함됨
-    '고마움/NNG' # 형태와 품사 태그를 이용해 표현. 형태가 '고마움'인 일반 명사만 이 집합에 포함됨
-    ('고마움', 'NNG') # tuple로 분리해서 표현하는 것도 가능
+    '고마움', # 형태만을 사용해 표현. 형태가 '고마움'인 모든 형태소가 이 집합에 포함됨
+    '고마움/NNG', # 형태와 품사 태그를 이용해 표현. 형태가 '고마움'인 일반 명사만 이 집합에 포함됨
+    ('고마움', 'NNG'), # tuple로 분리해서 표현하는 것도 가능
+    ('고마움', 'NNG', 1), # tuple의 세번째 원소로 의미 번호를 지정할 수도 있음.
 ])
 ```
     '''
     def __init__(self, 
         kiwi, 
-        morphs:Iterable[Union[str, Tuple[str, POSTag]]]
+        morphs:Iterable[Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int]]]
     ):
         if not isinstance(kiwi, Kiwi):
             raise ValueError("`kiwi` must be an instance of `Kiwi`.")
         super().__init__(kiwi)
         self.kiwi = kiwi
         self.set = set(map(self._normalize, morphs))
-        self._updated = False
+        self._update(self.set)
     
     def __repr__(self):
         return f"MorphemeSet(kiwi, {repr(self.set)})"
@@ -378,13 +396,9 @@ morphset = MorphemeSet([
             return form, tag
         elif isinstance(tagged_form, tuple):
             if len(tagged_form) == 2: return tagged_form
+            if len(tagged_form) == 3: return tagged_form
         
-        raise ValueError("Morpheme should has a `str` or `Tuple[str, str]` type.")
-    
-    def _update_self(self):
-        if self._updated: return
-        super()._update(self.set)
-        self._updated = True
+        raise ValueError("Morpheme should has a `str`, `Tuple[str, str]` or `Tuple[str, str, int]` type.")
 
 class Kiwi(_Kiwi):
     '''Kiwi 클래스는 실제 형태소 분석을 수행하는 kiwipiepy 모듈의 핵심 클래스입니다.
@@ -462,6 +476,7 @@ typo_cost_threshold: float
         model_type: Optional[str] = None,
         typos: Optional[Union[str, TypoTransformer]] = None,
         typo_cost_threshold: float = 2.5,
+        enabled_dialects: Optional[Union[Dialect, str]] = Dialect.STANDARD,
     ) -> None:
         if num_workers == 0:
             warnings.warn("behavior of `num_workers=0` is changed since v0.21.0. If you want to keep the previous behavior, please set `num_workers=-1`.", DeprecationWarning, 2)
@@ -499,6 +514,8 @@ typo_cost_threshold: float
         else:
             raise ValueError("`typos` should be one of ('basic', 'continual', 'basic_with_continual', 'lengthening', 'basic_with_continual_and_lengthening', TypoTransformer), but {}".format(typos))
 
+        enabled_dialects = _convert_dialect(enabled_dialects)
+
         super().__init__(
             num_workers,
             model_path,
@@ -509,6 +526,7 @@ typo_cost_threshold: float
             model_type,
             rtypos,
             typo_cost_threshold,
+            enabled_dialects,
         )
 
         self._ns_integrate_allomorph = integrate_allomorph
@@ -523,6 +541,7 @@ typo_cost_threshold: float
         self._load_default_dict = load_default_dict
         self._load_typo_dict = load_typo_dict
         self._typos = typos
+        self._enabled_dialects = enabled_dialects
         self._pretokenized_pats : List[Tuple['re.Pattern', str, Any]] = []
         self._user_values : Dict[int, Any] = {}
         self._template_cache : Dict[str, Template] = {}
@@ -536,7 +555,8 @@ typo_cost_threshold: float
             f"load_typo_dict={self._load_typo_dict!r}, "
             f"model_type={self.model_type!r}, "
             f"typos={self._typos!r}, "
-            f"typo_cost_threshold={self.typo_cost_threshold!r}"
+            f"typo_cost_threshold={self.typo_cost_threshold!r}, "
+            f"enabled_dialects={Dialect(self._enabled_dialects)!r}"
             f")"
         )
 
@@ -601,6 +621,7 @@ False
         form:str,
         analyzed:Iterable[Union[Tuple[str, POSTag], Tuple[str, POSTag, int, int]]],
         score:float = 0.,
+        dialect:Union[Dialect, str] = Dialect.STANDARD,
     ) -> bool:
         '''.. versionadded:: 0.11.0
 
@@ -647,7 +668,9 @@ Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나�
                 cursor = p
             if len(new_analyzed) == len(analyzed):
                 analyzed = new_analyzed
-        return super().add_pre_analyzed_word(form, analyzed, score)
+        
+        dialect = _convert_dialect(dialect)
+        return super().add_pre_analyzed_word(form, analyzed, score, dialect)
     
     def add_re_word(self,
         pattern:Union[str, 're.Pattern'],
@@ -1018,6 +1041,8 @@ result: List[Tuple[str, float, int, float]]
         saisiot:Optional[bool] = None,
         blocklist:Optional[Union[MorphemeSet, Iterable[str]]] = None,
         open_ending:bool = False,
+        allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
+        dialect_cost:float = 3.,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ) -> List[Tuple[List[Token], float]]:
         '''형태소 분석을 실시합니다.
@@ -1105,9 +1130,9 @@ with open('result.txt', 'w', encoding='utf-8') as output:
                 blocklist = MorphemeSet(self, blocklist.set)
         elif blocklist is not None:
             blocklist = MorphemeSet(self, blocklist)
-        
-        if blocklist: blocklist._update_self()
 
+        allowed_dialects = _convert_dialect(allowed_dialects)
+        
         if not isinstance(text, str) and pretokenized and not callable(pretokenized):
             raise ValueError("`pretokenized` must be a callable if `text` is an iterable of str.")
         pretokenized = partial(self._make_pretokenized_spans, pretokenized) if self._pretokenized_pats or pretokenized else None
@@ -1256,6 +1281,8 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         echo:bool = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
         open_ending:bool = False,
+        allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
+        dialect_cost:float = 3.,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ):
         def _refine_result(results):
@@ -1284,14 +1311,14 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         elif saisiot is False:
             match_options = (match_options & ~Match.SPLIT_SAISIOT) | Match.MERGE_SAISIOT
 
+        allowed_dialects = _convert_dialect(allowed_dialects)
+
         if isinstance(blocklist, MorphemeSet):
             if blocklist.kiwi != self: 
                 warnings.warn("This `MorphemeSet` isn't based on current Kiwi object.")
                 blocklist = MorphemeSet(self, blocklist.set)
         elif blocklist is not None:
             blocklist = MorphemeSet(self, blocklist)
-        
-        if blocklist: blocklist._update_self()
 
         if not isinstance(text, str) and pretokenized and not callable(pretokenized):
             raise ValueError("`pretokenized` must be a callable if `text` is an iterable of str.")
@@ -1300,9 +1327,9 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
 
         if isinstance(text, str):
             echo = False
-            return _refine_result(super().analyze(text, 1, match_options, False, blocklist, open_ending, pretokenized))
-        
-        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist, open_ending, pretokenized))
+            return _refine_result(super().analyze(text, 1, match_options, False, blocklist, open_ending, allowed_dialects, dialect_cost, pretokenized))
+
+        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist, open_ending, allowed_dialects, dialect_cost, pretokenized))
 
     def tokenize(self, 
         text:Union[str, Iterable[str]], 
@@ -1317,6 +1344,8 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         echo:bool = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
         open_ending:bool = False,
+        allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
+        dialect_cost:float = 3.,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
     ) -> Union[List[Token], Iterable[List[Token]], List[List[Token]], Iterable[List[List[Token]]]]:
         '''.. versionadded:: 0.10.2
@@ -1522,8 +1551,10 @@ Notes
                               split_sents, stopwords, echo, 
                               blocklist=blocklist, 
                               open_ending=open_ending,
-                              pretokenized=pretokenized
-        )
+                              allowed_dialects=allowed_dialects,
+                              dialect_cost=dialect_cost,
+                              pretokenized=pretokenized,
+                              )
 
     def split_into_sents(self, 
         text:Union[str, Iterable[str]], 
@@ -1535,6 +1566,8 @@ Notes
         saisiot:Optional[bool] = None,
         stopwords:Optional[Stopwords] = None,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
+        allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
+        dialect_cost:float = 3.,
         return_tokens:bool = False,
         return_sub_sents:bool = True,
     ) -> Union[List[Sentence], Iterable[List[Sentence]]]:
@@ -1669,6 +1702,8 @@ Notes
                                                 compatible_jamo=compatible_jamo,
                                                 saisiot=saisiot,
                                                 blocklist=blocklist, 
+                                                allowed_dialects=allowed_dialects,
+                                                dialect_cost=dialect_cost,
                                                 split_sents=True), text))
 
         return map(_make_result, self._tokenize(text, 
@@ -1679,6 +1714,8 @@ Notes
                                                 compatible_jamo=compatible_jamo,
                                                 saisiot=saisiot,
                                                 blocklist=blocklist, 
+                                                allowed_dialects=allowed_dialects,
+                                                dialect_cost=dialect_cost,
                                                 split_sents=True, 
                                                 echo=True))
 
@@ -1752,7 +1789,7 @@ Notes
             while 1:
                 yield False
 
-        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL, False, None, False, None)
+        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL, False, None, False, 0, 0., None)
             
         if insert_new_lines is None: 
             insert_new_lines = _repeat_false()
@@ -1877,10 +1914,10 @@ Notes
 
         if isinstance(text, str):
             if reset_whitespace: text = _reset(text)
-            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA, False, None, False, None), text))
+            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA, False, None, False, 0, 0., None), text))
         else:
             if reset_whitespace: text = map(_reset, text)
-            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, True, None, False, None))
+            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, True, None, False, 0, 0., None))
 
     def join(self, 
         morphs:Iterable[Tuple[str, str]],
@@ -2098,7 +2135,7 @@ ValueError: cannot specify format specifier for Kiwi Token
 
     def most_similar_morphemes(
         self,
-        target:Union[str, Tuple[str, POSTag], Token, int],
+        target:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int],
         top_n:int = 10,
     ) -> List[SimilarMorpheme]:
         '''..versionadded:: 0.21.0
@@ -2108,7 +2145,7 @@ model_type이 'cong', 'cong-global'인 경우에만 사용 가능합니다.
 
 Parameters
 ----------
-target: Union[str, Tuple[str, POSTag], Token, int]
+target: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
     입력 형태소. 단일 문자열 혹은 (형태, 품사태그)로 구성된 tuple, Token 객체, 혹은 Token 객체의 id를 입력할 수 있습니다.
 top_n: int
     반환할 형태소의 개수입니다. 기본값은 10입니다.
@@ -2344,8 +2381,8 @@ See Also
 
     def morpheme_similarity(
         self,
-        morpheme1:Union[str, Tuple[str, POSTag], Token, int],
-        morpheme2:Union[str, Tuple[str, POSTag], Token, int]
+        morpheme1:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int],
+        morpheme2:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
     ) -> float:
         '''..versionadded:: 0.21.0
 
@@ -2354,9 +2391,9 @@ model_type이 'cong', 'cong-global'인 경우에만 사용 가능합니다.
 
 Parameters
 ----------
-morpheme1: Union[str, Tuple[str, POSTag], Token, int]
+morpheme1: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
     첫번째 입력 형태소. 단일 문자열 혹은 (형태, 품사태그)로 구성된 tuple, Token 객체, 혹은 Token 객체의 id를 입력할 수 있습니다.
-morpheme2: Union[str, Tuple[str, POSTag], Token, int]
+morpheme2: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
     두번째 입력 형태소. 타입은 morpheme1과 동일합니다.
 
 Returns
