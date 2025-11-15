@@ -737,6 +737,10 @@ def test_join():
     
     assert kiwi.join(tokens) == "이렇게 형태소로 분해된 문장을 다시 합칠 수 있을까요?"
 
+    kiwi.add_user_word('TEST1', 'NNP')
+
+    assert kiwi.join(tokens) == "이렇게 형태소로 분해된 문장을 다시 합칠 수 있을까요?"
+
     assert (kiwi.join([("왜", "MAG"), ("저", "NP"), ("한테", "JKB"), ("묻", "VV"), ("어요", "EF")]) 
         == "왜 저한테 물어요"
     )
