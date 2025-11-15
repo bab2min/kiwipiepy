@@ -2711,8 +2711,8 @@ py::UniqueObj KiwiObject::join(PyObject* morphs, bool lmSearch, bool returnPosit
 			{
 				space = token._pos <= prevEnd ? cmb::Space::no_space : cmb::Space::insert_space;
 			}
-
-			if (token._morph && token._morph->kform && !token._morph->kform->empty())
+			
+			if (!token.kiwiInst.expired() && token._morph && token._morph->kform && !token._morph->kform->empty())
 			{
 				joiner.add(token._morphId, space);
 			}
