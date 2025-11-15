@@ -867,6 +867,28 @@ struct ContextSpan
 	ContextSpan(const uint32_t* _data = nullptr, size_t _size = 0) : data(_data), size(_size) {}
 };
 
+template<class Ty>
+void setValueFromAttr(Ty& val, PyObject* obj, const char* attr)
+{
+	py::UniqueObj ret{ PyObject_GetAttrString(obj, attr) };
+	if (!ret) throw py::ExcPropagation{};
+	py::toCpp<Ty>(ret.get(), val);
+}
+
+KiwiConfig toKiwiConfig(PyObject* obj)
+{
+	KiwiConfig c;
+	setValueFromAttr(c.integrateAllomorph, obj, "integrate_allomorph");
+	setValueFromAttr(c.cutOffThreshold, obj, "cutoff_threshold");
+	setValueFromAttr(c.unkFormScoreScale, obj, "unk_form_score_scale");
+	setValueFromAttr(c.unkFormScoreBias, obj, "unk_form_score_bias");
+	setValueFromAttr(c.spacePenalty, obj, "space_penalty");
+	setValueFromAttr(c.typoCostWeight, obj, "typo_cost_weight");
+	setValueFromAttr(c.maxUnkFormSize, obj, "max_unk_form_size");
+	setValueFromAttr(c.spaceTolerance, obj, "space_tolerance");
+	return c;
+}
+
 struct KiwiObject : py::CObject<KiwiObject>
 {
 	static constexpr const char* _name = "kiwipiepy._Kiwi";
@@ -1066,7 +1088,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 		bool openEnding = false, 
 		Dialect allowedDialects = Dialect::standard,
 		float dialectCost = 3.f,
-		PyObject* pretokenized = Py_None);
+		PyObject* pretokenized = Py_None,
+		PyObject* config = Py_None);
 	py::UniqueObj extractAddWords(PyObject* sentences, size_t minCnt = 10, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true);
 	py::UniqueObj extractWords(PyObject* sentences, size_t minCnt, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true) const;
 	size_t loadUserDictionary(const char* path);
@@ -1107,84 +1130,38 @@ struct KiwiObject : py::CObject<KiwiObject>
 
 	py::UniqueObj listAllScripts() const;
 
-	float getCutOffThreshold() const
+	py::UniqueObj getGlobalConfig() const
 	{
-		return kiwi.getCutOffThreshold();
+		auto kiwiInst = doPrepare();
+		auto config = kiwiInst->getGlobalConfig();
+		static const char* keys[] = {
+			"integrate_allomorph",
+			"cutoff_threshold",
+			"unk_form_score_scale",
+			"unk_form_score_bias",
+			"space_penalty",
+			"typo_cost_weight",
+			"max_unk_form_size",
+			"space_tolerance",
+		};
+
+		return py::buildPyDict(
+			keys,
+			config.integrateAllomorph,
+			config.cutOffThreshold,
+			config.unkFormScoreScale,
+			config.unkFormScoreBias,
+			config.spacePenalty,
+			config.typoCostWeight,
+			config.maxUnkFormSize,
+			config.spaceTolerance
+		);
 	}
 
-	void setCutOffThreshold(float v)
+	void setGlobalConfig(PyObject* config)
 	{
-		kiwi.setCutOffThreshold(v);
-	}
-
-	size_t getMaxUnkFormSize() const
-	{
-		return kiwi.getMaxUnkFormSize();
-	}
-
-	void setMaxUnkFormSize(size_t v)
-	{
-		kiwi.setMaxUnkFormSize(v);
-	}
-
-	float getUnkScoreBias() const
-	{
-		return kiwi.getUnkScoreBias();
-	}
-
-	void setUnkScoreBias(float v)
-	{
-		kiwi.setUnkScoreBias(v);
-	}
-
-	float getUnkScoreScale() const
-	{
-		return kiwi.getUnkScoreScale();
-	}
-
-	void setUnkScoreScale(float v)
-	{
-		kiwi.setUnkScoreScale(v);
-	}
-
-	bool getIntegrateAllomorph() const
-	{
-		return kiwi.getIntegrateAllomorph();
-	}
-
-	void setIntegrateAllomorph(bool v)
-	{
-		kiwi.setIntegrateAllomorph(v);
-	}
-
-	size_t getSpaceTolerance() const
-	{
-		return kiwi.getSpaceTolerance();
-	}
-
-	void setSpaceTolerance(size_t v)
-	{
-		kiwi.setSpaceTolerance(v);
-	}
-
-	float getSpacePenalty() const
-	{
-		return kiwi.getSpacePenalty();
-	}
-
-	void setSpacePenalty(float v)
-	{
-		kiwi.setSpacePenalty(v);
-	}
-
-	float getTypoCostWeight() const
-	{
-		return kiwi.getTypoCostWeight();
-	}
-
-	void setTypoCostWeight(float v)
-	{
-		kiwi.setTypoCostWeight(v);
+		auto kiwiInst = doPrepare();
+		kiwiInst->setGlobalConfig(toKiwiConfig(config));
 	}
 
 	size_t getNumWorkers() const
@@ -1224,14 +1201,7 @@ py::TypeWrapper<KiwiObject> _KiwiSetter{ gModule, [](PyTypeObject& obj)
 	};
 	static PyGetSetDef getsets[] =
 	{
-		{ (char*)"_cutoff_threshold", PY_GETTER(&KiwiObject::getCutOffThreshold), PY_SETTER(&KiwiObject::setCutOffThreshold), "", nullptr },
-		{ (char*)"_integrate_allomorph", PY_GETTER(&KiwiObject::getIntegrateAllomorph), PY_SETTER(&KiwiObject::setIntegrateAllomorph), "", nullptr },
-		{ (char*)"_unk_score_bias", PY_GETTER(&KiwiObject::getUnkScoreBias), PY_SETTER(&KiwiObject::setUnkScoreBias), "", nullptr },
-		{ (char*)"_unk_score_scale", PY_GETTER(&KiwiObject::getUnkScoreScale), PY_SETTER(&KiwiObject::setUnkScoreScale), "", nullptr },
-		{ (char*)"_max_unk_form_size", PY_GETTER(&KiwiObject::getMaxUnkFormSize), PY_SETTER(&KiwiObject::setMaxUnkFormSize), "", nullptr },
-		{ (char*)"_space_tolerance", PY_GETTER(&KiwiObject::getSpaceTolerance), PY_SETTER(&KiwiObject::setSpaceTolerance), "", nullptr },
-		{ (char*)"_space_penalty", PY_GETTER(&KiwiObject::getSpacePenalty), PY_SETTER(&KiwiObject::setSpacePenalty), "", nullptr },
-		{ (char*)"_typo_cost_weight", PY_GETTER(&KiwiObject::getTypoCostWeight), PY_SETTER(&KiwiObject::setTypoCostWeight), "", nullptr },
+		{ (char*)"__global_config", PY_GETTER(&KiwiObject::getGlobalConfig), PY_SETTER(&KiwiObject::setGlobalConfig), "", nullptr },
 		{ (char*)"_typo_cost_threshold", PY_GETTER(&KiwiObject::typoCostThreshold), PY_SETTER(&KiwiObject::typoCostThreshold), "", nullptr },
 		{ (char*)"_num_workers", PY_GETTER(&KiwiObject::getNumWorkers), nullptr, "", nullptr },
 		{ (char*)"_model_type", PY_GETTER(&KiwiObject::getModelType), nullptr, "", nullptr },
@@ -2190,7 +2160,7 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 #endif
 	size_t topN = 1;
 	AnalyzeOption options;
-	bool openEnding = false;
+	KiwiConfig config;
 
 	KiwiResIter() = default;
 	KiwiResIter(KiwiResIter&&) = default;
@@ -2233,7 +2203,8 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 		return makeFutureCarrier(
 			kiwiInst->asyncAnalyze(move(so.str), topN, 
 				options,
-				move(pretokenized.first)
+				move(pretokenized.first),
+				config
 			),
 			move(pretokenized.second)
 		);
@@ -2631,9 +2602,11 @@ py::UniqueObj KiwiObject::extractAddWords(PyObject* sentences, size_t minCnt, si
 py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, 
 	Match matchOptions, bool echo, PyObject* blockList, bool openEnding, 
 	Dialect allowedDialects, float dialectCost,
-	PyObject* pretokenized)
+	PyObject* pretokenized, PyObject* config)
 {
 	auto kiwiInst = doPrepare();
+	KiwiConfig cConfig = toKiwiConfig(config);
+
 	if (PyUnicode_Check(text))
 	{
 		const unordered_set<const Morpheme*>* morphs = nullptr;
@@ -2660,7 +2633,7 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 			so = py::toCpp<py::StringWithOffset<u16string>>(text);
 			updatePretokenizedSpanToU16(pretokenizedSpans.first, so);
 		}
-		auto res = kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs, openEnding, allowedDialects, dialectCost}, pretokenizedSpans.first);
+		auto res = kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs, openEnding, allowedDialects, dialectCost}, pretokenizedSpans.first, cConfig);
 		if (res.size() > topN) res.erase(res.begin() + topN, res.end());
 		return resToPyList(move(res), this, kiwiInst, move(pretokenizedSpans.second));
 	}
@@ -2675,7 +2648,7 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 		ret->inputIter = move(iter);
 		ret->topN = topN;
 		ret->options = AnalyzeOption{ matchOptions, nullptr, openEnding, allowedDialects, dialectCost };
-		ret->openEnding = openEnding;
+		ret->config = cConfig;
 		ret->echo = !!echo;
 		ret->kiwiInst = kiwiInst;
 

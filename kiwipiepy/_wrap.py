@@ -400,6 +400,54 @@ morphset = MorphemeSet([
         
         raise ValueError("Morpheme should has a `str`, `Tuple[str, str]` or `Tuple[str, str, int]` type.")
 
+@dataclass
+class KiwiConfig:
+    '''.. versionadded:: 0.22.0
+    Kiwi의 형태소 분석과 관련된 설정값을 담는 데이터 클래스입니다.
+    '''
+
+    integrate_allomorph: bool = True
+    '''
+True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다.
+    '''
+
+    cutoff_threshold: float = 8.0
+    '''
+Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 값이 클 수록 더 많은 후보를 탐색하게 되므로 분석 속도가 느려지지만 정확도가 올라갑니다.
+반대로 이 값을 낮추면 더 적은 후보를 탐색하여 속도가 빨라지지만 정확도는 낮아집니다. 초기값은 5입니다.
+    '''
+
+    unk_form_score_scale: float = 5.0
+    '''
+
+    '''
+
+    unk_form_score_bias: float = 5.0
+    '''
+    '''
+
+    space_penalty: float = 7.0
+    '''
+형태소 중간에 삽입된 공백 문자가 있을 경우 언어모델 점수에 추가하는 페널티 점수입니다. 기본값은 7.0입니다.
+    '''
+
+    typo_cost_weight: float = 6.0
+    '''
+오타 교정 시에 사용할 교정 가중치. 이 값이 클수록 교정을 보수적으로 수행합니다. 기본값은 6입니다.
+    '''
+
+    max_unk_form_size: int = 6
+    '''
+분석 과정에서 허용할 미등재 형태의 최대 길이입니다. 기본값은 6입니다.
+    '''
+
+    space_tolerance: int = 0
+    '''
+형태소 중간에 삽입된 공백문자를 몇 개까지 허용할지 설정합니다. 기본값은 0이며, 이 경우 형태소 중간에 공백문자가 삽입되는 걸 허용하지 않습니다.
+
+`Kiwi.space` 메소드 참고.
+    '''
+
 class Kiwi(_Kiwi):
     '''Kiwi 클래스는 실제 형태소 분석을 수행하는 kiwipiepy 모듈의 핵심 클래스입니다.
 이 클래스는 지연 초기화(Lazy initialization)를 사용합니다. 즉 `Kiwi` 인스턴스를 생성할 때에는 최소한의 초기화만 수행하고, 
@@ -529,14 +577,8 @@ typo_cost_threshold: float
             enabled_dialects,
         )
 
-        self._ns_integrate_allomorph = integrate_allomorph
-        self._ns_cutoff_threshold = 8.
-        self._ns_unk_form_score_scale = 3.
-        self._ns_unk_form_score_bias = 5.
-        self._ns_space_penalty = 7.
-        self._ns_max_unk_form_size = 6
-        self._ns_space_tolerance = 0
-        self._ns_typo_cost_weight = 6.
+        self._global_config = KiwiConfig(integrate_allomorph=integrate_allomorph)
+
         self._model_path = model_path
         self._load_default_dict = load_default_dict
         self._load_typo_dict = load_typo_dict
@@ -1044,6 +1086,7 @@ result: List[Tuple[str, float, int, float]]
         allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
         dialect_cost:float = 3.,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
+        override_config:Optional[KiwiConfig] = None,
     ) -> List[Tuple[List[Token], float]]:
         '''형태소 분석을 실시합니다.
 
@@ -1137,106 +1180,115 @@ with open('result.txt', 'w', encoding='utf-8') as output:
             raise ValueError("`pretokenized` must be a callable if `text` is an iterable of str.")
         pretokenized = partial(self._make_pretokenized_spans, pretokenized) if self._pretokenized_pats or pretokenized else None
 
-        return super().analyze(text, top_n, match_options, False, blocklist, open_ending, pretokenized)
+        if override_config is None:
+            override_config = self.global_config
+
+        return super().analyze(text, top_n, match_options, False, blocklist, open_ending, allowed_dialects, dialect_cost, pretokenized, override_config)
     
     def morpheme(self,
         idx:int,
     ):
         return super().morpheme(idx)
-    
-    def _on_build(self):
-        self._integrate_allomorph = self._ns_integrate_allomorph
-        self._cutoff_threshold = self._ns_cutoff_threshold
-        self._unk_form_score_scale = self._ns_unk_form_score_scale
-        self._unk_form_score_bias = self._ns_unk_form_score_bias
-        self._space_penalty = self._ns_space_penalty
-        self._max_unk_form_size = self._ns_max_unk_form_size
-        self._space_tolerance = self._ns_space_tolerance
-        self._typo_cost_weight = self._ns_typo_cost_weight
+
+    @property
+    def global_config(self):
+        '''.. versionadded:: 0.22.0
+        '''
+        return self._global_config
 
     @property
     def cutoff_threshold(self):
         '''.. versionadded:: 0.10.0
 
-Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 값이 클 수록 더 많은 후보를 탐색하게 되므로 분석 속도가 느려지지만 정확도가 올라갑니다.
-반대로 이 값을 낮추면 더 적은 후보를 탐색하여 속도가 빨라지지만 정확도는 낮아집니다. 초기값은 5입니다.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.cutoff_threshold`를 사용해주세요.
         '''
-
-        return self._ns_cutoff_threshold
+        warnings.warn("`Kiwi.cutoff_threshold` is deprecated since 0.22.0. Please use `Kiwi.global_config.cutoff_threshold` instead.", DeprecationWarning, stacklevel=2)
+        return self.global_config.cutoff_threshold
     
     @cutoff_threshold.setter
     def cutoff_threshold(self, v:float):
-        self._cutoff_threshold = self._ns_cutoff_threshold = float(v)
+        warnings.warn("`Kiwi.cutoff_threshold` is deprecated since 0.22.0. Please use `Kiwi.global_config.cutoff_threshold` instead.", DeprecationWarning, stacklevel=2)
+        self.global_config.cutoff_threshold = v
+
     
     @property
     def integrate_allomorph(self):
         '''.. versionadded:: 0.10.0
 
-True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.integrate_allomorph`를 사용해주세요.
         '''
 
-        return self._ns_integrate_allomorph
+        return self.global_config.integrate_allomorph
     
     @integrate_allomorph.setter
     def integrate_allomorph(self, v:bool):
-        self._integrate_allomorph = self._ns_integrate_allomorph = bool(v)
+        warnings.warn("`Kiwi.integrate_allomorph` is deprecated since 0.22.0. Please use `Kiwi.global_config.integrate_allomorph` instead.", DeprecationWarning, stacklevel=2)
+        self.global_config.integrate_allomorph = v
     
     @property
     def space_penalty(self):
         '''.. versionadded:: 0.11.1
 
-형태소 중간에 삽입된 공백 문자가 있을 경우 언어모델 점수에 추가하는 페널티 점수입니다. 기본값은 7.0입니다.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.space_penalty`를 사용해주세요.
         '''
 
-        return self._ns_space_penalty
+        return self.global_config.space_penalty
     
     @space_penalty.setter
     def space_penalty(self, v:float):
-        self._space_penalty = self._ns_space_penalty = float(v)
+        warnings.warn("`Kiwi.space_penalty` is deprecated since 0.22.0. Please use `Kiwi.global_config.space_penalty` instead.", DeprecationWarning, stacklevel=2)
+        self.global_config.space_penalty = v
 
     @property
     def space_tolerance(self):
         '''.. versionadded:: 0.11.1
 
-형태소 중간에 삽입된 공백문자를 몇 개까지 허용할지 설정합니다. 기본값은 0이며, 이 경우 형태소 중간에 공백문자가 삽입되는 걸 허용하지 않습니다.
-
-`Kiwi.space` 메소드 참고.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.space_tolerance`를 사용해주세요.
         '''
 
-        return self._ns_space_tolerance
+        return self.global_config.space_tolerance
     
     @space_tolerance.setter
     def space_tolerance(self, v:int):
+        warnings.warn("`Kiwi.space_tolerance` is deprecated since 0.22.0. Please use `Kiwi.global_config.space_tolerance` instead.", DeprecationWarning, stacklevel=2)
         if v < 0: raise ValueError("`space_tolerance` must be a zero or positive integer.")
-        self._space_tolerance = self._ns_space_tolerance = int(v)
+        self.global_config.space_tolerance = int(v)
 
     @property
     def max_unk_form_size(self):
         '''.. versionadded:: 0.11.1
 
-분석 과정에서 허용할 미등재 형태의 최대 길이입니다. 기본값은 6입니다.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.max_unk_form_size`를 사용해주세요.
         '''
 
-        return self._ns_max_unk_form_size
+        return self.global_config.max_unk_form_size
     
     @max_unk_form_size.setter
     def max_unk_form_size(self, v:int):
+        warnings.warn("`Kiwi.max_unk_form_size` is deprecated since 0.22.0. Please use `Kiwi.global_config.max_unk_form_size` instead.", DeprecationWarning, stacklevel=2)
         if v < 0: raise ValueError("`max_unk_form_size` must be a zero or positive integer.")
-        self._max_unk_form_size = self._ns_max_unk_form_size = int(v)
+        self.global_config.max_unk_form_size = int(v)
 
     @property
     def typo_cost_weight(self):
         '''.. versionadded:: 0.13.0
 
-오타 교정 시에 사용할 교정 가중치. 이 값이 클수록 교정을 보수적으로 수행합니다. 기본값은 6입니다.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.typo_cost_weight`를 사용해주세요.
         '''
 
-        return self._ns_typo_cost_weight
+        return self.global_config.typo_cost_weight
     
     @typo_cost_weight.setter
     def typo_cost_weight(self, v:float):
+        warnings.warn("`Kiwi.typo_cost_weight` is deprecated since 0.22.0. Please use `Kiwi.global_config.typo_cost_weight` instead.", DeprecationWarning, stacklevel=2)
         if v < 0: raise ValueError("`typo_cost_weight` must be a zero or positive float.")
-        self._typo_cost_weight = self._ns_typo_cost_weight = float(v)
+        self.global_config.typo_cost_weight = float(v)
 
     @property
     def num_workers(self):
@@ -1284,6 +1336,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
         dialect_cost:float = 3.,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
+        override_config:Optional[KiwiConfig] = None,
     ):
         def _refine_result(results):
             if not split_sents:
@@ -1325,11 +1378,14 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
 
         pretokenized = partial(self._make_pretokenized_spans, pretokenized) if self._pretokenized_pats or pretokenized else None
 
+        if override_config is None:
+            override_config = self.global_config
+
         if isinstance(text, str):
             echo = False
-            return _refine_result(super().analyze(text, 1, match_options, False, blocklist, open_ending, allowed_dialects, dialect_cost, pretokenized))
+            return _refine_result(super().analyze(text, 1, match_options, False, blocklist, open_ending, allowed_dialects, dialect_cost, pretokenized, override_config))
 
-        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist, open_ending, allowed_dialects, dialect_cost, pretokenized))
+        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist, open_ending, allowed_dialects, dialect_cost, pretokenized, override_config))
 
     def tokenize(self, 
         text:Union[str, Iterable[str]], 
@@ -1347,6 +1403,7 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
         dialect_cost:float = 3.,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
+        override_config:Optional[KiwiConfig] = None,
     ) -> Union[List[Token], Iterable[List[Token]], List[List[Token]], Iterable[List[List[Token]]]]:
         '''.. versionadded:: 0.10.2
 
@@ -1554,6 +1611,7 @@ Notes
                               allowed_dialects=allowed_dialects,
                               dialect_cost=dialect_cost,
                               pretokenized=pretokenized,
+                              override_config=override_config,
                               )
 
     def split_into_sents(self, 
@@ -1568,6 +1626,7 @@ Notes
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
         allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
         dialect_cost:float = 3.,
+        override_config:Optional[KiwiConfig] = None,
         return_tokens:bool = False,
         return_sub_sents:bool = True,
     ) -> Union[List[Sentence], Iterable[List[Sentence]]]:
@@ -1704,6 +1763,7 @@ Notes
                                                 blocklist=blocklist, 
                                                 allowed_dialects=allowed_dialects,
                                                 dialect_cost=dialect_cost,
+                                                override_config=override_config,
                                                 split_sents=True), text))
 
         return map(_make_result, self._tokenize(text, 
@@ -1716,6 +1776,7 @@ Notes
                                                 blocklist=blocklist, 
                                                 allowed_dialects=allowed_dialects,
                                                 dialect_cost=dialect_cost,
+                                                override_config=override_config,
                                                 split_sents=True, 
                                                 echo=True))
 
@@ -1789,7 +1850,7 @@ Notes
             while 1:
                 yield False
 
-        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL, False, None, False, 0, 0., None)
+        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL, False, None, False, 0, 0., None, self.global_config)
             
         if insert_new_lines is None: 
             insert_new_lines = _repeat_false()
@@ -1914,10 +1975,10 @@ Notes
 
         if isinstance(text, str):
             if reset_whitespace: text = _reset(text)
-            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA, False, None, False, 0, 0., None), text))
+            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA, False, None, False, 0, 0., None, self.global_config), text))
         else:
             if reset_whitespace: text = map(_reset, text)
-            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, True, None, False, 0, 0., None))
+            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, True, None, False, 0, 0., None, self.global_config))
 
     def join(self, 
         morphs:Iterable[Tuple[str, str]],
