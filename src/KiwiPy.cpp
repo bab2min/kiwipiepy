@@ -128,7 +128,7 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 	py::UniqueObj getDefs() const
 	{
 		py::UniqueObj ret{ PyList_New(0) };
-		vector<pair<tuple<KString, KString, CondVowel>, float>> defs{ tt.getTypos().begin(), tt.getTypos().end() };
+		vector<pair<tuple<KString, KString, CondVowel, Dialect>, float>> defs{ tt.getTypos().begin(), tt.getTypos().end() };
 		sort(defs.begin(), defs.end());
 		for (auto& p : defs)
 		{
@@ -893,7 +893,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 		bool,
 		std::string,
 		PyObject*,
-		float
+		float,
+		Dialect
 	>;
 
 	KiwiObject() = default;
@@ -906,7 +907,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 		bool loadMultiDict = true,
 		const std::string& modelType = {},
 		PyObject* _typos = nullptr, 
-		float _typoCostThreshold = 2.5f
+		float _typoCostThreshold = 2.5f,
+		Dialect enabledDialects = Dialect::standard
 	)
 	{
 		if (_typos == nullptr || _typos == Py_None)
@@ -975,6 +977,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 			throw py::ValueError{ "invalid model type: " + modelType };
 		}
 
+		builder = KiwiBuilder{ spath, numThreads, (BuildOption)boptions, mtype, enabledDialects };
 #ifdef Py_GIL_DISABLED
 		rwMutex = std::make_unique<std::shared_mutex>();
 #endif
@@ -1054,9 +1057,16 @@ struct KiwiObject : py::CObject<KiwiObject>
 	}
 
 	std::pair<uint32_t, bool> addUserWord(const char* word, const char* tag = "NNP", float score = 0, std::optional<const char*> origWord = {});
-	bool addPreAnalyzedWord(const char* form, PyObject* oAnalyzed = nullptr, float score = 0);
+	bool addPreAnalyzedWord(const char* form, PyObject* oAnalyzed = nullptr, float score = 0, Dialect dialect = Dialect::standard);
 	std::vector<std::pair<uint32_t, std::u16string>> addRule(const char* tag, PyObject* replacer, float score = 0);
-	py::UniqueObj analyze(PyObject* text, size_t topN = 1, Match matchOptions = Match::all, bool echo = false, PyObject* blockList = Py_None, bool openEnding = false, PyObject* pretokenized = Py_None);
+	py::UniqueObj analyze(PyObject* text, size_t topN = 1, 
+		Match matchOptions = Match::all, 
+		bool echo = false, 
+		PyObject* blockList = Py_None, 
+		bool openEnding = false, 
+		Dialect allowedDialects = Dialect::standard,
+		float dialectCost = 3.f,
+		PyObject* pretokenized = Py_None);
 	py::UniqueObj extractAddWords(PyObject* sentences, size_t minCnt = 10, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true);
 	py::UniqueObj extractWords(PyObject* sentences, size_t minCnt, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true) const;
 	size_t loadUserDictionary(const char* path);
@@ -1249,6 +1259,7 @@ struct TokenObject : py::CObject<TokenObject>
 	py::UniqueObj _userValue;
 	POSTag _rawTag = POSTag::unknown;
 	ScriptType _script = ScriptType::unknown;
+	uint16_t _dialect = 0;
 	bool _regularity = false;
 
 	using _InitArgs = std::tuple<int>;
@@ -1404,6 +1415,7 @@ py::TypeWrapper<TokenObject> _TokenSetter{ gModule, [](PyTypeObject& obj)
 		{ (char*)"user_value", PY_GETTER(&TokenObject::_userValue), nullptr, "", nullptr},
 		{ (char*)"script", PY_GETTER(&TokenObject::script), nullptr, "", nullptr},
 		{ (char*)"sense", PY_GETTER(&TokenObject::_sense), nullptr, "", nullptr},
+		{ (char*)"dialect", PY_GETTER(&TokenObject::_dialect), nullptr, "", nullptr},
 		{ nullptr },
 	};
 
@@ -1497,8 +1509,11 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			tItem->_typoCost = q.typoCost;
 			tItem->_morph = q.morph;
 			tItem->_morphId = q.morph ? kiwiInst->morphToId(q.morph) : -1;
-			tItem->_baseMorph = q.morph ? (q.morph->origMorphemeId ? kiwiInst->idToMorph(q.morph->origMorphemeId) : q.morph) : nullptr;
+			tItem->_baseMorph = (q.morph && !!q.dialect) ? kiwiInst->idToMorph(q.morph->lmMorphemeId) : 
+				(q.morph ? (q.morph->origMorphemeId ? kiwiInst->idToMorph(q.morph->origMorphemeId) : q.morph) : nullptr);
+			tItem->_raw_form = q.typoCost ? kiwiInst->getTypoForm(q.typoFormId) : tItem->_form;
 			tItem->_pairedToken = q.pairedToken;
+			tItem->_dialect = (uint16_t)q.dialect;
 			if (q.tag == POSTag::sl || q.tag == POSTag::sh || q.tag == POSTag::sw || q.tag == POSTag::w_emoji)
 			{
 				tItem->_script = q.script;
@@ -2174,7 +2189,7 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 	std::shared_lock<std::shared_mutex> lock;
 #endif
 	size_t topN = 1;
-	Match matchOptions = Match::all;
+	AnalyzeOption options;
 	bool openEnding = false;
 
 	KiwiResIter() = default;
@@ -2217,7 +2232,7 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 		}
 		return makeFutureCarrier(
 			kiwiInst->asyncAnalyze(move(so.str), topN, 
-				AnalyzeOption{ matchOptions, blocklist ? &blocklist->morphSet : nullptr, openEnding }, 
+				options,
 				move(pretokenized.first)
 			),
 			move(pretokenized.second)
@@ -2471,9 +2486,9 @@ std::pair<uint32_t, bool> KiwiObject::addUserWord(const char* word, const char* 
 	return added;
 }
 
-bool KiwiObject::addPreAnalyzedWord(const char* form, PyObject* oAnalyzed, float score)
+bool KiwiObject::addPreAnalyzedWord(const char* form, PyObject* oAnalyzed, float score, Dialect dialect)
 {
-	vector<pair<u16string, POSTag>> analyzed;
+	vector<tuple<u16string, POSTag, uint8_t>> analyzed;
 	vector<pair<size_t, size_t>> positions;
 	py::foreach<PyObject*>(oAnalyzed, [&](PyObject* item)
 	{
@@ -2485,20 +2500,31 @@ bool KiwiObject::addPreAnalyzedWord(const char* form, PyObject* oAnalyzed, float
 			{
 				throw py::ValueError{ "`analyzed` must be in format `{form}/{tag}`, but given : " + py::repr(item)};
 			}
-			analyzed.emplace_back(str.substr(0, p), parseTag(str.substr(p + 1)));
+			analyzed.emplace_back(str.substr(0, p), parseTag(str.substr(p + 1)), undefSenseId);
 		}
 		else if (PySequence_Check(item))
 		{
 			if (Py_SIZE(item) == 2)
 			{
 				auto p = py::toCpp<pair<u16string, const char*>>(item);
-				analyzed.emplace_back(p.first, parseTag(p.second));
+				analyzed.emplace_back(p.first, parseTag(p.second), undefSenseId);
+			}
+			else if (Py_SIZE(item) == 3)
+			{
+				auto p = py::toCpp<tuple<u16string, const char*, uint8_t>>(item);
+				analyzed.emplace_back(get<0>(p), parseTag(get<1>(p)), get<2>(p));
+			}
+			else if (Py_SIZE(item) == 4)
+			{
+				auto t = py::toCpp<tuple<u16string, const char*, size_t, size_t>>(item);
+				analyzed.emplace_back(get<0>(t), parseTag(get<1>(t)), undefSenseId);
+				positions.emplace_back(get<2>(t), get<3>(t));
 			}
 			else
 			{
-				auto t = py::toCpp<tuple<u16string, const char*, size_t, size_t>>(item);
-				analyzed.emplace_back(get<0>(t), parseTag(get<1>(t)));
-				positions.emplace_back(get<2>(t), get<3>(t));
+				auto t = py::toCpp<tuple<u16string, const char*, uint8_t, size_t, size_t>>(item);
+				analyzed.emplace_back(get<0>(t), parseTag(get<1>(t)), get<2>(t));
+				positions.emplace_back(get<3>(t), get<4>(t));
 			}
 		}
 		else
@@ -2513,7 +2539,7 @@ bool KiwiObject::addPreAnalyzedWord(const char* form, PyObject* oAnalyzed, float
 #ifdef Py_GIL_DISABLED
 	std::unique_lock lock{ *rwMutex };
 #endif
-	auto added = builder.addPreAnalyzedWord(utf8To16(form), analyzed, positions, score);
+	auto added = builder.addPreAnalyzedWord(utf8To16(form), analyzed, positions, score, dialect);
 	if (added) kiwi.reset();
 	return added;
 }
@@ -2602,7 +2628,10 @@ py::UniqueObj KiwiObject::extractAddWords(PyObject* sentences, size_t minCnt, si
 	return retList;
 }
 
-py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOptions, bool echo, PyObject* blockList, bool openEnding, PyObject* pretokenized)
+py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, 
+	Match matchOptions, bool echo, PyObject* blockList, bool openEnding, 
+	Dialect allowedDialects, float dialectCost,
+	PyObject* pretokenized)
 {
 	auto kiwiInst = doPrepare();
 	if (PyUnicode_Check(text))
@@ -2631,7 +2660,7 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOption
 			so = py::toCpp<py::StringWithOffset<u16string>>(text);
 			updatePretokenizedSpanToU16(pretokenizedSpans.first, so);
 		}
-		auto res = kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs, openEnding }, pretokenizedSpans.first);
+		auto res = kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs, openEnding, allowedDialects, dialectCost}, pretokenizedSpans.first);
 		if (res.size() > topN) res.erase(res.begin() + topN, res.end());
 		return resToPyList(move(res), this, kiwiInst, move(pretokenizedSpans.second));
 	}
@@ -2645,7 +2674,7 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, Match matchOption
 		Py_INCREF(this);
 		ret->inputIter = move(iter);
 		ret->topN = topN;
-		ret->matchOptions = matchOptions;
+		ret->options = AnalyzeOption{ matchOptions, nullptr, openEnding, allowedDialects, dialectCost };
 		ret->openEnding = openEnding;
 		ret->echo = !!echo;
 		ret->kiwiInst = kiwiInst;
@@ -2777,10 +2806,11 @@ py::UniqueObj KiwiObject::join(PyObject* morphs, bool lmSearch, bool returnPosit
 template<class E>
 inline uint32_t convertToMorphId(const Kiwi* kiwi, PyObject* target, E&& errorMsg)
 {
-	if (PyUnicode_Check(target) || (PyTuple_Check(target) && PyTuple_GET_SIZE(target) == 2))
+	if (PyUnicode_Check(target) || (PyTuple_Check(target) && (PyTuple_GET_SIZE(target) == 2 || PyTuple_GET_SIZE(target) == 3)))
 	{
 		u16string form;
 		POSTag tag = POSTag::unknown;
+		uint8_t senseId = undefSenseId;
 		if (PyUnicode_Check(target))
 		{
 			form = py::toCpp<u16string>(target);
@@ -2789,9 +2819,13 @@ inline uint32_t convertToMorphId(const Kiwi* kiwi, PyObject* target, E&& errorMs
 		{
 			form = py::toCpp<u16string>(PyTuple_GET_ITEM(target, 0));
 			tag = parseTag(py::toCpp<u16string>(PyTuple_GET_ITEM(target, 1)));
+			if (PyTuple_GET_SIZE(target) > 2)
+			{
+				senseId = py::toCpp<uint8_t>(PyTuple_GET_ITEM(target, 2));
+			}
 		}
 
-		auto cands = kiwi->findMorphemes(form, tag);
+		auto cands = kiwi->findMorphemes(form, tag, senseId);
 		if (cands.empty())
 		{
 			throw py::ValueError{ "No morpheme found for the given form: " + utf16To8(form) };
@@ -2804,6 +2838,9 @@ inline uint32_t convertToMorphId(const Kiwi* kiwi, PyObject* target, E&& errorMs
 				errMsg += utf16To8(form);
 				errMsg.push_back('/');
 				errMsg += tagToString(c->tag);
+				errMsg.push_back('_');
+				errMsg.push_back('_');
+				errMsg += to_string(c->senseId);
 				errMsg.push_back(',');
 				errMsg.push_back(' ');
 			}
@@ -2828,8 +2865,8 @@ inline Vector<uint32_t> convertToIds(const Kiwi* kiwi, PyObject* iterable)
 	Vector<uint32_t> ids;
 	py::foreach<PyObject*>(iterable, [&](PyObject* item)
 	{
-		ids.emplace_back(convertToMorphId(kiwi, item, "`prefix` must be an instance of `str`, `Tuple[str, str]` or `int`."));
-	}, "`prefix` must be an iterable of `Tuple[str, str]` or `int`");
+		ids.emplace_back(convertToMorphId(kiwi, item, "`prefix` must be an instance of `str`, `Tuple[str, str]`, `Tuple[str, str, int]` or `int`."));
+	}, "`prefix` must be an iterable of `Tuple[str, str]`, `Tuple[str, str, int]` or `int`");
 	return ids;
 }
 
@@ -2853,6 +2890,7 @@ py::UniqueObj KiwiObject::mostSimilarMorphemes(PyObject* retTy, PyObject* target
 		PyList_SET_ITEM(ret.get(), i, PyObject_CallObject(retTy, py::buildPyTuple(
 			joinHangul(morph->getForm()), 
 			tagToString(morph->tag),
+			morph->senseId,
 			output[i].first,
 			output[i].second
 		).get()));
@@ -2906,7 +2944,8 @@ py::UniqueObj KiwiObject::mostSimilarContexts(PyObject* retTy, PyObject* target,
 				auto* morph = kiwiInst->idToMorph(analysesData[k]);
 				PyList_SET_ITEM(morphs.get(), k - start, py::buildPyTuple(
 					joinHangul(morph->getForm()),
-					tagToString(morph->tag)
+					tagToString(morph->tag),
+					morph->senseId
 				).release());
 			}
 			PyList_SET_ITEM(analysisList.get(), j, morphs.release());
@@ -2956,6 +2995,7 @@ py::UniqueObj KiwiObject::predictNextMorpheme(PyObject* retTy, PyObject* prefix,
 		PyList_SET_ITEM(ret.get(), i, PyObject_CallObject(retTy, py::buildPyTuple(
 			joinHangul(morph->getForm()),
 			tagToString(morph->tag),
+			morph->senseId,
 			output[i].first,
 			output[i].second
 		).get()));
