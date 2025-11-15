@@ -839,6 +839,15 @@ def test_unicode():
 
 def test_template():
     kiwi = Kiwi()
+
+    tpl = kiwi.template("{}가 {}으로 돌아갔다.")
+    res = tpl.format("사람", "대구")
+    assert res == "사람이 대구로 돌아갔다."
+
+    tpl = kiwi.template("{{}}도 {}이 좋다.")
+    res = tpl.format("키위")
+    assert res == "{}도 키위가 좋다."
+
     tpl = kiwi.template("{}가 {}을 {}었다.")
 
     res = tpl.format(("나", "NP"), ("공부", "NNG"), ("하", "VV"))
