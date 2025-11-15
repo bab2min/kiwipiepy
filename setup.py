@@ -5,6 +5,7 @@ import sys
 import shutil
 import subprocess
 import re
+import sysconfig
 
 from distutils import log
 from setuptools.command.install import install
@@ -28,6 +29,8 @@ def get_extra_cmake_options():
         _cmake_extra_options.append("-DKIWI_CPU_ARCH=" + os.environ['KIWI_CPU_ARCH'])
     if os.environ.get('MACOSX_DEPLOYMENT_TARGET'):
         _cmake_extra_options.append("-DCMAKE_OSX_DEPLOYMENT_TARGET=" + os.environ['MACOSX_DEPLOYMENT_TARGET'])
+    if sysconfig.get_config_var('Py_GIL_DISABLED'):
+        _cmake_extra_options.append("-DPy_GIL_DISABLED=1")
     _clean_build_folder = False
     print(_cmake_extra_options)
 
@@ -112,6 +115,10 @@ class CMakeBuild(build_ext):
     def build_extension(self, ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
         libs = self.get_libraries(ext)
+        if sysconfig.get_config_var('Py_GIL_DISABLED'):
+            for i, lib in enumerate(libs):
+                if re.fullmatch(r'python3[0-9]+', lib):
+                    libs[i] = lib + 't'
 
         cmake_args = [
             '-DINCLUDE_DIRS={}'.format(';'.join(self.include_dirs + [np.get_include()])),
@@ -209,7 +216,7 @@ setup(
     keywords='Korean morphological analysis',
     install_requires=[
         'dataclasses; python_version < "3.7"',
-        'kiwipiepy_model>=0.21,<0.22',
+        'kiwipiepy_model>=0.22,<0.23',
         'numpy<2; python_version < "3.9"',
         'numpy; python_version >= "3.9"',
         'tqdm',
