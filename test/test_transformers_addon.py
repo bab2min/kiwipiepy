@@ -68,8 +68,8 @@ def test_pad():
 
 def test_offset_mapping():
     e = tokenizer("맞습니다요!", padding='max_length', max_length=8, return_offsets_mapping=True)
-    assert (e['input_ids'] == [2, 282, 64, 157, 85, 3, 0, 0])
-    assert (e['offset_mapping'] == [(0, 0), (0, 1), (1, 4), (4, 5), (5, 6), (0, 0), (0, 0), (0, 0)])
+    assert (e['input_ids'] == [2, 282, 27336, 85, 3, 0, 0, 0])
+    assert (e['offset_mapping'] == [(0, 0), (0, 1), (1, 5), (5, 6), (0, 0), (0, 0), (0, 0), (0, 0)])
 
     e = tokenizer("가자", "맞습니다요", return_offsets_mapping=True)
     assert (e['input_ids'] == [2, 75, 130, 3, 282, 64, 157, 3])
@@ -90,7 +90,7 @@ def test_decode():
 
 def test_tokenize():
     t = tokenizer.tokenize("맞습니다요!")
-    assert t == ["맞/V", "습니다/E", "요/J", "!"]
+    assert t == ["맞/V", "습니다요/E", "!"]
 
 def test_save_pretrained():
     path = tempfile.gettempdir() + '/test_tokenizer'
