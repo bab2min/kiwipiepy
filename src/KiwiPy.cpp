@@ -1117,6 +1117,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 		float dropout = 0, 
 		float dropoutOnHistory = 0,
 		float nounAugmentingProb = 0,
+		float emojiAugmentingProb = 0,
+		float sbAugmentingProb = 0,
 		size_t generateUnlikelihoods = -1,
 		PyObject* tokenFilter = nullptr, 
 		PyObject* windowFilter = nullptr, 
@@ -3024,29 +3026,27 @@ void KiwiObject::convertHSData(
 		morphemeDefPathStr = py::toCpp<string>(morphemeDefPath);
 	}
 
-	vector<pair<pair<string, POSTag>, pair<string, POSTag>>> transformMap;
+	vector<pair<pair<string, POSTag>, vector<pair<string, POSTag>>>> transformMap;
 	if (transform && transform != Py_None)
 	{
-		py::UniqueObj iter{ PyObject_GetIter(transform) };
-		if (!iter) throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
-		py::foreach<PyObject*>(iter.get(), [&](PyObject* item)
+		py::foreach<PyObject*>(transform, [&](PyObject* item)
 		{
-			if (PyTuple_Check(item) && PyTuple_Size(item) == 2)
+			pair<string, POSTag> key;
+			vector<pair<string, POSTag>> values;
+			py::foreach<pair<string, string>>(item, [&](const pair<string, string>& token)
 			{
-				auto a = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 0));
-				auto b = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 1));
-				POSTag aTag = parseTag(a.second.c_str());
-				POSTag bTag = parseTag(b.second.c_str());
-				transformMap.emplace_back(
-					make_pair(a.first, aTag),
-					make_pair(b.first, bTag)
-				);
-			}
-			else
-			{
-				throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
-			}
-		}, "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`.");
+				const POSTag tag = parseTag(token.second.c_str());
+				if (key.first.empty())
+				{
+					key = make_pair(token.first, tag);
+				}
+				else
+				{
+					values.emplace_back(token.first, tag);
+				}
+			}, "`transform` must be an iterable of `List[Tuple[str, str]]`.");
+			transformMap.emplace_back(key, move(values));
+		}, "`transform` must be an iterable of `List[Tuple[str, str]]`.");
 	}
 
 	builder.convertHSData(py::toCpp<vector<string>>(inputPathes), 
@@ -3066,6 +3066,8 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 	float dropout, 
 	float dropoutOnHistory,
 	float nounAugmentingProb,
+	float emojiAugmentingProb,
+	float sbAugmentingProb,
 	size_t generateUnlikelihoods,
 	PyObject* tokenFilter, 
 	PyObject* windowFilter, 
@@ -3102,29 +3104,27 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 		};
 	}
 
-	vector<pair<pair<string, POSTag>, pair<string, POSTag>>> transformMap;
+	vector<pair<pair<string, POSTag>, vector<pair<string, POSTag>>>> transformMap;
 	if (transform && transform != Py_None)
 	{
-		py::UniqueObj iter{ PyObject_GetIter(transform) };
-		if (!iter) throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
-		py::foreach<PyObject*>(iter.get(), [&](PyObject* item)
+		py::foreach<PyObject*>(transform, [&](PyObject* item)
 		{
-			if (PyTuple_Check(item) && PyTuple_Size(item) == 2)
+			pair<string, POSTag> key;
+			vector<pair<string, POSTag>> values;
+			py::foreach<pair<string, string>>(item, [&](const pair<string, string>& token)
 			{
-				auto a = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 0));
-				auto b = py::toCpp<pair<string, string>>(PyTuple_GET_ITEM(item, 1));
-				POSTag aTag = parseTag(a.second.c_str());
-				POSTag bTag = parseTag(b.second.c_str());
-				transformMap.emplace_back(
-					make_pair(a.first, aTag), 
-					make_pair(b.first, bTag)
-				);
-			}
-			else
-			{
-				throw py::ValueError{ "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`." };
-			}
-		}, "`transform` must be an iterable of `Tuple[Tuple[str, str], Tuple[str, str]]`.");
+				const POSTag tag = parseTag(token.second.c_str());
+				if (key.first.empty())
+				{
+					key = make_pair(token.first, tag);
+				}
+				else
+				{
+					values.emplace_back(token.first, tag);
+				}
+			}, "`transform` must be an iterable of `List[Tuple[str, str]]`.");
+			transformMap.emplace_back(key, move(values));
+		}, "`transform` must be an iterable of `List[Tuple[str, str]]`.");
 	}
 
 	string morphemeDefPathStr;
@@ -3139,10 +3139,14 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 		causalContextSize, 
 		windowSize, 
 		numWorkers, 
-		dropout, 
-		dropoutOnHistory,
-		nounAugmentingProb,
-		generateUnlikelihoods,
+		HSDatasetOption {
+			dropout,
+			dropoutOnHistory,
+			nounAugmentingProb,
+			emojiAugmentingProb,
+			sbAugmentingProb,
+			generateUnlikelihoods,
+		},
 		tf, 
 		wf, 
 		splitRatio, 
