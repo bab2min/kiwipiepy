@@ -10,7 +10,7 @@ from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset, _MorphemeSet, _Ngram
 from kiwipiepy._c_api import Token
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
-from kiwipiepy.const import Match
+from kiwipiepy.const import Match, Dialect
 from kiwipiepy.template import Template
 
 class Sentence(NamedTuple):
@@ -49,6 +49,7 @@ class SimilarMorpheme(NamedTuple):
     '''의미적으로 유사한 형태소 정보를 담는 `namedtuple`입니다.'''
     form: str
     tag: POSTag
+    sense_id: int
     id: int
     score: float
 
@@ -56,18 +57,23 @@ class SimilarMorpheme(NamedTuple):
     def form_tag(self) -> Tuple[str, POSTag]:
         return (self.form, self.tag)
     
+    @property
+    def form_tag_sense(self) -> Tuple[str, POSTag, int]:
+        return (self.form, self.tag, self.sense_id)
+
     def __repr__(self):
-        return f'SimilarMorpheme(form={self.form!r}, tag={self.tag!r}, id={self.id!r}, score={self.score:.4g})'
+        return f'SimilarMorpheme(form={self.form!r}, tag={self.tag!r}, sense_id={self.sense_id!r}, id={self.id!r}, score={self.score:.4g})'
 
 SimilarMorpheme.form.__doc__ = '형태소의 형태'
 SimilarMorpheme.tag.__doc__ = '형태소의 품사 태그'
+SimilarMorpheme.sense_id.__doc__ = '형태소의 의미 번호'
 SimilarMorpheme.id.__doc__ = '형태소의 고유 ID'
 SimilarMorpheme.score.__doc__ = '형태소의 유사도 점수'
 
 class SimilarContext(NamedTuple):
     '''의미적으로 유사한 문맥 정보를 담는 `namedtuple`입니다.'''
     forms: List[str]
-    analyses: List[List[Tuple[str, POSTag]]]
+    analyses: List[List[Tuple[str, POSTag, int]]]
     id: int
     score: float
 
@@ -77,7 +83,7 @@ class SimilarContext(NamedTuple):
         return self.forms[0]
 
     @property
-    def repr_analyses(self) -> List[Tuple[str, POSTag]]:
+    def repr_analyses(self) -> List[Tuple[str, POSTag, int]]:
         '''문맥들의 대표 형태의 형태소 분석 결과'''
         return self.analyses[0]
 
@@ -180,6 +186,17 @@ def _convert_consonant(s):
             else:
                 ret.append(c)
     return ''.join(ret)
+
+def _convert_dialect(dialect):
+    if isinstance(dialect, str):
+        ds = dialect.upper().split(',')
+        dialect = 0
+        for d in ds:
+            try:
+                dialect |= Dialect[d]
+            except KeyError:
+                raise ValueError(f"Unknown dialect name: {d}")
+    return dialect
 
 class TypoTransformer(_TypoTransformer):
     '''.. versionadded:: 0.13.0
@@ -339,31 +356,32 @@ Parameters
 ----------
 kiwi: Kiwi
     형태소 집합을 정의할 Kiwi의 인스턴스입니다.
-morphs: Iterable[Union[str, Tuple[str, POSTag]]]
+morphs: Iterable[Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int]]]
     집합에 포함될 형태소의 목록입니다. 형태소는 단일 `str`이나 `tuple`로 표기될 수 있습니다.
 
 Notes
 -----
-형태소는 다음과 같이 크게 3가지 방법으로 표현될 수 있습니다.
+형태소는 다음과 같이 크게 4가지 방법으로 표현될 수 있습니다.
 
 ```python
 morphset = MorphemeSet([
-    '고마움' # 형태만을 사용해 표현. 형태가 '고마움'인 모든 형태소가 이 집합에 포함됨
-    '고마움/NNG' # 형태와 품사 태그를 이용해 표현. 형태가 '고마움'인 일반 명사만 이 집합에 포함됨
-    ('고마움', 'NNG') # tuple로 분리해서 표현하는 것도 가능
+    '고마움', # 형태만을 사용해 표현. 형태가 '고마움'인 모든 형태소가 이 집합에 포함됨
+    '고마움/NNG', # 형태와 품사 태그를 이용해 표현. 형태가 '고마움'인 일반 명사만 이 집합에 포함됨
+    ('고마움', 'NNG'), # tuple로 분리해서 표현하는 것도 가능
+    ('고마움', 'NNG', 1), # tuple의 세번째 원소로 의미 번호를 지정할 수도 있음.
 ])
 ```
     '''
     def __init__(self, 
         kiwi, 
-        morphs:Iterable[Union[str, Tuple[str, POSTag]]]
+        morphs:Iterable[Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int]]]
     ):
         if not isinstance(kiwi, Kiwi):
             raise ValueError("`kiwi` must be an instance of `Kiwi`.")
         super().__init__(kiwi)
         self.kiwi = kiwi
         self.set = set(map(self._normalize, morphs))
-        self._updated = False
+        self._update(self.set)
     
     def __repr__(self):
         return f"MorphemeSet(kiwi, {repr(self.set)})"
@@ -378,13 +396,57 @@ morphset = MorphemeSet([
             return form, tag
         elif isinstance(tagged_form, tuple):
             if len(tagged_form) == 2: return tagged_form
+            if len(tagged_form) == 3: return tagged_form
         
-        raise ValueError("Morpheme should has a `str` or `Tuple[str, str]` type.")
-    
-    def _update_self(self):
-        if self._updated: return
-        super()._update(self.set)
-        self._updated = True
+        raise ValueError("Morpheme should has a `str`, `Tuple[str, str]` or `Tuple[str, str, int]` type.")
+
+@dataclass
+class KiwiConfig:
+    '''.. versionadded:: 0.22.0
+    Kiwi의 형태소 분석과 관련된 설정값을 담는 데이터 클래스입니다.
+    '''
+
+    integrate_allomorph: bool = True
+    '''
+True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다.
+    '''
+
+    cutoff_threshold: float = 8.0
+    '''
+Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 값이 클 수록 더 많은 후보를 탐색하게 되므로 분석 속도가 느려지지만 정확도가 올라갑니다.
+반대로 이 값을 낮추면 더 적은 후보를 탐색하여 속도가 빨라지지만 정확도는 낮아집니다. 초기값은 5입니다.
+    '''
+
+    unk_form_score_scale: float = 5.0
+    '''
+
+    '''
+
+    unk_form_score_bias: float = 5.0
+    '''
+    '''
+
+    space_penalty: float = 7.0
+    '''
+형태소 중간에 삽입된 공백 문자가 있을 경우 언어모델 점수에 추가하는 페널티 점수입니다. 기본값은 7.0입니다.
+    '''
+
+    typo_cost_weight: float = 6.0
+    '''
+오타 교정 시에 사용할 교정 가중치. 이 값이 클수록 교정을 보수적으로 수행합니다. 기본값은 6입니다.
+    '''
+
+    max_unk_form_size: int = 6
+    '''
+분석 과정에서 허용할 미등재 형태의 최대 길이입니다. 기본값은 6입니다.
+    '''
+
+    space_tolerance: int = 0
+    '''
+형태소 중간에 삽입된 공백문자를 몇 개까지 허용할지 설정합니다. 기본값은 0이며, 이 경우 형태소 중간에 공백문자가 삽입되는 걸 허용하지 않습니다.
+
+`Kiwi.space` 메소드 참고.
+    '''
 
 class Kiwi(_Kiwi):
     '''Kiwi 클래스는 실제 형태소 분석을 수행하는 kiwipiepy 모듈의 핵심 클래스입니다.
@@ -462,6 +524,7 @@ typo_cost_threshold: float
         model_type: Optional[str] = None,
         typos: Optional[Union[str, TypoTransformer]] = None,
         typo_cost_threshold: float = 2.5,
+        enabled_dialects: Optional[Union[Dialect, str]] = Dialect.STANDARD,
     ) -> None:
         if num_workers == 0:
             warnings.warn("behavior of `num_workers=0` is changed since v0.21.0. If you want to keep the previous behavior, please set `num_workers=-1`.", DeprecationWarning, 2)
@@ -499,6 +562,8 @@ typo_cost_threshold: float
         else:
             raise ValueError("`typos` should be one of ('basic', 'continual', 'basic_with_continual', 'lengthening', 'basic_with_continual_and_lengthening', TypoTransformer), but {}".format(typos))
 
+        enabled_dialects = _convert_dialect(enabled_dialects)
+
         super().__init__(
             num_workers,
             model_path,
@@ -509,20 +574,16 @@ typo_cost_threshold: float
             model_type,
             rtypos,
             typo_cost_threshold,
+            enabled_dialects,
         )
 
-        self._ns_integrate_allomorph = integrate_allomorph
-        self._ns_cutoff_threshold = 8.
-        self._ns_unk_form_score_scale = 3.
-        self._ns_unk_form_score_bias = 5.
-        self._ns_space_penalty = 7.
-        self._ns_max_unk_form_size = 6
-        self._ns_space_tolerance = 0
-        self._ns_typo_cost_weight = 6.
+        self._global_config = KiwiConfig(integrate_allomorph=integrate_allomorph)
+
         self._model_path = model_path
         self._load_default_dict = load_default_dict
         self._load_typo_dict = load_typo_dict
         self._typos = typos
+        self._enabled_dialects = enabled_dialects
         self._pretokenized_pats : List[Tuple['re.Pattern', str, Any]] = []
         self._user_values : Dict[int, Any] = {}
         self._template_cache : Dict[str, Template] = {}
@@ -536,7 +597,8 @@ typo_cost_threshold: float
             f"load_typo_dict={self._load_typo_dict!r}, "
             f"model_type={self.model_type!r}, "
             f"typos={self._typos!r}, "
-            f"typo_cost_threshold={self.typo_cost_threshold!r}"
+            f"typo_cost_threshold={self.typo_cost_threshold!r}, "
+            f"enabled_dialects={Dialect(self._enabled_dialects)!r}"
             f")"
         )
 
@@ -601,6 +663,7 @@ False
         form:str,
         analyzed:Iterable[Union[Tuple[str, POSTag], Tuple[str, POSTag, int, int]]],
         score:float = 0.,
+        dialect:Union[Dialect, str] = Dialect.STANDARD,
     ) -> bool:
         '''.. versionadded:: 0.11.0
 
@@ -647,7 +710,9 @@ Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나�
                 cursor = p
             if len(new_analyzed) == len(analyzed):
                 analyzed = new_analyzed
-        return super().add_pre_analyzed_word(form, analyzed, score)
+        
+        dialect = _convert_dialect(dialect)
+        return super().add_pre_analyzed_word(form, analyzed, score, dialect)
     
     def add_re_word(self,
         pattern:Union[str, 're.Pattern'],
@@ -1018,7 +1083,10 @@ result: List[Tuple[str, float, int, float]]
         saisiot:Optional[bool] = None,
         blocklist:Optional[Union[MorphemeSet, Iterable[str]]] = None,
         open_ending:bool = False,
+        allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
+        dialect_cost:float = 3.,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
+        override_config:Optional[KiwiConfig] = None,
     ) -> List[Tuple[List[Token], float]]:
         '''형태소 분석을 실시합니다.
 
@@ -1105,113 +1173,122 @@ with open('result.txt', 'w', encoding='utf-8') as output:
                 blocklist = MorphemeSet(self, blocklist.set)
         elif blocklist is not None:
             blocklist = MorphemeSet(self, blocklist)
-        
-        if blocklist: blocklist._update_self()
 
+        allowed_dialects = _convert_dialect(allowed_dialects)
+        
         if not isinstance(text, str) and pretokenized and not callable(pretokenized):
             raise ValueError("`pretokenized` must be a callable if `text` is an iterable of str.")
         pretokenized = partial(self._make_pretokenized_spans, pretokenized) if self._pretokenized_pats or pretokenized else None
 
-        return super().analyze(text, top_n, match_options, False, blocklist, open_ending, pretokenized)
+        if override_config is None:
+            override_config = self.global_config
+
+        return super().analyze(text, top_n, match_options, False, blocklist, open_ending, allowed_dialects, dialect_cost, pretokenized, override_config)
     
     def morpheme(self,
         idx:int,
     ):
         return super().morpheme(idx)
-    
-    def _on_build(self):
-        self._integrate_allomorph = self._ns_integrate_allomorph
-        self._cutoff_threshold = self._ns_cutoff_threshold
-        self._unk_form_score_scale = self._ns_unk_form_score_scale
-        self._unk_form_score_bias = self._ns_unk_form_score_bias
-        self._space_penalty = self._ns_space_penalty
-        self._max_unk_form_size = self._ns_max_unk_form_size
-        self._space_tolerance = self._ns_space_tolerance
-        self._typo_cost_weight = self._ns_typo_cost_weight
+
+    @property
+    def global_config(self):
+        '''.. versionadded:: 0.22.0
+        '''
+        return self._global_config
 
     @property
     def cutoff_threshold(self):
         '''.. versionadded:: 0.10.0
 
-Beam 탐색 시 미리 제거할 후보의 점수 차를 설정합니다. 이 값이 클 수록 더 많은 후보를 탐색하게 되므로 분석 속도가 느려지지만 정확도가 올라갑니다.
-반대로 이 값을 낮추면 더 적은 후보를 탐색하여 속도가 빨라지지만 정확도는 낮아집니다. 초기값은 5입니다.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.cutoff_threshold`를 사용해주세요.
         '''
-
-        return self._ns_cutoff_threshold
+        warnings.warn("`Kiwi.cutoff_threshold` is deprecated since 0.22.0. Please use `Kiwi.global_config.cutoff_threshold` instead.", DeprecationWarning, stacklevel=2)
+        return self.global_config.cutoff_threshold
     
     @cutoff_threshold.setter
     def cutoff_threshold(self, v:float):
-        self._cutoff_threshold = self._ns_cutoff_threshold = float(v)
+        warnings.warn("`Kiwi.cutoff_threshold` is deprecated since 0.22.0. Please use `Kiwi.global_config.cutoff_threshold` instead.", DeprecationWarning, stacklevel=2)
+        self.global_config.cutoff_threshold = v
+
     
     @property
     def integrate_allomorph(self):
         '''.. versionadded:: 0.10.0
 
-True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 /어/나 /았/과 /었/ 같이 앞 모음의 양성/음성에 따라 형태가 바뀌는 어미들을 하나로 통합하여 출력합니다.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.integrate_allomorph`를 사용해주세요.
         '''
 
-        return self._ns_integrate_allomorph
+        return self.global_config.integrate_allomorph
     
     @integrate_allomorph.setter
     def integrate_allomorph(self, v:bool):
-        self._integrate_allomorph = self._ns_integrate_allomorph = bool(v)
+        warnings.warn("`Kiwi.integrate_allomorph` is deprecated since 0.22.0. Please use `Kiwi.global_config.integrate_allomorph` instead.", DeprecationWarning, stacklevel=2)
+        self.global_config.integrate_allomorph = v
     
     @property
     def space_penalty(self):
         '''.. versionadded:: 0.11.1
 
-형태소 중간에 삽입된 공백 문자가 있을 경우 언어모델 점수에 추가하는 페널티 점수입니다. 기본값은 7.0입니다.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.space_penalty`를 사용해주세요.
         '''
 
-        return self._ns_space_penalty
+        return self.global_config.space_penalty
     
     @space_penalty.setter
     def space_penalty(self, v:float):
-        self._space_penalty = self._ns_space_penalty = float(v)
+        warnings.warn("`Kiwi.space_penalty` is deprecated since 0.22.0. Please use `Kiwi.global_config.space_penalty` instead.", DeprecationWarning, stacklevel=2)
+        self.global_config.space_penalty = v
 
     @property
     def space_tolerance(self):
         '''.. versionadded:: 0.11.1
 
-형태소 중간에 삽입된 공백문자를 몇 개까지 허용할지 설정합니다. 기본값은 0이며, 이 경우 형태소 중간에 공백문자가 삽입되는 걸 허용하지 않습니다.
-
-`Kiwi.space` 메소드 참고.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.space_tolerance`를 사용해주세요.
         '''
 
-        return self._ns_space_tolerance
+        return self.global_config.space_tolerance
     
     @space_tolerance.setter
     def space_tolerance(self, v:int):
+        warnings.warn("`Kiwi.space_tolerance` is deprecated since 0.22.0. Please use `Kiwi.global_config.space_tolerance` instead.", DeprecationWarning, stacklevel=2)
         if v < 0: raise ValueError("`space_tolerance` must be a zero or positive integer.")
-        self._space_tolerance = self._ns_space_tolerance = int(v)
+        self.global_config.space_tolerance = int(v)
 
     @property
     def max_unk_form_size(self):
         '''.. versionadded:: 0.11.1
 
-분석 과정에서 허용할 미등재 형태의 최대 길이입니다. 기본값은 6입니다.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.max_unk_form_size`를 사용해주세요.
         '''
 
-        return self._ns_max_unk_form_size
+        return self.global_config.max_unk_form_size
     
     @max_unk_form_size.setter
     def max_unk_form_size(self, v:int):
+        warnings.warn("`Kiwi.max_unk_form_size` is deprecated since 0.22.0. Please use `Kiwi.global_config.max_unk_form_size` instead.", DeprecationWarning, stacklevel=2)
         if v < 0: raise ValueError("`max_unk_form_size` must be a zero or positive integer.")
-        self._max_unk_form_size = self._ns_max_unk_form_size = int(v)
+        self.global_config.max_unk_form_size = int(v)
 
     @property
     def typo_cost_weight(self):
         '''.. versionadded:: 0.13.0
 
-오타 교정 시에 사용할 교정 가중치. 이 값이 클수록 교정을 보수적으로 수행합니다. 기본값은 6입니다.
+.. deprecated:: 0.22.0
+    이 속성은 0.22.0 버전에서 deprecated 되었습니다. 대신 `Kiwi.global_config.typo_cost_weight`를 사용해주세요.
         '''
 
-        return self._ns_typo_cost_weight
+        return self.global_config.typo_cost_weight
     
     @typo_cost_weight.setter
     def typo_cost_weight(self, v:float):
+        warnings.warn("`Kiwi.typo_cost_weight` is deprecated since 0.22.0. Please use `Kiwi.global_config.typo_cost_weight` instead.", DeprecationWarning, stacklevel=2)
         if v < 0: raise ValueError("`typo_cost_weight` must be a zero or positive float.")
-        self._typo_cost_weight = self._ns_typo_cost_weight = float(v)
+        self.global_config.typo_cost_weight = float(v)
 
     @property
     def num_workers(self):
@@ -1256,7 +1333,10 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         echo:bool = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
         open_ending:bool = False,
+        allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
+        dialect_cost:float = 3.,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
+        override_config:Optional[KiwiConfig] = None,
     ):
         def _refine_result(results):
             if not split_sents:
@@ -1284,25 +1364,28 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         elif saisiot is False:
             match_options = (match_options & ~Match.SPLIT_SAISIOT) | Match.MERGE_SAISIOT
 
+        allowed_dialects = _convert_dialect(allowed_dialects)
+
         if isinstance(blocklist, MorphemeSet):
             if blocklist.kiwi != self: 
                 warnings.warn("This `MorphemeSet` isn't based on current Kiwi object.")
                 blocklist = MorphemeSet(self, blocklist.set)
         elif blocklist is not None:
             blocklist = MorphemeSet(self, blocklist)
-        
-        if blocklist: blocklist._update_self()
 
         if not isinstance(text, str) and pretokenized and not callable(pretokenized):
             raise ValueError("`pretokenized` must be a callable if `text` is an iterable of str.")
 
         pretokenized = partial(self._make_pretokenized_spans, pretokenized) if self._pretokenized_pats or pretokenized else None
 
+        if override_config is None:
+            override_config = self.global_config
+
         if isinstance(text, str):
             echo = False
-            return _refine_result(super().analyze(text, 1, match_options, False, blocklist, open_ending, pretokenized))
-        
-        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist, open_ending, pretokenized))
+            return _refine_result(super().analyze(text, 1, match_options, False, blocklist, open_ending, allowed_dialects, dialect_cost, pretokenized, override_config))
+
+        return map(_refine_result_with_echo if echo else _refine_result, super().analyze(text, 1, match_options, echo, blocklist, open_ending, allowed_dialects, dialect_cost, pretokenized, override_config))
 
     def tokenize(self, 
         text:Union[str, Iterable[str]], 
@@ -1317,7 +1400,10 @@ True일 경우 음운론적 이형태를 통합하여 출력합니다. /아/와 
         echo:bool = False,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
         open_ending:bool = False,
+        allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
+        dialect_cost:float = 3.,
         pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
+        override_config:Optional[KiwiConfig] = None,
     ) -> Union[List[Token], Iterable[List[Token]], List[List[Token]], Iterable[List[List[Token]]]]:
         '''.. versionadded:: 0.10.2
 
@@ -1522,8 +1608,11 @@ Notes
                               split_sents, stopwords, echo, 
                               blocklist=blocklist, 
                               open_ending=open_ending,
-                              pretokenized=pretokenized
-        )
+                              allowed_dialects=allowed_dialects,
+                              dialect_cost=dialect_cost,
+                              pretokenized=pretokenized,
+                              override_config=override_config,
+                              )
 
     def split_into_sents(self, 
         text:Union[str, Iterable[str]], 
@@ -1535,6 +1624,9 @@ Notes
         saisiot:Optional[bool] = None,
         stopwords:Optional[Stopwords] = None,
         blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
+        allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
+        dialect_cost:float = 3.,
+        override_config:Optional[KiwiConfig] = None,
         return_tokens:bool = False,
         return_sub_sents:bool = True,
     ) -> Union[List[Sentence], Iterable[List[Sentence]]]:
@@ -1669,6 +1761,9 @@ Notes
                                                 compatible_jamo=compatible_jamo,
                                                 saisiot=saisiot,
                                                 blocklist=blocklist, 
+                                                allowed_dialects=allowed_dialects,
+                                                dialect_cost=dialect_cost,
+                                                override_config=override_config,
                                                 split_sents=True), text))
 
         return map(_make_result, self._tokenize(text, 
@@ -1679,6 +1774,9 @@ Notes
                                                 compatible_jamo=compatible_jamo,
                                                 saisiot=saisiot,
                                                 blocklist=blocklist, 
+                                                allowed_dialects=allowed_dialects,
+                                                dialect_cost=dialect_cost,
+                                                override_config=override_config,
                                                 split_sents=True, 
                                                 echo=True))
 
@@ -1752,7 +1850,7 @@ Notes
             while 1:
                 yield False
 
-        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL, False, None, False, None)
+        riter = super().analyze(_zip_consequences(iter(text_chunks)), 1, Match.ALL, False, None, False, 0, 0., None, self.global_config)
             
         if insert_new_lines is None: 
             insert_new_lines = _repeat_false()
@@ -1877,10 +1975,10 @@ Notes
 
         if isinstance(text, str):
             if reset_whitespace: text = _reset(text)
-            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA, False, None, False, None), text))
+            return _space((super().analyze(text, 1, Match.ALL | Match.Z_CODA, False, None, False, 0, 0., None, self.global_config), text))
         else:
             if reset_whitespace: text = map(_reset, text)
-            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, True, None, False, None))
+            return map(_space, super().analyze(text, 1, Match.ALL | Match.Z_CODA, True, None, False, 0, 0., None, self.global_config))
 
     def join(self, 
         morphs:Iterable[Tuple[str, str]],
@@ -2098,7 +2196,7 @@ ValueError: cannot specify format specifier for Kiwi Token
 
     def most_similar_morphemes(
         self,
-        target:Union[str, Tuple[str, POSTag], Token, int],
+        target:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int],
         top_n:int = 10,
     ) -> List[SimilarMorpheme]:
         '''..versionadded:: 0.21.0
@@ -2108,7 +2206,7 @@ model_type이 'cong', 'cong-global'인 경우에만 사용 가능합니다.
 
 Parameters
 ----------
-target: Union[str, Tuple[str, POSTag], Token, int]
+target: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
     입력 형태소. 단일 문자열 혹은 (형태, 품사태그)로 구성된 tuple, Token 객체, 혹은 Token 객체의 id를 입력할 수 있습니다.
 top_n: int
     반환할 형태소의 개수입니다. 기본값은 10입니다.
@@ -2344,8 +2442,8 @@ See Also
 
     def morpheme_similarity(
         self,
-        morpheme1:Union[str, Tuple[str, POSTag], Token, int],
-        morpheme2:Union[str, Tuple[str, POSTag], Token, int]
+        morpheme1:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int],
+        morpheme2:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
     ) -> float:
         '''..versionadded:: 0.21.0
 
@@ -2354,9 +2452,9 @@ model_type이 'cong', 'cong-global'인 경우에만 사용 가능합니다.
 
 Parameters
 ----------
-morpheme1: Union[str, Tuple[str, POSTag], Token, int]
+morpheme1: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
     첫번째 입력 형태소. 단일 문자열 혹은 (형태, 품사태그)로 구성된 tuple, Token 객체, 혹은 Token 객체의 id를 입력할 수 있습니다.
-morpheme2: Union[str, Tuple[str, POSTag], Token, int]
+morpheme2: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
     두번째 입력 형태소. 타입은 morpheme1과 동일합니다.
 
 Returns
@@ -2465,6 +2563,8 @@ See Also
         dropout:float = 0, 
         dropout_on_history:float = 0,
         noun_augmenting_prob:float = 0,
+        emoji_augmenting_prob:float = 0,
+        sb_augmenting_prob:float = 0,
         token_filter:Callable[[str, str], bool] = None, 
         window_filter:Callable[[str, str], bool] = None, 
         split_ratio:float = 0, 
@@ -2485,6 +2585,8 @@ See Also
             dropout, 
             dropout_on_history, 
             noun_augmenting_prob,
+            emoji_augmenting_prob,
+            sb_augmenting_prob,
             generate_unlikelihoods,
             token_filter, 
             window_filter, 

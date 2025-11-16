@@ -38,7 +38,7 @@ class Template:
         kiwi: 'Kiwi',
         format_str: str,
     ):
-        from kiwipiepy._wrap import _convert_consonant
+        from kiwipiepy._wrap import _convert_consonant, PretokenizedToken
         self._kiwi = kiwi
         self._format_str = format_str
         self._formatter = string.Formatter()
@@ -55,7 +55,7 @@ class Template:
             offset += len(literal)
             if field is not None:
                 chunks.append('{}')
-                pretokenized_lists.append((offset, offset + 2, 'SSC'))
+                pretokenized_lists.append((offset, offset + 2, [PretokenizedToken('(', 'SSO', 0, 1), PretokenizedToken(')', 'SSC', 1, 2)]))
                 offset += 2
                 if field.isdigit():
                     has_explicit_field_index = True
@@ -66,17 +66,25 @@ class Template:
                         raise ValueError('cannot switch from automatic field numbering to manual field specification')
                     field = str(implicit_field_index)
                     implicit_field_index += 1
-            self._parsed_format.append(([], field, format, conversion))
+            
+            if self._parsed_format and self._parsed_format[-1][1] is None:
+                self._parsed_format[-1] = ([], field, format, conversion)
+            else:
+                self._parsed_format.append(([], field, format, conversion))
         
         tokens = kiwi.tokenize(''.join(chunks), pretokenized=pretokenized_lists)
         placeholder_iter = iter(pretokenized_lists)
         next_placeholder = next(placeholder_iter, None)
         parsed_iter = iter(self._parsed_format)
         target_tokens = next(parsed_iter)[0]
+        opened = False
         for token in tokens:
-            if next_placeholder and token.span == next_placeholder[:2]:
+            if opened:
                 target_tokens = next(parsed_iter)[0]
                 next_placeholder = next(placeholder_iter, None)
+                opened = False
+            elif next_placeholder and token.start == next_placeholder[0] and token.end == next_placeholder[0] + 1:
+                opened = True
             else:
                 target_tokens.append(token)
     

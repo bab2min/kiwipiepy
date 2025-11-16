@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.9)
 
 project(Kiwipiepy)
 
+option(Py_GIL_DISABLED "Build kiwipiepy with GIL disabled" OFF)
+
 set ( CMAKE_CXX_STANDARD 17 )
 set ( CMAKE_VERBOSE_MAKEFILE true )
 
@@ -14,6 +16,11 @@ if(KIWI_USE_MIMALLOC)
   message(STATUS "Use mimalloc allocators")
   set ( ADDITIONAL_FLAGS "-DKIWI_USE_MIMALLOC" )
   include_directories( Kiwi/third_party/mimalloc/include )
+endif()
+
+if(Py_GIL_DISABLED)
+  message(STATUS "Build kiwipiepy with GIL disabled")
+  set ( ADDITIONAL_FLAGS "${ADDITIONAL_FLAGS} -DPy_GIL_DISABLED=1" )
 endif()
 
 if(MSVC)

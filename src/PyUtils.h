@@ -856,7 +856,7 @@ namespace py
 
 		bool _toCpp(PyObject* obj, std::pair<_Ty1, _Ty2>& out)
 		{
-			if (Py_SIZE(obj) != 2) throw ConversionFail{ "input is not tuple with len=2" };
+			if (Py_SIZE(obj) != 2) throw ConversionFail{ "input is not tuple with len=2: " + reprWithNestedError(obj) };
 			if (!toCpp<_Ty1>(UniqueObj{ PySequence_ITEM(obj, 0) }.get(), out.first)) return false;
 			if (!toCpp<_Ty2>(UniqueObj{ PySequence_ITEM(obj, 1) }.get(), out.second)) return false;
 			return true;
@@ -922,6 +922,9 @@ namespace py
 
 		bool _toCpp(PyObject* obj, std::unordered_map<_Ty1, _Ty2>& out)
 		{
+#ifdef Py_GIL_DISABLED
+			Py_BEGIN_CRITICAL_SECTION(obj);
+#endif
 			PyObject* key, * value;
 			Py_ssize_t pos = 0;
 			while (PyDict_Next(obj, &pos, &key, &value)) 
@@ -932,6 +935,9 @@ namespace py
 				if (!toCpp<_Ty2>(value, v)) return false;
 				out.emplace(std::move(k), std::move(v));
 			}
+#ifdef Py_GIL_DISABLED
+			Py_END_CRITICAL_SECTION();
+#endif
 			if (PyErr_Occurred()) return false;
 			return true;
 		}
@@ -1550,7 +1556,7 @@ namespace py
 	inline UniqueObj buildPyDict(const char** keys, _Rest&&... rest)
 	{
 		UniqueObj dict{ PyDict_New() };
-		detail::setDictItem(dict, keys, std::forward<_Rest>(rest)...);
+		detail::setDictItem(dict.get(), keys, std::forward<_Rest>(rest)...);
 		return dict;
 	}
 
@@ -1558,7 +1564,7 @@ namespace py
 	inline UniqueObj buildPyDictSkipNull(const char** keys, _Rest&&... rest)
 	{
 		UniqueObj dict{ PyDict_New() };
-		detail::setDictItemSkipNull(dict, keys, std::forward<_Rest>(rest)...);
+		detail::setDictItemSkipNull(dict.get(), keys, std::forward<_Rest>(rest)...);
 		return dict;
 	}
 
@@ -1773,6 +1779,9 @@ namespace py
 		{
 			mod = PyModule_Create(&def);
 			addToModule();
+#ifdef Py_GIL_DISABLED
+			PyUnstable_Module_SetGIL(mod, Py_MOD_GIL_NOT_USED);
+#endif
 			return mod;
 		}
 

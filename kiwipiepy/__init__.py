@@ -17,7 +17,7 @@ from kiwipiepy._wrap import (
     SimilarContext,)
 import kiwipiepy.sw_tokenizer as sw_tokenizer
 import kiwipiepy.utils as utils
-from kiwipiepy.const import Match
+from kiwipiepy.const import Match, Dialect
 from kiwipiepy.default_typo_transformer import (
     basic_typos, 
     continual_typos, 

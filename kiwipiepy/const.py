@@ -1,10 +1,9 @@
 '''
 const 모듈은 kiwipiepy에서 사용되는 주요 상수값들을 모아놓은 모듈입니다.
 '''
+from enum import IntFlag
 
-from enum import IntEnum
-
-class Match(IntEnum):
+class Match(IntFlag):
     """
     .. versionadded:: 0.8.0
 
@@ -131,3 +130,57 @@ class Match(IntEnum):
 
     .. versionadded:: 0.11.0
     """
+
+class Dialect(IntFlag):
+    """
+    .. versionadded:: 0.22.0
+
+    방언 정보를 나타내는 열거형입니다.
+    """
+    
+    STANDARD = 0
+    """ 표준어 """
+    표준 = STANDARD
+    
+    GYEONGGI = 1 << 0
+    """ 경기 방언 """
+    경기 = GYEONGGI
+
+    CHUNGCHEONG = 1 << 1
+    """ 충청 방언 """
+    충청 = CHUNGCHEONG
+
+    GANGWON = 1 << 2
+    """ 강원 방언 """
+    강원 = GANGWON
+
+    GYEONGSANG = 1 << 3
+    """ 경상 방언 """
+    경상 = GYEONGSANG
+
+    JEOLLA = 1 << 4
+    """ 전라 방언 """
+    전라 = JEOLLA
+
+    JEJU = 1 << 5
+    """ 제주 방언 """
+    제주 = JEJU
+
+    HWANGHAE = 1 << 6
+    """ 황해 방언 """
+    황해 = HWANGHAE
+
+    HAMGYEONG = 1 << 7
+    """ 함경 방언 """
+    함경 = HAMGYEONG
+
+    PYEONGAN = 1 << 8
+    """ 평안 방언 """
+    평안 = PYEONGAN
+
+    ARCHAIC = 1 << 9
+    """ 옛말 """
+    옛말 = ARCHAIC
+
+    ALL = (GYEONGGI | CHUNGCHEONG | GANGWON | GYEONGSANG | JEOLLA | JEJU | HWANGHAE | HAMGYEONG | PYEONGAN | ARCHAIC)
+    """ 모든 방언 """
