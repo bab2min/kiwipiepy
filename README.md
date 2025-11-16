@@ -487,17 +487,18 @@ kiwi = Kiwi()
 ```
 Kiwi 생성자는 다음과 같습니다.
 ```python
-Kiwi(num_workers=0, model_path=None, load_default_dict=True, integrate_allomorph=True, model_type='knlm', typos=None, typo_cost_threshold=2.5)
+Kiwi(num_workers=-1, model_path=None, load_default_dict=True, integrate_allomorph=True, model_type=None, typos=None, typo_cost_threshold=2.5, enabled_dialects='standard')
 ```
-* `num_workers`:  2 이상이면 단어 추출 및 형태소 분석에 멀티 코어를 활용하여 조금 더 빠른 속도로 분석을 진행할 수 있습니다. <br>
-1인 경우 단일 코어만 활용합니다. num_workers가 0이면 현재 환경에서 사용가능한 모든 코어를 활용합니다. <br>
-생략 시 기본값은 0입니다.
+* `num_workers`:  1 이상이면 단어 추출 및 형태소 분석에 멀티 코어를 활용하여 조금 더 빠른 속도로 분석을 진행할 수 있습니다. <br>
+0인 경우 단일 코어만 활용합니다. num_workers가 -1이면 현재 환경에서 사용가능한 모든 코어를 활용합니다. <br>
+생략 시 기본값은 -1입니다.
 * `model_path`: 형태소 분석 모델이 있는 경로를 지정합니다. 생략시 `kiwipiepy_model` 패키지로부터 모델 경로를 불러옵니다.
 * `load_default_dict`: 추가 사전을 로드합니다. 추가 사전은 위키백과의 표제어 타이틀로 구성되어 있습니다. 이 경우 로딩 및 분석 시간이 약간 증가하지만 다양한 고유명사를 좀 더 잘 잡아낼 수 있습니다. 분석 결과에 원치 않는 고유명사가 잡히는 것을 방지하려면 이를 False로 설정하십시오.
 * `integrate_allomorph`: 어미 중, '아/어', '았/었'과 같이 동일하지만 음운 환경에 따라 형태가 달라지는 이형태들을 자동으로 통합합니다.
-* `model_type`: 형태소 분석에 사용할 언어 모델을 지정합니다. `'knlm'`, `'sbg'` 중 하나를 선택할 수 있습니다. `'sbg'` 는 상대적으로 느리지만 먼 거리에 있는 형태소 간의 관계를 포착할 수 있습니다.
+* `model_type`: 형태소 분석에 사용할 언어 모델을 지정합니다. `'cong'`, `'cong-global'` 중 하나를 선택할 수 있습니다. `'cong-global'` 는 상대적으로 느리지만 먼 거리에 있는 형태소 간의 관계를 포착할 수 있습니다.
 * `typos`: 형태소 분석 시 간단한 오타를 교정합니다. `None`으로 설정 시 교정을 수행하지 않습니다.
 * `typo_cost_threshold`: 오타 교정을 허용할 최대 오타 비용을 설정합니다.
+* `enabled_dialects`: 활성화할 방언을 설정합니다. 기본값은 `Dialect.STANDARD`으로 이 경우 Kiwi는 표준어만을 분석할 수 있습니다.
 
 kiwi 객체는 크게 다음 세 종류의 작업을 수행할 수 있습니다.
 * 코퍼스로부터 미등록 단어 추출
@@ -691,9 +692,9 @@ kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완�
 형태소 분석, 문장 분리, 띄어쓰기 교정, 문장 복원 등의 작업을 수행할 수 있습니다.
 
 ```python
-Kiwi.tokenize(text, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None)
-Kiwi.analyze(text, top_n, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None)
-Kiwi.split_into_sents(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None, return_tokens=False)
+Kiwi.tokenize(text, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None, allowed_dialects='standard', dialect_cost=3.0)
+Kiwi.analyze(text, top_n, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None, allowed_dialects='standard', dialect_cost=3.0)
+Kiwi.split_into_sents(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None, allowed_dialects='standard', dialect_cost=3.0, return_tokens=False)
 Kiwi.glue(text_chunks, insert_new_lines=None, return_space_insertions=False)
 Kiwi.space(text, reset_whitespace=False)
 Kiwi.join(morphs, lm_search=True)
@@ -701,7 +702,7 @@ Kiwi.template(format_str, cache=True)
 ``` 
 
 <details>
-<summary><code>tokenize(text, match_option=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None)</code></summary>
+<summary><code>tokenize(text, match_option=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None, allowed_dialects='standard', dialect_cost=3.0)</code></summary>
  
 입력된 `text`를 형태소 분석하여 그 결과를 간단하게 반환합니다. 분석결과는 다음과 같이 `Token`의 리스트 형태로 반환됩니다.
 
@@ -727,7 +728,7 @@ Kiwi.template(format_str, cache=True)
 <hr>
 
 <details>
-<summary><code>analyze(text, top_n=1, match_option=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None)</code></summary>
+<summary><code>analyze(text, top_n=1, match_option=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None, allowed_dialects='standard', dialect_cost=3.0)</code></summary>
  
 입력된 `text`를 형태소 분석하여 그 결과를 반환합니다. 총 top_n개의 결과를 자세하게 출력합니다. 반환값은 다음과 같이 구성됩니다.
  
@@ -793,6 +794,8 @@ SystemError: <built-in function next> returned a result with an error set
     split_complex=False, 
     compatible_jamo=False,
     saisiot=None,
+    allowed_dialects='standard', 
+    dialect_cost=3.0,
     return_tokens=False
 )</code></summary>
 입력 텍스트를 문장 단위로 분할하여 반환합니다. 
@@ -1007,14 +1010,14 @@ ValueError: cannot specify format specifier for Kiwi Token
 <hr>
 
 ### CoNg 모델 사용하기
-v0.21.0버전부터는 대부분의 상황에서 속도가 개선되고 정확도는 향상된 CoNg(Contextual N-gram) 모델을 사용할 수 있습니다.
-다만 현재는 실험 단계이기 때문에 기본 배포 패키지에 모델 파일이 포함되어 있지는 않고 [릴리즈](https://github.com/bab2min/Kiwi/releases/tag/v0.21.0)에서 별도로 다운로드 받아야 합니다. 그리고 다운 받은 모델의 압축을 풀고, `Kiwi` 객체를 생성할 때 `model_path`에 모델 파일이 있는 경로를 지정해주면 됩니다. 
+v0.22.0 버전부터는 대부분의 상황에서 속도가 개선되고 정확도는 향상된 CoNg(Contextual N-gram)으로 공식 배포 기본 모델이 교체되었습니다. 따라서 별다른 조치를 취할 필요 없이 바로 CoNg 모델을 사용할 수 있습니다.
+v0.21.0 버전에서도 CoNg을 사용할 수 있으나 공식 배포에는 포함되어 있지 않으므로 [릴리즈](https://github.com/bab2min/Kiwi/releases/tag/v0.21.0)에서 별도로 다운로드 받아야 합니다. 그리고 다운 받은 모델의 압축을 풀고, `Kiwi` 객체를 생성할 때 `model_path`에 모델 파일이 있는 경로를 지정해주면 됩니다. 
 현재는 x86-64 장비에서만 최적화된 커널이 제공되고 Apple Silicon M 시리즈 칩이나 Arm64 등 다른 아키텍처에서는 느리게 동작하거나 오류가 발생할 수 있습니다. (오류를 제보해주시면 CoNg 모델 커널을 개선하는 데 큰 도움이 됩니다.)
 
-다음은 리눅스 환경에서 모델 파일을 받고 CoNg 모델을 사용하는 방법입니다.
+다음은 리눅스 환경에서 0.21.0버전의 모델 파일을 받고 CoNg 모델을 사용하는 방법입니다.
 
 ```bash
-$ pip install "kiwipiepy>=0.21"
+$ pip install "kiwipiepy==0.21"
 $ curl -L https://github.com/bab2min/Kiwi/releases/download/v0.21.0/kiwi_model_v0.21.0_cong_base.tgz -o model.tgz
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
