@@ -645,6 +645,49 @@ for t in threads:
     t.join()
 ```
 
+방언 분석
+---------
+v0.22.0 버전부터는 한국어 방언(사투리)에 대한 형태소 분석 기능이 추가되었습니다. 방언 분석 기능을 사용하려면 Kiwi 객체 생성 시 enabled_dialects 인자에 사용할 방언을 명시해야 합니다. 현재 지원되는 방언은 다음과 같습니다.
+
+* 표준어(Dialect.STANDARD)
+* 경기 방언(Dialect.GYEONGGI)
+* 충청 방언(Dialect.CHUNGCHEONG)
+* 강원 방언(Dialect.GANGWON)
+* 경상 방언(Dialect.GYEONGSANG)
+* 전라 방언(Dialect.JEOLLA)
+* 제주 방언(Dialect.JEJU)
+* 황해 방언(Dialect.HWANGHAE)
+* 함경 방언(Dialect.HAMGYEONG)
+* 평안 방언(Dialect.PYEONGAN)
+* 옛말(Dialect.ARCHAIC)
+
+```python
+from kiwipiepy import Kiwi, Dialect
+# 방언을 지정하기 위해서 Dialect 열거형이나 문자열을 사용할 수 있습니다.
+# 제주 방언과 옛말 두 가지를 활성화하는 예시입니다.
+kiwi = Kiwi(enabled_dialects=Dialect.JEJU | Dialect.ARCHAIC)
+# 또는 다음과 같이 string으로 지정할 수도 있습니다.
+kiwi = Kiwi(enabled_dialects='jeju,archaic')
+
+# allowed_dialects 인자를 설정하지 않은 경우 표준어로만 분석됩니다.
+print(kiwi.tokenize("약주 ᄒᆞᆫ 잔 드셧수과?"))
+[Token(form='약주', tag='NNG', start=0, len=2),
+ Token(form='ᄒᆞᆫ', tag='NNG', start=3, len=3),
+ Token(form='잔', tag='NNG', start=7, len=1),
+ Token(form='드셧수과', tag='NNG', start=9, len=4),
+ Token(form='?', tag='SF', start=13, len=1)]
+
+# allowed_dialects 인자에 제주 사투리와 옛말을 지정한 경우
+print(kiwi.tokenize("약주 ᄒᆞᆫ 잔 드셧수과?", allowed_dialects='jeju,archaic'))
+[Token(form='약주', tag='NNG', start=0, len=2),
+ Token(form='ᄒᆞᆫ', tag='MM', start=3, len=3, sense=2),
+ Token(form='잔', tag='NNG', start=7, len=1),
+ Token(form='드시', tag='VV V', start=9, len=2),
+ Token(form='엇', tag='EP', start=10, len=1),
+ Token(form='수과', tag='EF', start=11, len=2, sense=1),
+ Token(form='?', tag='SF', start=13, len=1)]
+```
+
 데모
 ----
 https://lab.bab2min.pe.kr/kiwi 에서 데모를 실행해 볼 수 있습니다.
