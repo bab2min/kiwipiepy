@@ -16,6 +16,14 @@ jobs:
     - uses: actions/checkout@v1
       with:
         submodules: recursive
+    - name: Install Git LFS
+      run: |
+        mkdir gitlfs && pushd gitlfs
+        curl -L https://github.com/git-lfs/git-lfs/releases/download/v2.13.2/git-lfs-linux-amd64-v2.13.2.tar.gz | tar -zxv
+        ./install.sh
+        popd
+    - name: Pull LFS files
+      run: cd Kiwi && git config --global --add safe.directory /__w/kiwipiepy/kiwipiepy/Kiwi && git lfs pull
     - name: Deploy
       continue-on-error: True
       env:
@@ -34,6 +42,8 @@ jobs:
         yum install libffi-devel -y
         /opt/python/cp311-cp311/bin/python -m pip install --upgrade pip setuptools
         /opt/python/cp311-cp311/bin/python -m pip install twine wheel numpy==`/opt/python/cp311-cp311/bin/python .github/workflows/numpy_version.py`
+        /opt/python/cp311-cp311/bin/python setup.py sdist
+        /opt/python/cp311-cp311/bin/python -m twine upload dist/*.tar.gz
         for cp in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314 cp314-cp314t
         do
           /opt/python/${cp}/bin/python -m pip install wheel setuptools numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
@@ -41,6 +51,10 @@ jobs:
           auditwheel repair dist/*-${cp}-linux_x86_64.whl
         done
         /opt/python/cp311-cp311/bin/python -m twine upload --repository testpypi wheelhouse/*.whl
+
+        cd model
+        /opt/python/cp311-cp311/bin/python setup.py sdist
+        /opt/python/cp311-cp311/bin/python -m twine upload dist/*.tar.gz
 
   build_macos:
     name: Build for macOS
