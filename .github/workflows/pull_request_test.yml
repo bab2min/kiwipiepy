@@ -49,13 +49,17 @@ jobs:
               /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
           - name: Test transformers_addon
             run: |
-              for v in {12..46}
-              do
-                echo "Test with transformers 4.$v ..."
-                if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
-                  /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
-                fi
-              done
+              if [[ "${{ matrix.cp }}" != *t ]]; then
+                for v in {12..46}
+                do
+                  echo "Test with transformers 4.$v ..."
+                  if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
+                    /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
+                  fi
+                done
+              else
+                echo "Skipping transformers test for free-threaded Python"
+              fi
     - run: tar -zcvf build.tgz build
     - name: Archive binary
       uses: actions/upload-artifact@v4
@@ -94,7 +98,7 @@ jobs:
         python setup.py build install
         cd ..
         
-        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 python setup.py build
+        MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 python setup.py build install
         python -m pip install numpy==`python .github/workflows/numpy_version.py v1` || true
     - name: Archive binary
       uses: actions/upload-artifact@v4
