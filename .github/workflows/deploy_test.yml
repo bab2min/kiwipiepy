@@ -48,14 +48,14 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.9, "3.10", 3.11, 3.12, 3.13, 3.14, 3.14t]
+        python-version: ["3.10", 3.11, 3.12, 3.13, 3.14, 3.14t]
 
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         architecture: arm64
@@ -83,7 +83,7 @@ jobs:
       with:
         submodules: recursive
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         architecture: x64
@@ -111,7 +111,7 @@ jobs:
       with:
         submodules: recursive
     - name: Set up Python ${{ matrix.python-version }} ${{ matrix.architecture }}
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         architecture: ${{ matrix.architecture }}
