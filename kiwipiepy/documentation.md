@@ -682,7 +682,7 @@ print(kiwi.tokenize("약주 ᄒᆞᆫ 잔 드셧수과?", allowed_dialects='jeju
 [Token(form='약주', tag='NNG', start=0, len=2),
  Token(form='ᄒᆞᆫ', tag='MM', start=3, len=3, sense=2),
  Token(form='잔', tag='NNG', start=7, len=1),
- Token(form='드시', tag='VV V', start=9, len=2),
+ Token(form='드시', tag='VV', start=9, len=2),
  Token(form='엇', tag='EP', start=10, len=1),
  Token(form='수과', tag='EF', start=11, len=2, sense=1),
  Token(form='?', tag='SF', start=13, len=1)]
