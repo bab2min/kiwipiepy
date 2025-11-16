@@ -20,7 +20,7 @@ $ pip3 install kiwipiepy
 
 현재 kiwipiepy 패키지는 Vista 버전 이상의 Windows OS 및 Linux, macOS 10.12 이상을 지원합니다.
 
-**macOS M1** 등 binary distribution이 제공되지 않는 환경에서는 설치시 소스 코드 컴파일을 위해 **cmake3.12 이상이 필요**합니다.
+binary distribution이 제공되지 않는 환경에서는 설치시 소스 코드 컴파일을 위해 **cmake3.12 이상이 필요**합니다.
 ```console
 $ pip install cmake
 $ pip install --upgrade pip
@@ -401,7 +401,7 @@ kiwi.tokenize('대학생선교회에서')
 # space_tolerance를 2로 설정하여
 # 공백이 두 개까지 틀린 경우를 허용하도록 하면
 # '대학 생선 교회'에도 '대학생 선교회'가 일치하게 됩니다.
->>> kiwi.space_tolerance = 2
+>>> kiwi.global_config.space_tolerance = 2
 >>> kiwi.tokenize('대학 생선 교회에서')
 [Token(form='대학생 선교회', tag='NNP', start=0, len=8),
  Token(form='에서', tag='JKB', start=8, len=2)]
@@ -859,7 +859,7 @@ SystemError: <built-in function next> returned a result with an error set
 
 이 메소드의 띄어쓰기 교정 기능은 형태소 분석에 기반합니다. 
 따라서 형태소 중간에 공백이 삽입된 경우 교정 결과가 부정확할 수 있습니다.
-이 경우 `Kiwi.space_tolerance`를 조절하여 형태소 내 공백을 무시하거나, 
+이 경우 `Kiwi.global_config.space_tolerance`를 조절하여 형태소 내 공백을 무시하거나, 
 `reset_whitespace=True`로 설정하여 아예 기존 공백을 무시하고 띄어쓰기를 하도록 하면 결과를 개선할 수 있습니다.
 
 ```python
@@ -867,7 +867,7 @@ SystemError: <built-in function next> returned a result with an error set
 "띄어쓰기 없이 작성된 텍스트네 이걸 교정해 줘."
 >> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다")
 "띄어 쓰기 문 제 가 있 습 니 다"
->> kiwi.space_tolerance = 2 # 형태소 내 공백을 최대 2개까지 허용
+>> kiwi.global_config.space_tolerance = 2 # 형태소 내 공백을 최대 2개까지 허용
 >> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다")
 "띄어 쓰기 문제가 있습니다"
 >> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다", reset_whitespace=True) # 기존 공백 전부 무시

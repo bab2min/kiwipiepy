@@ -1,5 +1,5 @@
-Kiwipiepy란?
-============
+Kiwipiepy
+==========
 Kiwipiepy는 한국어 형태소 분석기인 Kiwi(Korean Intelligent Word Identifier)의 Python 모듈입니다. 
 C++로 작성되었고 다른 패키지에 의존성이 없으므로 C++ 컴파일이 가능한 환경이라면 어디에서나 Kiwipiepy를 사용 가능합니다.
 
@@ -340,7 +340,7 @@ kiwi.tokenize('대학생선교회에서')
 # space_tolerance를 2로 설정하여
 # 공백이 두 개까지 틀린 경우를 허용하도록 하면
 # '대학 생선 교회'에도 '대학생 선교회'가 일치하게 됩니다.
->>> kiwi.space_tolerance = 2
+>>> kiwi.global_config.space_tolerance = 2
 >>> kiwi.tokenize('대학 생선 교회에서')
 [Token(form='대학생 선교회', tag='NNP', start=0, len=8),
  Token(form='에서', tag='JKB', start=8, len=2)]
@@ -426,9 +426,10 @@ kiwi.extract_words(IterableTextFile('test.txt'), 10, 10, 0.25)
 ---------
 Kiwi는 최적의 형태소 조합을 탐색하기 위해 내부적으로 언어 모델을 사용합니다. 
 0.13.0 버전 이전까지는 Kneser-ney 언어 모델(`knlm`)만을 사용했지만, 
-0.13.0버전부터는 SkipBigram(`sbg`),
-0.21.0버전부터는 Contextual N-gram(`cong`, `cong-global`)이라는 새로운 언어 모델에 대한 지원이 추가되었습니다.
-기본값은 `knlm`로 설정되어 있지만, 상황에 따라 이용자가 더 적절한 모델을 선택하여 사용할 수 있습니다. 각 모델의 특징은 다음과 같습니다.
+0.13.0 버전부터는 SkipBigram(`sbg`),
+0.21.0 버전부터는 Contextual N-gram(`cong`, `cong-global`)이라는 새로운 언어 모델에 대한 지원이 추가되었습니다.
+0.22.0 버전부터는 `cong` 모델이 기본 모델로 사용되며 knlm, sbg 모델은 제공되지 않습니다.
+상황에 따라 이용자가 더 적절한 모델을 선택하여 사용할 수 있습니다. 각 모델의 특징은 다음과 같습니다.
 
 * knlm: 0.12.0버전까지 기본적으로 제공되던 모델로, 속도가 빠르고 짧은 거리 내의 형태소(주로 2~3개) 간의 관계를 높은 정확도로 모델링할 수 있습니다.
   그러나 먼 거리의 형태소 간의 관계는 고려하지 못하는 한계가 있습니다.
@@ -439,11 +440,11 @@ Kiwi는 최적의 형태소 조합을 탐색하기 위해 내부적으로 언어
 * cong-global: 0.21.0버전에서 추가된 모델로, cong와 유사하지만 더 먼 거리의 형태소 간의 관계를 고려하도록 확장되었습니다.
   속도는 `cong`보다 2배 정도 느려지지만, 더 먼 거리의 형태소 간의 관계를 고려할 수 있습니다.
 
-cong, cong-global은 현재 실험 단계이기 때문에 기본 배포 패키지에 모델 파일이 포함되어 있지는 않고 [릴리즈](https://github.com/bab2min/Kiwi/releases/tag/v0.21.0)에서 별도로 cong-base 모델을 다운로드 받아야 합니다. 또한 x86-64를 제외한 아키텍처(Apple Silicon, Arm 등)에서는 현재 최적화된 커널이 제공되지 않기 때문에 속도가 저하될 수 있습니다.
+cong, cong-global은 현재 x86-64를 제외한 아키텍처(Apple Silicon, Arm 등)에서는 현재 최적화된 커널이 제공되지 않기 때문에 구동시 속도가 저하될 수 있습니다.
 
 모델 간의 분석 결과 차이는 다음처럼 형태소의 모호성이 존재하는 경우 잘 드러납니다.
 ```python
->>> kiwi = Kiwi(model_type='knlm')
+>>> kiwi = Kiwi(model_type='cong')
 >>> kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.')
 [Token(form='이', tag='MM', start=0, len=1), 
  Token(form='번호', tag='NNG', start=2, len=2), 
@@ -458,7 +459,7 @@ cong, cong-global은 현재 실험 단계이기 때문에 기본 배포 패키�
  Token(form='어', tag='EF', start=21, len=1), 
  Token(form='.', tag='SF', start=22, len=1)]
 
->>> kiwi = Kiwi(model_type='sbg')
+>>> kiwi = Kiwi(model_type='cong-global')
 >>> kiwi.tokenize('이 번호로 전화를 이따가 꼭 반드시 걸어.')
 [Token(form='이', tag='MM', start=0, len=1), 
  Token(form='번호', tag='NNG', start=2, len=2), 
@@ -489,7 +490,7 @@ cong, cong-global은 현재 실험 단계이기 때문에 기본 배포 패키�
  Token(form='ᆫ다', tag='EF', start=23, len=2), 
  Token(form='.', tag='SF', start=25, len=1)]
 
->>> kiwi = Kiwi(model_path=PATH_TO_CONG_MODEL, model_type='cong')
+>>> kiwi = Kiwi(model_path='cong')
 >>> kiwi.tokenize('스페인의 강들처럼 이 강도 대서양으로 흘러든다.')
 [Token(form='스페인', tag='NNP', start=0, len=3),
  Token(form='의', tag='JKG', start=3, len=1), 
@@ -532,7 +533,7 @@ cong, cong-global은 현재 실험 단계이기 때문에 기본 배포 패키�
  Token(form='ᆫ대', tag='EF', start=2, len=2),
  Token(form='?', tag='SF', start=4, len=1)]
 # 오타 교정 비용을 변경할 수 있음. 기본값은 6
->>> kiwi.typo_cost_weight = 6 
+>>> kiwi.global_config.typo_cost_weight = 6
 >>> kiwi.tokenize('일정표를 게시했다')
 [Token(form='일정표', tag='NNG', start=0, len=3),
  Token(form='를', tag='JKO', start=3, len=1), 
@@ -542,7 +543,7 @@ cong, cong-global은 현재 실험 단계이기 때문에 기본 배포 패키�
  Token(form='다', tag='EF', start=8, len=1)]
 
  # 교정 비용을 낮추면 더 적극적으로 교정을 수행함. 맞는 표현도 과도교정될 수 있으니 주의
->>> kiwi.typo_cost_weight = 2
+>>> kiwi.global_config.typo_cost_weight = 2
 >>> kiwi.tokenize('일정표를 게시했다')
 [Token(form='일정표', tag='NNG', start=0, len=3),
  Token(form='를', tag='JKO', start=3, len=1), 
@@ -576,6 +577,73 @@ cong, cong-global은 현재 실험 단계이기 때문에 기본 배포 패키�
 오타 정의자를 직접 정의하는 방법에 대해서는 `kiwipiepy.TypoTransformer` 를 참조하십시오. 
 
 오타 교정 기능을 사용할 경우 Kiwi 초기화 시에 약 5~10초 정도의 시간이 추가로 소요되며, 문장 당 처리시간은 2배 정도로 늘어납니다. 메모리 사용량은 약 2~3배 정도 증가합니다.
+
+멀티스레딩
+----------
+Kiwi는 자체적으로 스레드 풀(Thread Pool)에 기반한 멀티스레딩 기능을 제공합니다. Kiwi를 생성할 때 num_workers 인자에 0보다 큰 값을 넣은 경우 내부적으로 해당 개수의 워커 스레드를 생성하며, 이 스레드들은 `analyze`, `tokenize`, `extract_words`, `extract_add_words` 메소드를 수행할 때 자동으로 활용됩니다.
+```python
+from kiwipiepy import Kiwi
+kiwi = Kiwi(num_workers=4)  # 4개의 워커 스레드를 생성
+results = kiwi.tokenize([
+    "첫 번째 문장입니다.",
+    "두 번째 문장입니다.",
+    "세 번째 문장입니다.",
+    "네 번째 문장입니다."
+]) # 4개의 워커 스레드에서 병렬로 처리됩니다.
+```
+
+이와 별개로 Python 3.13에서부터는 Free-threaded interpreter가 도입되어, GIL의 영향 없이 멀티스레딩이 가능해졌습니다. 현재 kiwipiepy도 실험적이지만 nogil 빌드를 지원하고 있으므로 이를 통한 멀티스레딩도 가능합니다.
+```python
+import threading
+from kiwipiepy import Kiwi
+
+kiwi = Kiwi()
+
+def worker(text):
+    tokens = kiwi.tokenize(text)
+    print(f"Tokens for '{text}': {[token.tagged_form for token in tokens]}")
+
+texts = [
+    "첫 번째 문장입니다.",
+    "두 번째 문장입니다.",
+    "세 번째 문장입니다.",
+    "네 번째 문장입니다."
+]
+
+threads = [threading.Thread(target=worker, args=(text,)) for text in texts]
+for t in threads:
+    t.start()
+
+for t in threads:
+    t.join()
+```
+
+Free-threaded 환경에서 자체 스레드풀을 갖춘 Kiwi에 병렬로 분석을 요청하는 것도 가능합니다. 이 때 Kiwi의 자체 스레드풀은 서로 다른 Python 스레드에서 모두 공유되므로 스레드풀에 대기가 있는 경우 다른 Python 스레드에서 요청된 분석 작업이 우선 처리될 수 있습니다.
+```python
+import threading
+from kiwipiepy import Kiwi
+
+kiwi = Kiwi(num_workers=4)  # 자체 스레드풀 생성
+def worker(text):
+    tokens = kiwi.tokenize(text) # 현재 스레드에서 분석이 수행됨
+    print(f"Tokens for '{text}': {[token.tagged_form for token in tokens]}")
+    results = kiwi.tokenize([text]) # Kiwi 자체 스레드풀에서 분석이 수행됨
+    for result in results:
+        print(f"Tokens for '{text}' from thread pool: {[token.tagged_form for token in result]}")
+
+texts = [
+    "첫 번째 문장입니다.",
+    "두 번째 문장입니다.",
+    "세 번째 문장입니다.",
+    "네 번째 문장입니다."
+]
+threads = [threading.Thread(target=worker, args=(text,)) for text in texts]
+for t in threads:
+    t.start()
+
+for t in threads:
+    t.join()
+```
 
 데모
 ----
@@ -667,6 +735,17 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.22.0 (2025-11-17)
+    * Kiwi 0.22.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.22.0 )이 반영되었습니다.
+        * 방언 분석 기능 추가
+        * 형태소에 방언 & 의미 번호 정보 추가
+        * CoNg 모델에서 사이시옷 분석이 제대로 안되던 버그 수정
+        * 공백이 포함된 다어절 형태소 분석시 종종 크래시가 발생하던 현상 수정
+    * nogil Python에 대응하여 Kiwi 객체가 멀티스레드에 안전하도록 코드 개선
+    * `Kiwi.template()`에 '{{' 혹은 '}}'가 들어갔을때 결과가 잘못 파싱되는 버그 수정
+    * `Kiwi.tokenize()`로 분석한 토큰이 포함된 문자열을 Kiwi 인스턴스가 수정 혹은 삭제된 뒤에 `Kiwi.join()`에 사용할 때 발생할 수 있는 잠재적인 오류 수정
+    * `MorphemeSet`에 형태소를 삽입하고 Kiwi 인스턴스를 변경 혹은 삭제하였을때 발생할 수 있는 잠재적인 오류 수정
+
 * 0.21.0 (2025-05-04)
     * Kiwi 0.21.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.21.0 )이 반영되었습니다.
         * 형태소 분석 모델 정확도 개선

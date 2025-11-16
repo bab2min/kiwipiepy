@@ -31,6 +31,7 @@ Sentence.subs.__doc__ = '''.. versionadded:: 0.14.0
 '''
 
 POSTag = NewType('POSTag', str)
+SenseId = NewType('SenseId', int)
 
 class PretokenizedToken(NamedTuple):
     '''미리 분석된 형태소를 나타내는 데 사용하는 `namedtuple`입니다.'''
@@ -58,7 +59,7 @@ class SimilarMorpheme(NamedTuple):
         return (self.form, self.tag)
     
     @property
-    def form_tag_sense(self) -> Tuple[str, POSTag, int]:
+    def form_tag_sense(self) -> Tuple[str, POSTag, SenseId]:
         return (self.form, self.tag, self.sense_id)
 
     def __repr__(self):
@@ -73,7 +74,7 @@ SimilarMorpheme.score.__doc__ = '형태소의 유사도 점수'
 class SimilarContext(NamedTuple):
     '''의미적으로 유사한 문맥 정보를 담는 `namedtuple`입니다.'''
     forms: List[str]
-    analyses: List[List[Tuple[str, POSTag, int]]]
+    analyses: List[List[Tuple[str, POSTag, SenseId]]]
     id: int
     score: float
 
@@ -83,7 +84,7 @@ class SimilarContext(NamedTuple):
         return self.forms[0]
 
     @property
-    def repr_analyses(self) -> List[Tuple[str, POSTag, int]]:
+    def repr_analyses(self) -> List[Tuple[str, POSTag, SenseId]]:
         '''문맥들의 대표 형태의 형태소 분석 결과'''
         return self.analyses[0]
 
@@ -356,7 +357,7 @@ Parameters
 ----------
 kiwi: Kiwi
     형태소 집합을 정의할 Kiwi의 인스턴스입니다.
-morphs: Iterable[Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int]]]
+morphs: Iterable[Union[str, Tuple[str, POSTag], Tuple[str, POSTag, SenseId]]]
     집합에 포함될 형태소의 목록입니다. 형태소는 단일 `str`이나 `tuple`로 표기될 수 있습니다.
 
 Notes
@@ -374,7 +375,7 @@ morphset = MorphemeSet([
     '''
     def __init__(self, 
         kiwi, 
-        morphs:Iterable[Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int]]]
+        morphs:Iterable[Union[str, Tuple[str, POSTag], Tuple[str, POSTag, SenseId]]]
     ):
         if not isinstance(kiwi, Kiwi):
             raise ValueError("`kiwi` must be an instance of `Kiwi`.")
@@ -512,6 +513,14 @@ typo_cost_threshold: float
     .. versionadded:: 0.13.0
 
     오타 교정시 고려할 최대 오타 비용입니다. 이 비용을 넘어서는 오타에 대해서는 탐색하지 않습니다. 기본값은 2.5입니다.
+enabled_dialects: Union[Dialect, str]
+    .. versionadded:: 0.22.0
+
+    활성화할 방언을 설정합니다. 기본값은 `Dialect.STANDARD`으로 이 경우 Kiwi는 표준어만을 분석할 수 있습니다.
+    여러 방언을 동시에 활성화하려면 `Dialect` 열거형 값을 비트 OR 연산자로 결합하거나 쉼표로 구분된 문자열로 지정할 수 있습니다. 예를 들어, `Dialect.GYEONGSANG | Dialect.JEJU` 또는 `'GYEONGSANG,JEJU'`와 같이 지정할 수 있습니다.
+    방언 목록은 `kiwipiepy.Dialect` 열거형을 참조하세요.
+
+    표준어 이외의 방언을 활성화하려는 경우 4GB 이상의 메모리가 필요할 수 있습니다. 방언 분석에는 추가적인 메모리와 연산 시간이 소요되므로 방언 분석이 필요하지 않은 경우에는 표준어만을 활성화하는 것을 권장합니다.
     '''
 
     def __init__(self, 
@@ -1117,7 +1126,19 @@ blocklist: Union[Iterable[str], MorphemeSet]
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 pretokenized: Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+allowed_dialects: Union[Dialect, str]
+    .. versionadded:: 0.22.0
 
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+dialect_cost: float
+    .. versionadded:: 0.22.0
+
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+override_config: KiwiConfig
+    .. versionadded:: 0.22.0
+
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+    
 Returns
 -------
 result: List[Tuple[List[Token], float]]
@@ -1474,6 +1495,22 @@ pretokenized: Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenLis
     형태소 분석에 앞서 텍스트 내 특정 구간의 형태소 분석 결과를 미리 정의합니다. 이 값에 의해 정의된 텍스트 구간은 항상 해당 방법으로만 토큰화됩니다.
     이 값은 str을 입력 받아 `PretokenizedTokenList`를 반환하는 `Callable`로 주어지거나, `PretokenizedTokenList` 값 단독으로 주어질 수 있습니다.
     `text`가 `Iterable[str]`인 경우 `pretokenized`는 None 혹은 `Callable`로 주어져야 합니다. 자세한 것은 아래 Notes의 예시를 참조하십시오.
+allowed_dialects: Union[Dialect, str]
+    .. versionadded:: 0.22.0
+
+    분석에 사용할 방언을 지정합니다. 기본값은 `Dialect.STANDARD`로 표준어만 사용합니다. 
+    이 값으로 특정 방언을 설정하더라도 만약 Kiwi 객체 생성시에 enabled_dialects에 해당 방언이 포함되어 있지 않으면 해당 방언으로의 분석은 수행되지 않습니다.
+dialect_cost: float
+    .. versionadded:: 0.22.0
+
+    방언 형태소에 부과되는 언어 모델 비용 가중치입니다. 기본값은 3.0입니다.
+    이 값이 클수록 모델은 특정 텍스트를 방언보다는 표준어로 분석하는 경향이 강해집니다.
+override_config: KiwiConfig
+    .. versionadded:: 0.22.0
+
+    이 분석을 수행할 때 적용할 설정값을 지정합니다. 이 인자로 지정된 설정값은 `Kiwi.global_config`의 설정값을 덮어씁니다.
+    별도로 지정하지 않을 경우 `Kiwi.global_config`가 사용됩니다.
+    
 Returns
 -------
 result: List[Token]
@@ -1660,6 +1697,18 @@ stopwords: Stopwords
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 blocklist: Union[Iterable[str], MorphemeSet]
     이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+allowed_dialects: Union[Dialect, str]
+    .. versionadded:: 0.22.0
+
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+dialect_cost: float
+    .. versionadded:: 0.22.0
+
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+override_config: KiwiConfig
+    .. versionadded:: 0.22.0
+
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.    
 return_tokens: bool
     True인 경우 문장별 형태소 분석 결과도 함께 반환합니다.
 return_sub_sents: bool
@@ -1912,7 +1961,7 @@ Notes
 -----
 이 메소드의 띄어쓰기 교정 기능은 형태소 분석에 기반합니다. 
 따라서 형태소 중간에 공백이 삽입된 경우 교정 결과가 부정확할 수 있습니다.
-이 경우 `Kiwi.space_tolerance`를 조절하여 형태소 내 공백을 무시하거나, 
+이 경우 `Kiwi.global_config.space_tolerance`를 조절하여 형태소 내 공백을 무시하거나, 
 `reset_whitespace=True`로 설정하여 아예 기존 공백을 무시하고 띄어쓰기를 하도록 하면 결과를 개선할 수 있습니다.
 
 ```python
@@ -1920,7 +1969,7 @@ Notes
 "띄어쓰기 없이 작성된 텍스트네 이걸 교정해 줘."
 >>> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다")
 "띄어 쓰기 문 제 가 있 습 니 다"
->>> kiwi.space_tolerance = 2 # 형태소 내 공백을 최대 2개까지 허용
+>>> kiwi.global_config.space_tolerance = 2 # 형태소 내 공백을 최대 2개까지 허용
 >>> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다")
 "띄어 쓰기 문제가 있습니다"
 >>> kiwi.space("띄 어 쓰 기 문 제 가 있 습 니 다", reset_whitespace=True) # 기존 공백 전부 무시
@@ -2196,7 +2245,7 @@ ValueError: cannot specify format specifier for Kiwi Token
 
     def most_similar_morphemes(
         self,
-        target:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int],
+        target:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, SenseId], Token, int],
         top_n:int = 10,
     ) -> List[SimilarMorpheme]:
         '''..versionadded:: 0.21.0
@@ -2206,7 +2255,7 @@ model_type이 'cong', 'cong-global'인 경우에만 사용 가능합니다.
 
 Parameters
 ----------
-target: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
+target: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, SenseId], Token, int]
     입력 형태소. 단일 문자열 혹은 (형태, 품사태그)로 구성된 tuple, Token 객체, 혹은 Token 객체의 id를 입력할 수 있습니다.
 top_n: int
     반환할 형태소의 개수입니다. 기본값은 10입니다.
@@ -2442,8 +2491,8 @@ See Also
 
     def morpheme_similarity(
         self,
-        morpheme1:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int],
-        morpheme2:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
+        morpheme1:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, SenseId], Token, int],
+        morpheme2:Union[str, Tuple[str, POSTag], Tuple[str, POSTag, SenseId], Token, int]
     ) -> float:
         '''..versionadded:: 0.21.0
 
@@ -2452,9 +2501,9 @@ model_type이 'cong', 'cong-global'인 경우에만 사용 가능합니다.
 
 Parameters
 ----------
-morpheme1: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
+morpheme1: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, SenseId], Token, int]
     첫번째 입력 형태소. 단일 문자열 혹은 (형태, 품사태그)로 구성된 tuple, Token 객체, 혹은 Token 객체의 id를 입력할 수 있습니다.
-morpheme2: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, int], Token, int]
+morpheme2: Union[str, Tuple[str, POSTag], Tuple[str, POSTag, SenseId], Token, int]
     두번째 입력 형태소. 타입은 morpheme1과 동일합니다.
 
 Returns

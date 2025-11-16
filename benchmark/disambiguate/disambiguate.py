@@ -27,7 +27,7 @@ class Model:
         return list(map(self._convert, self._tokenize(text)))
 
 class KiwiModel(Model):
-    def __init__(self, model_path=None, model_type='knlm'):
+    def __init__(self, model_path=None, model_type='none'):
         import kiwipiepy
         from kiwipiepy import Kiwi
         print("Initialize kiwipiepy ({})".format(kiwipiepy.__version__), file=sys.stderr)

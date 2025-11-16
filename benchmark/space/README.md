@@ -14,14 +14,14 @@
 
 ```console
 $ python space.py testset/*.txt --target=kiwi,kospacing
-Initialize kiwipiepy (0.19.0)
+Initialize kiwipiepy (0.22.0)
 Initialize PyKoSpacing
                             Baseline   kiwi   kospacing
-written.txt                 0.536   0.934   0.798
-written.txt (reset spaces)  0.000   0.940   0.951
+written.txt                 0.536   0.935   0.798
+written.txt (reset spaces)  0.000   0.941   0.951
 
 Elapsed Time (ms)
                     kiwi    kospacing
-written.txt     1962.520        15784.584
+written.txt     1033.065        15784.584
 ```
 Kiwi는 PyKoSpacing에 준하는 띄어쓰기 교정 성능을 보이지만 속도 측면에서는 10배 이상 빠릅니다.

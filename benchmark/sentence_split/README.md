@@ -27,13 +27,13 @@
 
 ![속도](https://bab2min.github.io/kiwipiepy/images/SentSplit_Speed.PNG)
 
-Kiwi가 비교적 빠르면서도 높은 정확도를 달성하고 있는 것을 확인할 수 있습니다. 다만 아직 전반적으로 부정확한 상황이라 앞으로 개선의 여지가 많습니다.
+Kiwi가 비교적 빠르면서도 높은 정확도를 달성하고 있는 것을 확인할 수 있습니다.
 
 평가에 사용된 라이브러리 버전은 다음과 같습니다.
 
 | 라이브러리         | 버전 |
 |-------------------|-----------|
-| Kiwi              | 0.21.0    |
+| Kiwi              | 0.22.0    |
 | KSS               | 3.4.2     |
 | Koala(Okt)        | 2.1.4     |
 | Koala(Hnn)        | 2.1.4     |
@@ -50,59 +50,59 @@ $ python sentence_split.py testset/*.txt
 
 ======== Baseline Splitter ========
 [Sentence Split Benchmark] Dataset: testset/blogs.txt
-Gold: 170 sents, System: 151 sents, EM: 0.53529, F1: 0.66847, Normalized F1: 0.59884, Latency: 0.29 msec
+Gold: 170 sents, System: 151 sents, EM: 0.53529, F1: 0.66847, Normalized F1: 0.59884, Latency: 2.84 msec
 
 [Sentence Split Benchmark] Dataset: testset/blogs_ko.txt
-Gold: 346 sents, System: 243 sents, EM: 0.43642, F1: 0.55724, Normalized F1: 0.52607, Latency: 0.53 msec
+Gold: 346 sents, System: 243 sents, EM: 0.43642, F1: 0.55724, Normalized F1: 0.52607, Latency: 0.17 msec
 
 [Sentence Split Benchmark] Dataset: testset/etn.txt
-Gold: 39 sents, System: 26 sents, EM: 0.46154, F1: 0.59857, Normalized F1: 0.59857, Latency: 0.05 msec
+Gold: 39 sents, System: 26 sents, EM: 0.46154, F1: 0.59857, Normalized F1: 0.59857, Latency: 0.03 msec
 
 [Sentence Split Benchmark] Dataset: testset/nested.txt
-Gold: 91 sents, System: 104 sents, EM: 0.68132, F1: 0.85438, Normalized F1: 0.75991, Latency: 0.15 msec
+Gold: 91 sents, System: 104 sents, EM: 0.68132, F1: 0.85438, Normalized F1: 0.75991, Latency: 0.08 msec
 
 [Sentence Split Benchmark] Dataset: testset/sample.txt
-Gold: 43 sents, System: 26 sents, EM: 0.34884, F1: 0.52431, Normalized F1: 0.52431, Latency: 0.04 msec
+Gold: 43 sents, System: 26 sents, EM: 0.34884, F1: 0.52431, Normalized F1: 0.52431, Latency: 0.02 msec
 
 [Sentence Split Benchmark] Dataset: testset/tweets.txt
-Gold: 178 sents, System: 140 sents, EM: 0.51124, F1: 0.65446, Normalized F1: 0.61806, Latency: 0.16 msec
+Gold: 178 sents, System: 140 sents, EM: 0.51124, F1: 0.65446, Normalized F1: 0.61806, Latency: 0.08 msec
 
 [Sentence Split Benchmark] Dataset: testset/v_ending.txt
-Gold: 30 sents, System: 6 sents, EM: 0.00000, F1: 0.11359, Normalized F1: 0.11359, Latency: 0.03 msec
+Gold: 30 sents, System: 6 sents, EM: 0.00000, F1: 0.11359, Normalized F1: 0.11359, Latency: 0.02 msec
 
 [Sentence Split Benchmark] Dataset: testset/wikipedia.txt
-Gold: 326 sents, System: 267 sents, EM: 0.66258, F1: 0.76664, Normalized F1: 0.76379, Latency: 0.42 msec
+Gold: 326 sents, System: 267 sents, EM: 0.66258, F1: 0.76664, Normalized F1: 0.76379, Latency: 0.24 msec
 
 [Overall]
 Gold: 1223 sents, System: 963 sents, EM: 0.52657, F1: 0.65406, Normalized F1: 0.62247
 
 ======== Kiwi.split_into_sents ========
-[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\blogs.txt
-Gold: 170 sents, System: 184 sents, EM: 0.80000, F1: 0.93906, Normalized F1: 0.87424, Latency: 136.30 msec
+[Sentence Split Benchmark] Dataset: testset/blogs.txt
+Gold: 170 sents, System: 183 sents, EM: 0.78824, F1: 0.93152, Normalized F1: 0.86670, Latency: 55.80 msec
 
-[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\blogs_ko.txt
-Gold: 346 sents, System: 356 sents, EM: 0.68786, F1: 0.88602, Normalized F1: 0.83331, Latency: 268.39 msec
+[Sentence Split Benchmark] Dataset: testset/blogs_ko.txt
+Gold: 346 sents, System: 356 sents, EM: 0.64740, F1: 0.86648, Normalized F1: 0.80688, Latency: 101.15 msec
 
-[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\etn.txt
-Gold: 39 sents, System: 38 sents, EM: 0.71795, F1: 0.85762, Normalized F1: 0.82738, Latency: 24.19 msec
+[Sentence Split Benchmark] Dataset: testset/etn.txt
+Gold: 39 sents, System: 40 sents, EM: 0.76923, F1: 0.91126, Normalized F1: 0.88102, Latency: 8.96 msec
 
-[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\nested.txt
-Gold: 91 sents, System: 95 sents, EM: 0.81319, F1: 0.95302, Normalized F1: 0.91124, Latency: 132.99 msec
+[Sentence Split Benchmark] Dataset: testset/nested.txt
+Gold: 91 sents, System: 93 sents, EM: 0.76923, F1: 0.91435, Normalized F1: 0.86387, Latency: 57.47 msec
 
-[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\sample.txt
-Gold: 43 sents, System: 41 sents, EM: 0.83721, F1: 0.91470, Normalized F1: 0.91470, Latency: 25.15 msec
+[Sentence Split Benchmark] Dataset: testset/sample.txt
+Gold: 43 sents, System: 41 sents, EM: 0.83721, F1: 0.91470, Normalized F1: 0.91470, Latency: 9.58 msec
 
-[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\tweets.txt
-Gold: 178 sents, System: 179 sents, EM: 0.75281, F1: 0.88465, Normalized F1: 0.84078, Latency: 103.92 msec
+[Sentence Split Benchmark] Dataset: testset/tweets.txt
+Gold: 178 sents, System: 173 sents, EM: 0.74719, F1: 0.86561, Normalized F1: 0.82174, Latency: 35.11 msec
 
-[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\v_ending.txt
-Gold: 30 sents, System: 21 sents, EM: 0.33333, F1: 0.55124, Normalized F1: 0.55124, Latency: 27.69 msec
+[Sentence Split Benchmark] Dataset: testset/v_ending.txt
+Gold: 30 sents, System: 17 sents, EM: 0.26667, F1: 0.45642, Normalized F1: 0.45642, Latency: 4.76 msec
 
-[Sentence Split Benchmark] Dataset: E:\CppRepo\kiwipiepy\benchmark\sentence_split\testset\wikipedia.txt
-Gold: 326 sents, System: 329 sents, EM: 0.98160, F1: 0.99463, Normalized F1: 0.98448, Latency: 416.86 msec
+[Sentence Split Benchmark] Dataset: testset/wikipedia.txt
+Gold: 326 sents, System: 330 sents, EM: 0.97853, F1: 0.99427, Normalized F1: 0.98267, Latency: 149.78 msec
 
 [Overall]
-Gold: 1223 sents, System: 1243 sents, EM: 0.79804, F1: 0.91902, Normalized F1: 0.88193
+Gold: 1223 sents, System: 1233 sents, EM: 0.78005, F1: 0.90608, Normalized F1: 0.86601
 ```
 
 kss_ref.py의 경우 backend 옵션을 제공합니다. [pecab, mecab, none] 중에 하나를 선택할 수 있습니다. 이에 대한 설명은 [KSS 공식 저장소](https://github.com/hyunwoongko/kss)를 참조하세요.
