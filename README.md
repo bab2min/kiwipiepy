@@ -476,6 +476,54 @@ kiwi.tokenize('대학생선교회에서')
 # 하나의 형태소로 합쳐서 출력합니다.
 >>> kiwi.tokenize('시곗바늘', saisiot=False)
 [Token(form='시곗바늘', tag='NNG', start=0, len=4)]
+
+# 0.22.0 버전에서는 방언 분석 기능이 추가되었습니다.
+# 방언 분석을 위해서는 먼저
+# Kiwi 객체 생성 시 enabled_dialects에 사용할 방언을 지정하여 분석기를 생성합니다.
+# 참고로 방언 분석은 아직 기초적인 수준이기 때문에
+# 분석 정확도가 낮을 수 있다는 점 염두해두시길 바랍니다.
+#
+# 현재 사용 가능한 방언 옵션은 다음과 같습니다.
+# 표준어(standard)
+# 경기(gyeonggi)
+# 충청(chungcheong)
+# 강원(gangwon)
+# 경상(gyeongsang)
+# 전라(jeolla)
+# 제주(jeju)
+# 황해(hwanghae)
+# 함경(hamgyeong)
+# 평안(pyeongan)
+# 옛말(archaic)
+>>> kiwi = Kiwi(enabled_dialects='jeju,archaic')
+
+# allowed_dialects 인자를 설정하지 않은 경우 표준어로만 분석됩니다.
+print(kiwi.tokenize("약주 ᄒᆞᆫ 잔 드셧수과?"))
+[Token(form='약주', tag='NNG', start=0, len=2),
+ Token(form='ᄒᆞᆫ', tag='NNG', start=3, len=3),
+ Token(form='잔', tag='NNG', start=7, len=1),
+ Token(form='드셧수과', tag='NNG', start=9, len=4),
+ Token(form='?', tag='SF', start=13, len=1)]
+
+# allowed_dialects 인자에 제주 사투리만 지정한 경우
+print(kiwi.tokenize("약주 ᄒᆞᆫ 잔 드셧수과?", allowed_dialects='jeju'))
+[Token(form='약주', tag='NNG', start=0, len=2),
+ Token(form='ᄒᆞᆫ', tag='MM', start=3, len=3),
+ Token(form='잔', tag='NNG', start=7, len=1),
+ Token(form='드시', tag='VV', start=9, len=2),
+ Token(form='엇', tag='EP', start=10, len=1),
+ Token(form='수과', tag='EF', start=11, len=2, sense=1),
+ Token(form='?', tag='SF', start=13, len=1)]
+
+# allowed_dialects 인자에 제주 사투리와 옛말을 지정한 경우
+print(kiwi.tokenize("약주 ᄒᆞᆫ 잔 드셧수과?", allowed_dialects='jeju,archaic'))
+[Token(form='약주', tag='NNG', start=0, len=2),
+ Token(form='ᄒᆞᆫ', tag='MM', start=3, len=3, sense=2),
+ Token(form='잔', tag='NNG', start=7, len=1),
+ Token(form='드시', tag='VV', start=9, len=2),
+ Token(form='엇', tag='EP', start=10, len=1),
+ Token(form='수과', tag='EF', start=11, len=2, sense=1),
+ Token(form='?', tag='SF', start=13, len=1)]
 ```
 
 ## 시작하기
