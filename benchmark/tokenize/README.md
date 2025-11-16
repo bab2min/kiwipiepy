@@ -2,7 +2,10 @@
 
 이 폴더에는 형태소 분석 성능을 평가하기 위한 코드가 있습니다. 평가 데이터는 https://github.com/bab2min/Kiwi/tree/main/eval_data 에서 구할 수 있습니다.
 
-## 방언 분석 결과 요약
+## 방언 형태소 분석 성능 요약
+![방언별 형태소 분석 정확도](https://bab2min.github.io/kiwipiepy/images/DialectAcc.png)
+
+대체로 표준어만 지원하는 다른 형태소 분석기들과 달리, Kiwi는 여러 방언에 대해서도 높은 정확도를 보임을 확인할 수 있습니다. 특히 enabled_dialects 옵션을 통해 방언별 사전을 활성화하면 더욱 높은 성능을 얻을 수 있습니다.
 
 ## 직접 평가 실행해보기
 다른 형태소 분석기를 테스트하기 위해서는 konlpy 혹은 khaiii를 설치해야합니다.
