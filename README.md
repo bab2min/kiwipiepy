@@ -1170,8 +1170,8 @@ CoNg 모델에서는 모호성 해소 성능이 크게 개선되었습니다.
 <tr><th rowspan='5'>용언(V)</th><td>VV</td><td>동사</td></tr>
 <tr><td>VA</td><td>형용사</td></tr>
 <tr><td>VX</td><td>보조 용언</td></tr>
-<tr><td>VCP</td><td>긍정 지시사(이다)</td></tr>
-<tr><td>VCN</td><td>부정 지시사(아니다)</td></tr>
+<tr><td>VCP</td><td>긍정 지정사(이다)</td></tr>
+<tr><td>VCN</td><td>부정 지정사(아니다)</td></tr>
 <tr><th rowspan='1'>관형사</th><td>MM</td><td>관형사</td></tr>
 <tr><th rowspan='2'>부사(MA)</th><td>MAG</td><td>일반 부사</td></tr>
 <tr><td>MAJ</td><td>접속 부사</td></tr>
