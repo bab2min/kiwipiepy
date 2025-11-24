@@ -189,7 +189,9 @@ def _convert_consonant(s):
     return ''.join(ret)
 
 def _convert_dialect(dialect):
-    if isinstance(dialect, str):
+    if dialect is None:
+        dialect = Dialect.STANDARD
+    elif isinstance(dialect, str):
         ds = dialect.upper().split(',')
         dialect = 0
         for d in ds:
@@ -197,6 +199,10 @@ def _convert_dialect(dialect):
                 dialect |= Dialect[d]
             except KeyError:
                 raise ValueError(f"Unknown dialect name: {d}")
+    elif isinstance(dialect, Dialect):
+        pass
+    else:
+        raise ValueError("`dialect` should be `Dialect` or `str` type.")
     return dialect
 
 class TypoTransformer(_TypoTransformer):
@@ -549,6 +555,11 @@ enabled_dialects: Union[Dialect, str]
             load_typo_dict = True
         if load_multi_dict is None:
             load_multi_dict = True
+
+        if model_path is None:
+            if model_type in ('knlm', 'sbg'):
+                warnings.warn("The model_type '{}' is excluded from the default model files "
+                              "since v0.22.0. Please use 'cong' or 'cong-global' instead.".format(model_type), DeprecationWarning, 2)
 
         if model_type is None:
             model_type = 'none'
