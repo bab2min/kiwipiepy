@@ -154,7 +154,7 @@ TypoDefinition(['\ㄳ'], ['\ㄱ'], 1.0) # 모든 종성 'ㄳ'을 종성 'ㄱ'으
 
     def __post_init__(self):
         if self.condition not in (None, 'any', 'vowel', 'applosive'):
-            raise ValueError("`condition` should be one of (None, 'any', 'vowel', 'applosive'), but {}".format(self.condition))
+            raise ValueError(f"`condition` should be one of (None, 'any', 'vowel', 'applosive'), but {self.condition}")
 
 _c_to_onset = dict(zip(
     'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ', 
@@ -174,7 +174,7 @@ def _convert_consonant(s):
             if c == '\\': ret.append('\\')
             elif c in _c_to_coda: ret.append(chr(0x11A8 + _c_to_coda[c]))
             elif c in _c_to_onset:
-                raise ValueError("Wrong consonant '\\{}'".format(c))
+                raise ValueError(f"Wrong consonant '\\{c}'")
             else:
                 ret.append('\\')
                 ret.append(c)
@@ -183,7 +183,7 @@ def _convert_consonant(s):
             if c == '\\': prev_escape = True
             elif c in _c_to_onset: ret.append(chr(0x1100 + _c_to_onset[c]))
             elif c in _c_to_coda:
-                raise ValueError("Wrong consonant {}".format(c))
+                raise ValueError(f"Wrong consonant {c}")
             else:
                 ret.append(c)
     return ''.join(ret)
@@ -348,8 +348,8 @@ errors: List[Tuple[str, float]]
         if len(defs) < 5:
             defs_str = ", ".join(map(repr, defs))
         else:
-            defs_str = ", ".join(map(repr, defs[:5])) + ", ... ({} more)".format(len(defs) - 5)
-        return "TypoTransformer([{}], continual_typo_cost={!r}, lengthening_typo_cost={!r})".format(defs_str, self._continual_typo_cost, self._lengthening_typo_cost)
+            defs_str = ", ".join(map(repr, defs[:5])) + f", ... ({len(defs) - 5} more)"
+        return f"TypoTransformer([{defs_str}], continual_typo_cost={self._continual_typo_cost!r}, lengthening_typo_cost={self._lengthening_typo_cost!r})"
 
 class HSDataset(_HSDataset):
     pass
@@ -558,13 +558,13 @@ enabled_dialects: Union[Dialect, str]
 
         if model_path is None:
             if model_type in ('knlm', 'sbg'):
-                warnings.warn("The model_type '{}' is excluded from the default model files "
-                              "since v0.22.0. Please use 'cong' or 'cong-global' instead.".format(model_type), DeprecationWarning, 2)
+                warnings.warn(f"The model_type '{model_type}' has been excluded from the default model files "
+                              "since v0.22.0. Please use 'cong' or 'cong-global' instead.", DeprecationWarning, 2)
 
         if model_type is None:
             model_type = 'none'
         if model_type not in ('none', 'largest', 'knlm', 'sbg', 'cong', 'cong-global'):
-            raise ValueError("`model_type` should be one of ('none', 'largest', 'knlm', 'sbg', 'cong', 'cong-global'), but {}".format(model_type))
+            raise ValueError(f"`model_type` should be one of ('none', 'largest', 'knlm', 'sbg', 'cong', 'cong-global'), but {model_type}")
         
         import kiwipiepy
         if typos == 'basic': 
@@ -580,7 +580,7 @@ enabled_dialects: Union[Dialect, str]
         elif typos is None or isinstance(typos, TypoTransformer):
             rtypos = typos
         else:
-            raise ValueError("`typos` should be one of ('basic', 'continual', 'basic_with_continual', 'lengthening', 'basic_with_continual_and_lengthening', TypoTransformer), but {}".format(typos))
+            raise ValueError(f"`typos` should be one of ('basic', 'continual', 'basic_with_continual', 'lengthening', 'basic_with_continual_and_lengthening', TypoTransformer), but {typos}")
 
         enabled_dialects = _convert_dialect(enabled_dialects)
 
