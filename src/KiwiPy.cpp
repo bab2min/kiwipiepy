@@ -3292,6 +3292,7 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 {
 	import_array();
 	py::CustomExcHandler::add<kiwi::IOException, py::OSError>();
+	py::CustomExcHandler::add<kiwi::SerializationException, py::ValueError>();
 	py::CustomExcHandler::add<kiwi::FormatException, py::ValueError>();
 	py::CustomExcHandler::add<kiwi::UnicodeException, py::ValueError>();
 	py::CustomExcHandler::add<kiwi::UnknownMorphemeException, py::ValueError>();
