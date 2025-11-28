@@ -7,6 +7,9 @@ recursive-include Kiwi/test *.c *.cpp *.h *.hpp *.in CMakeLists.txt
 recursive-include Kiwi/third_party *.c *.cpp *.h *.hpp *.in CMakeLists.txt
 prune Kiwi/third_party/eigen
 recursive-include Kiwi/third_party/eigen/Eigen *
+prune Kiwi/third_party/json
+recursive-include Kiwi/third_party/json/include *
+prune Kiwi/third_party/cpuinfo/test
 include LICENSE.txt
 include CMakeLists.txt
 include Kiwi/CMakeLists.txt
