@@ -23,6 +23,9 @@ if(Py_GIL_DISABLED)
   set ( ADDITIONAL_FLAGS "${ADDITIONAL_FLAGS} -DPy_GIL_DISABLED=1" )
 endif()
 
+set ( CMAKE_CXX_VISIBILITY_PRESET hidden )
+set ( CMAKE_VISIBILITY_INLINES_HIDDEN ON )
+
 if(MSVC)
   set ( CMAKE_C_FLAGS_DEBUG "-DDEBUG -DC_FLAGS -Zc:__cplusplus -Zi -Od ${ADDITIONAL_FLAGS}" )
   set ( CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}" )
@@ -72,3 +75,8 @@ target_link_libraries("_kiwipiepy" PRIVATE
   ${LIBRARIES}
 )
 
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  add_custom_command(TARGET _kiwipiepy POST_BUILD
+      COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:_kiwipiepy>
+  )
+endif()
