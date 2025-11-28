@@ -76,7 +76,13 @@ target_link_libraries("_kiwipiepy" PRIVATE
 )
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-  add_custom_command(TARGET _kiwipiepy POST_BUILD
-      COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:_kiwipiepy>
-  )
+  if(APPLE)
+    add_custom_command(TARGET _kiwipiepy POST_BUILD
+        COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:_kiwipiepy>
+    )
+  elseif(UNIX)
+    add_custom_command(TARGET _kiwipiepy POST_BUILD
+        COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:_kiwipiepy>
+    )
+  endif()
 endif()
