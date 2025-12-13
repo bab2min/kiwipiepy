@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.9)
 project(Kiwipiepy)
 
 option(Py_GIL_DISABLED "Build kiwipiepy with GIL disabled" OFF)
+set(Py_LIMITED_API "" CACHE STRING "Build kiwipiepy with limited API")
 
 set ( CMAKE_CXX_STANDARD 17 )
 set ( CMAKE_VERBOSE_MAKEFILE true )
@@ -21,6 +22,11 @@ endif()
 if(Py_GIL_DISABLED)
   message(STATUS "Build kiwipiepy with GIL disabled")
   set ( ADDITIONAL_FLAGS "${ADDITIONAL_FLAGS} -DPy_GIL_DISABLED=1" )
+endif()
+
+if(Py_LIMITED_API)
+  message(STATUS "Build kiwipiepy with limited API")
+  set ( ADDITIONAL_FLAGS "${ADDITIONAL_FLAGS} -DPy_LIMITED_API=${Py_LIMITED_API}" )
 endif()
 
 set ( CMAKE_CXX_VISIBILITY_PRESET hidden )
