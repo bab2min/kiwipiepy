@@ -19,6 +19,8 @@
 using namespace std;
 using namespace kiwi;
 
+static py::Module gModule{ "_kiwipiepy", "Kiwi API for Python" };
+
 vector<pair<u16string, size_t>> pyExtractSubstrings(const u16string& str, size_t minCnt, size_t minLength, size_t maxLength, bool longestOnly, const u16string& stopChr)
 {
 	if (stopChr.size() > 1)
@@ -28,11 +30,6 @@ vector<pair<u16string, size_t>> pyExtractSubstrings(const u16string& str, size_t
 
 	return extractSubstrings(str.data(), str.data() + str.size(), minCnt, minLength, maxLength, longestOnly, stopChr.empty() ? 0 : stopChr[0]);
 }
-
-static py::Module gModule{ "_kiwipiepy", "Kiwi API for Python", 
-	py::defineModule()
-	.template method<&pyExtractSubstrings>("_extract_substrings")
-};
 
 struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 {
@@ -3107,5 +3104,6 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 		py::define<NgramExtractorObject>("kiwipiepy._NgramExtractor", "_NgramExtractor", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
 		.template method<&NgramExtractorObject::add>("add")
 		.template method<&NgramExtractorObject::extract>("extract")
+		.template staticMethod<&pyExtractSubstrings>("_extract_substrings")
 	);
 }
