@@ -408,8 +408,8 @@ jobs:
         architecture: ${{ matrix.architecture }}
     - name: Test kiwipiepy
       run: |
-        python -m pip install model/dist/*.whl
-        python -m pip install dist/kiwipiepy-*.whl
+        python -m pip install (Get-ChildItem model/dist/*.whl | Select-Object -Expand FullName)
+        python -m pip install (Get-ChildItem dist/kiwipiepy-*.whl | Select-Object -Expand FullName)
         python -m pip install pytest
         python -m pytest -vv test/test_kiwipiepy.py test/test_nogil_safety.py
 
