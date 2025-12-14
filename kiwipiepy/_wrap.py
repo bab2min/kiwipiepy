@@ -2675,4 +2675,4 @@ def extract_substrings(
         raise ValueError('min_length must be greater than 0')
     if max_length < min_length:
         raise ValueError('max_length must be greater than or equal to min_length')
-    return _kiwipiepy._extract_substrings(text, min_cnt, min_length, max_length, longest_only, stop_chr or '\x00')
+    return _kiwipiepy._NgramExtractor._extract_substrings(text, min_cnt, min_length, max_length, longest_only, stop_chr or '\x00')
