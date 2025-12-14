@@ -518,7 +518,7 @@ jobs:
               cd ..
           - name: Build
             run: |
-              /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+              Py_LIMITED_API=1 /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
               tar -zcvf /artifacts/build.tgz build/*
               cp -r dist /artifacts/
           - name: Test
