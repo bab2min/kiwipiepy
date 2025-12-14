@@ -12,7 +12,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        cp: [cp312-cp312, cp313-cp313, cp314-cp314, cp314-cp314t]
+        cp: [cp314-cp314t]
 
     steps:
     - uses: actions/checkout@v3
@@ -67,13 +67,71 @@ jobs:
         name: Linux Binary ${{ matrix.cp }}
         path: build.tgz
 
+  build_manylinux2014_limited_api:
+    name: Build for manylinux2014 (with Limited API)
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        cp: [cp312-cp312, cp313-cp313, cp314-cp314]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        lfs: true
+    - uses: bab2min/run-on-arch-action@multiple-step-v2
+      id: runcmd
+      with:
+        image: quay.io/pypa/manylinux2014_x86_64
+        githubToken: ${{ github.token }}
+        multipleRun: |
+          - name: Build
+            run: |
+              mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
+              mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
+              mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
+              mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
+
+              /opt/python/cp39-cp39/bin/pip install "cmake<4"
+              rm /usr/local/bin/cmake || true
+              ln -s /opt/python/cp39-cp39/bin/cmake /usr/local/bin/cmake
+
+              /opt/python/cp39-cp39/bin/python -m pip install setuptools numpy tqdm
+
+              cd model
+              /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+              cd ..
+              /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+          - name: Test kiwipiepy
+            run: |
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install model/dist/*.whl 
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install dist/kiwipiepy-*.whl 
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest 
+              /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
+          - name: Test transformers_addon
+            run: |
+              for v in {12..46}
+              do
+                echo "Test with transformers 4.$v ..."
+                if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
+                  /opt/python/${{ matrix.cp }}/bin/python -m pytest -v test/test_transformers_addon.py
+                fi
+              done
+    - run: tar -zcvf build.tgz build
+    - name: Archive binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: Linux Binary cp39 abi3
+        path: build.tgz
+
   build_macos:
     name: Build for macOS
     runs-on: macOS-15
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.12, 3.13, 3.14, 3.14t]
+        python-version: [3.14t]
 
     steps:
     - uses: actions/checkout@v2
@@ -111,13 +169,63 @@ jobs:
         python -m pip install pytest
         python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
 
+  build_macos_limited_api:
+    name: Build for macOS (with Limited API)
+    runs-on: macOS-15
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.12, 3.13, 3.14]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        lfs: true
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v6
+      with:
+        python-version: 3.9
+        architecture: arm64
+    - name: Build
+      run: |
+        mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
+        
+        python -m pip install numpy setuptools tqdm
+
+        cd model
+        python setup.py bdist_wheel
+        cd ..
+        
+        MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 Py_LIMITED_API=1 python setup.py bdist_wheel
+    - name: Archive binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: macOS Binary cp39 abi3
+        path: |
+          build/*
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: arm64
+    - name: Test kiwipiepy
+      run: |
+        python -m pip install model/dist/*.whl
+        python -m pip install dist/kiwipiepy-*.whl
+        python -m pip install pytest
+        python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
+
   build_macos_intel:
     name: Build for macOS Intel
     runs-on: macOS-15-intel
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.13, 3.14t]
+        python-version: [3.14t]
 
     steps:
     - uses: actions/checkout@v2
@@ -155,13 +263,63 @@ jobs:
         python -m pip install pytest
         python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
 
+  build_macos_intel_limited_api:
+    name: Build for macOS Intel (with Limited API)
+    runs-on: macOS-15-intel
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.12, 3.13]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        lfs: true
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v6
+      with:
+        python-version: 3.9
+        architecture: x64
+    - name: Build
+      run: |
+        mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
+        
+        python -m pip install numpy setuptools tqdm
+
+        cd model
+        python setup.py bdist_wheel
+        cd ..
+        
+        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 Py_LIMITED_API=1 python setup.py bdist_wheel
+    - name: Archive binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: macOS Intel Binary cp39 abi3
+        path: |
+          build/*
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: x64
+    - name: Test kiwipiepy
+      run: |
+        python -m pip install model/dist/*.whl
+        python -m pip install dist/kiwipiepy-*.whl
+        python -m pip install pytest
+        python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
+
   build_windows:
     name: Build for Windows
     runs-on: windows-2022
     strategy:
       max-parallel: 5
       matrix:
-        python-version: [3.12, 3.13, 3.14, 3.14t]
+        python-version: [3.14t]
         architecture: [x64]
 
     steps:
@@ -200,13 +358,65 @@ jobs:
         python -m pip install pytest
         python -m pytest -vv test/test_kiwipiepy.py test/test_nogil_safety.py
 
+  build_windows_limited_api:
+    name: Build for Windows (with Limited API)
+    runs-on: windows-2022
+    strategy:
+      max-parallel: 5
+      matrix:
+        python-version: [3.12, 3.13, 3.14]
+        architecture: [x64]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        lfs: true
+    - name: Set up Python 3.9 ${{ matrix.architecture }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: 3.9
+        architecture: ${{ matrix.architecture }}
+    - name: Build
+      run: |
+        python -m pip install --upgrade pip setuptools tqdm
+        python -m pip install numpy
+
+        mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
+
+        cd model
+        python setup.py bdist_wheel
+        cd ..
+        $env:USE_MIMALLOC = 1; $env:Py_LIMITED_API=1; python setup.py bdist_wheel
+    - name: Archive binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: Windows Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
+        path: |
+          build/*
+    - name: Set up Python ${{ matrix.python-version }} ${{ matrix.architecture }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: ${{ matrix.architecture }}
+    - name: Test kiwipiepy
+      run: |
+        python -m pip install model/dist/*.whl
+        python -m pip install dist/kiwipiepy-*.whl
+        python -m pip install pytest
+        python -m pytest -vv test/test_kiwipiepy.py test/test_nogil_safety.py
+
+
   build_other_arch:
     name: Build for manylinux (other arch)
     runs-on: ubuntu-24.04-arm
     strategy:
       max-parallel: 8
       matrix:
-        cp: [cp312-cp312, cp313-cp313, cp314-cp314, cp314-cp314t]
+        cp: [cp314-cp314t]
         arch: [aarch64]
 
     steps:
@@ -262,4 +472,69 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: Linux ${{ matrix.arch }} Wheel ${{ matrix.cp }}
+        path: artifacts/dist/*.whl
+
+  build_other_arch_limited_api:
+    name: Build for manylinux (other arch) (with Limited API)
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      max-parallel: 8
+      matrix:
+        cp: [cp312-cp312, cp313-cp313, cp314-cp314]
+        arch: [aarch64]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        lfs: true
+    - uses: bab2min/run-on-arch-action@multiple-step-v2
+      id: runcmd
+      with:
+        image: quay.io/pypa/manylinux2014_${{ matrix.arch }}
+        githubToken: ${{ github.token }}
+        setup: |
+          mkdir -p "${PWD}/artifacts"
+        dockerRunArgs: |
+          --volume "${PWD}/artifacts:/artifacts"
+        multipleRun: |
+          - name: Copy Model files
+            run: |
+              mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
+              mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
+              mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
+              mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
+          - name: Install dependencies
+            run: |
+              /opt/python/cp39-cp39/bin/pip install "cmake<4"
+              rm /usr/local/bin/cmake || true
+              ln -s /opt/python/cp39-cp39/bin/cmake /usr/local/bin/cmake
+
+              /opt/python/cp39-cp39/bin/python -m pip install wheel setuptools numpy tqdm
+          - name: Build model
+            run: |
+              cd model
+              /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+              cd ..
+          - name: Build
+            run: |
+              /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+              tar -zcvf /artifacts/build.tgz build/*
+              cp -r dist /artifacts/
+          - name: Test
+            run: |
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install model/dist/*.whl
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install dist/kiwipiepy-*.whl
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
+              /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
+
+    - name: Archive binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: Linux ${{ matrix.arch }} Binary cp39 abi3
+        path: artifacts/build.tgz
+    - name: Archive binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: Linux ${{ matrix.arch }} Wheel cp39 abi3
         path: artifacts/dist/*.whl
