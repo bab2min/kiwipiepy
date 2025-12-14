@@ -102,7 +102,7 @@ jobs:
               cd model
               /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
               cd ..
-              /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+              Py_LIMITED_API=1 /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
           - name: Test kiwipiepy
             run: |
               /opt/python/${{ matrix.cp }}/bin/python -m pip install model/dist/*.whl 
@@ -121,6 +121,7 @@ jobs:
     - run: tar -zcvf build.tgz build
     - name: Archive binary
       uses: actions/upload-artifact@v4
+      if: matrix.cp == 'cp312-cp312'
       with:
         name: Linux Binary cp39 abi3
         path: build.tgz
@@ -203,6 +204,7 @@ jobs:
         MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 Py_LIMITED_API=1 python setup.py bdist_wheel
     - name: Archive binary
       uses: actions/upload-artifact@v4
+      if: matrix.python-version == '3.12'
       with:
         name: macOS Binary cp39 abi3
         path: |
@@ -297,6 +299,7 @@ jobs:
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 Py_LIMITED_API=1 python setup.py bdist_wheel
     - name: Archive binary
       uses: actions/upload-artifact@v4
+      if: matrix.python-version == '3.12'
       with:
         name: macOS Intel Binary cp39 abi3
         path: |
@@ -393,6 +396,7 @@ jobs:
         $env:USE_MIMALLOC = 1; $env:Py_LIMITED_API=1; python setup.py bdist_wheel
     - name: Archive binary
       uses: actions/upload-artifact@v4
+      if: matrix.python-version == '3.12'
       with:
         name: Windows Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
         path: |
@@ -530,11 +534,13 @@ jobs:
 
     - name: Archive binary
       uses: actions/upload-artifact@v4
+      if: matrix.cp == 'cp312-cp312'
       with:
         name: Linux ${{ matrix.arch }} Binary cp39 abi3
         path: artifacts/build.tgz
     - name: Archive binary
       uses: actions/upload-artifact@v4
+      if: matrix.cp == 'cp312-cp312'
       with:
         name: Linux ${{ matrix.arch }} Wheel cp39 abi3
         path: artifacts/dist/*.whl
