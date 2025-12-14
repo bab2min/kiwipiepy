@@ -97,7 +97,7 @@ jobs:
               rm /usr/local/bin/cmake || true
               ln -s /opt/python/cp39-cp39/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/cp39-cp39/bin/python -m pip install setuptools numpy tqdm
+              /opt/python/cp39-cp39/bin/python -m pip install setuptools wheel numpy tqdm
 
               cd model
               /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
@@ -194,7 +194,7 @@ jobs:
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
         
-        python -m pip install numpy setuptools tqdm
+        python -m pip install numpy setuptools wheel tqdm
 
         cd model
         python setup.py bdist_wheel
@@ -288,7 +288,7 @@ jobs:
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
         
-        python -m pip install numpy setuptools tqdm
+        python -m pip install numpy setuptools wheel tqdm
 
         cd model
         python setup.py bdist_wheel
@@ -379,7 +379,7 @@ jobs:
         architecture: ${{ matrix.architecture }}
     - name: Build
       run: |
-        python -m pip install --upgrade pip setuptools tqdm
+        python -m pip install --upgrade pip setuptools wheel tqdm
         python -m pip install numpy
 
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
