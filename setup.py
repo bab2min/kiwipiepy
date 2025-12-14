@@ -122,6 +122,10 @@ class CMakeBuild(build_ext):
             for i, lib in enumerate(libs):
                 if re.fullmatch(r'python3[0-9]+', lib):
                     libs[i] = lib + 't'
+        if is_limited_api:
+            for i, lib in enumerate(libs):
+                if re.fullmatch(r'python3[0-9]+', lib):
+                    libs[i] = 'python3'
 
         cmake_args = [
             '-DINCLUDE_DIRS={}'.format(';'.join(self.include_dirs)),
