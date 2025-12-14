@@ -20,7 +20,7 @@ if os.environ.get('KIWI_CPU_ARCH'):
         os.environ['_PYTHON_HOST_PLATFORM'] = '-'.join(fd[:-1] + [os.environ['KIWI_CPU_ARCH']])
 
 is_gil_free = sysconfig.get_config_var('Py_GIL_DISABLED')
-is_limited_api = not is_gil_free
+is_limited_api = not is_gil_free and os.environ.get('Py_LIMITED_API') == '1'
 
 def get_extra_cmake_options():
     """read --clean, --no, --set, --compiler-flags, and -G options from the command line and add them as cmake switches.
