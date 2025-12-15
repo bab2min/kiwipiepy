@@ -779,6 +779,12 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 역사
 ----
 * 0.22.1 (2025-11-25)
+    * Kiwi 0.22.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.22.2 )이 반영되었습니다.
+        * 사전에 등재되지 않은 단어를 분석할 때 종종 결과 형태소로 엉뚱한 문자열이 출력되는 버그 수정
+    * kiwipiepy를 소스로부터 빌드 시 numpy를 찾을 수 없다는 오류가 발생하는 버그 수정
+    * 이제 kiwipiepy가 Python Stable ABI를 지원합니다.
+
+* 0.22.1 (2025-11-25)
     * Kiwi 0.22.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.22.1 )이 반영되었습니다.
     * `enabled_dialects` 혹은 `allowed_dialects` 인자에 잘못된 타입이 입력되었을때 발생하는 오류 메시지 개선
     * 기본 모델로 더 이상 제공되지 않는 `knlm`, `sbg` 모델을 지정했을때 발생하는 경고 메세지 개선
