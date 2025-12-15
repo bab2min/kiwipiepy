@@ -238,12 +238,12 @@ jobs:
               /opt/python/cp311-cp311/bin/pip install "cmake<4"
               rm /usr/local/bin/cmake || true
               ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
-              /opt/python/cp311-cp311/bin/python -m pip install wheel setuptools numpy
+              /opt/python/cp311-cp311/bin/pip install -U wheel setuptools numpy
               USE_MIMALLOC=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py build bdist_wheel
               auditwheel repair dist/*.whl
               for cp in cp314-cp314t
               do
-                /opt/python/${cp}/bin/python -m pip install wheel setuptools numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
+                /opt/python/${cp}/bin/pip install -U wheel setuptools numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
                 USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
                 auditwheel repair dist/*-${cp}-*.whl
               done
@@ -253,6 +253,6 @@ jobs:
         TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
       run: |
-        python3 -m pip install --upgrade pip setuptools
+        python3 -m pip install -U pip setuptools
         python3 -m pip install twine wheel
         python3 -m twine upload --repository testpypi artifacts/*.whl
