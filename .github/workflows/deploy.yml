@@ -250,4 +250,4 @@ jobs:
                 USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
                 auditwheel repair dist/*-${cp}-*.whl
               done
-              /opt/python/cp311-cp311/bin/twine upload --repository pypi wheelhouse/*.whl
+              /opt/python/cp311-cp311/bin/twine upload wheelhouse/*.whl
