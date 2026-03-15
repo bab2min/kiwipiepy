@@ -41,7 +41,7 @@ jobs:
               cd model
               /opt/python/${{ matrix.cp }}/bin/python setup.py build install
               cd ..
-              /opt/python/${{ matrix.cp }}/bin/python setup.py build install
+              NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python setup.py build install
               /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1` || true
           - name: Test kiwipiepy
             run: |
@@ -102,7 +102,7 @@ jobs:
               cd model
               /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
               cd ..
-              Py_LIMITED_API=1 /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
           - name: Test kiwipiepy
             run: |
               /opt/python/${{ matrix.cp }}/bin/python -m pip install model/dist/*.whl 
@@ -458,7 +458,7 @@ jobs:
               cd ..
           - name: Build
             run: |
-              /opt/python/${{ matrix.cp }}/bin/python setup.py build install bdist_wheel
+              NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python setup.py build install bdist_wheel
               /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1` || true
               tar -zcvf /artifacts/build.tgz build/*
               cp -r dist /artifacts/
@@ -522,7 +522,7 @@ jobs:
               cd ..
           - name: Build
             run: |
-              Py_LIMITED_API=1 /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
               tar -zcvf /artifacts/build.tgz build/*
               cp -r dist /artifacts/
           - name: Test

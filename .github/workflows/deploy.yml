@@ -47,12 +47,12 @@ jobs:
         /opt/python/cp311-cp311/bin/python -m pip install twine wheel numpy
         /opt/python/cp311-cp311/bin/python setup.py sdist
         /opt/python/cp311-cp311/bin/python -m twine upload dist/*.tar.gz
-        USE_MIMALLOC=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py build bdist_wheel
+        NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py build bdist_wheel
         auditwheel repair dist/*-linux_x86_64.whl
         for cp in cp314-cp314t
         do
           /opt/python/${cp}/bin/python -m pip install wheel setuptools numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
-          USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
+          NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
           auditwheel repair dist/*-${cp}-linux_x86_64.whl
         done
         /opt/python/cp311-cp311/bin/python -m twine upload wheelhouse/*.whl
@@ -242,12 +242,12 @@ jobs:
               rm /usr/local/bin/cmake || true
               ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
               /opt/python/cp311-cp311/bin/pip install -U wheel setuptools numpy twine
-              USE_MIMALLOC=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py build bdist_wheel
+              NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py build bdist_wheel
               auditwheel repair dist/*.whl
               for cp in cp314-cp314t
               do
                 /opt/python/${cp}/bin/pip install -U wheel setuptools numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
-                USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
+                NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
                 auditwheel repair dist/*-${cp}-*.whl
               done
               /opt/python/cp311-cp311/bin/twine upload wheelhouse/*.whl

@@ -77,6 +77,9 @@ def get_extra_cmake_options():
     return _cmake_extra_options, _clean_build_folder
 
 def num_available_cpu_cores(ram_per_build_process_in_gb):
+    if os.environ.get('NUM_AVAILABLE_CPU_CORES'):
+        return int(os.environ.get('NUM_AVAILABLE_CPU_CORES'))
+    
     import multiprocessing
     try:
         mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')  
