@@ -159,8 +159,22 @@ form과 tag를 `형태/품사태그`꼴로 합쳐서 반환합니다.'''
         ...
 
     @property
+    def sense(self) -> Optional[int]:
+        '''.. versionadded:: 0.20.0
+        
+형태소의 의미 번호 ID를 반환합니다. 의미 번호가 없는 경우 None을 반환합니다.'''
+        ...
+
+    @property
     def dialect(self) -> int:
         '''.. versionadded:: 0.22.0
 
 형태소의 방언 정보를 반환합니다.'''
+        ...
+
+    @property
+    def oov(self) -> bool:
+        '''.. versionadded:: 0.23.0
+
+형태소가 OOV(사전에 없는 형태소)인지 여부를 반환합니다.'''
         ...

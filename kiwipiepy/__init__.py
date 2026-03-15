@@ -5,10 +5,12 @@ from kiwipiepy._c_api import Token
 from kiwipiepy._version import __version__
 from kiwipiepy._wrap import (
     Kiwi, 
+    KiwiConfig,
     Sentence, 
     TypoTransformer, 
     TypoDefinition, 
     HSDataset, 
+    ChrDataset,
     MorphemeSet, 
     PretokenizedToken, 
     extract_substrings, 
@@ -31,6 +33,7 @@ Sentence.__module__ = 'kiwipiepy'
 TypoTransformer.__module__ = 'kiwipiepy'
 TypoDefinition.__module__ = 'kiwipiepy'
 HSDataset.__module__ = 'kiwipiepy'
+ChrDataset.__module__ = 'kiwipiepy'
 MorphemeSet.__module__ = 'kiwipiepy'
 PretokenizedToken.__module__ = 'kiwipiepy'
 SimilarMorpheme.__module__ = 'kiwipiepy'
