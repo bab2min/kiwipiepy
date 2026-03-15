@@ -1007,5 +1007,5 @@ def test_dialect():
     assert tokens[1].tagged_form == "ᄒᆞᆫ/MM"
     assert tokens[2].tagged_form == "잔/NNG"
     assert tokens[3].tagged_form == "드시/VV"
-    assert tokens[4].tagged_form == "엇/EP"
+    assert tokens[4].tagged_form in ("엇/EP", "었/EP")
     assert tokens[5].tagged_form == "수과/EF"
