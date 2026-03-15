@@ -132,6 +132,13 @@ class Match(IntFlag):
     .. versionadded:: 0.20.0
     """
     
+    JOIN_PARTICLE_YO = 1 << 27
+    """
+    어미(EC/EF)와 조사 "요/JX"를 통합하여 매칭한다 (예: 고/EC + 요/JX => 고요/EC)
+
+    .. versionadded:: 0.23.0
+    """
+
     JOIN_V_SUFFIX = JOIN_VERB_SUFFIX | JOIN_ADJ_SUFFIX
     """
     동사/형용사형 파생접미사를 분리하지 않고 결합합니다.
