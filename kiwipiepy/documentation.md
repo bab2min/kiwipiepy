@@ -512,7 +512,7 @@ cong, cong-global은 현재 x86-64를 제외한 아키텍처(Apple Silicon, Arm 
 ---------
 연속적인 문자열을 처리하는 모델의 경우, 특정 지점에서 분석 오류가 발생하면 그 오류 때문에 뒤따르는 분석 결과들이 전부 틀려버리는 경우가 종종 있습니다.
 이를 개선하기 위해 0.13.0버전부터 간단한 수준의 오타를 자동으로 교정하는 기능이 추가되었습니다. 
-오타 교정을 위해서는 특정 형태소가 어떤 식으로 오타로 변형되는지 정의한, 오타 정의자가 필요합니다. 패키지에는 다음과 같이 세 종류의 기본 오타 정의자가 내장되어 있습니다.
+오타 교정을 위해서는 특정 형태소가 어떤 식으로 오타로 변형되는지 정의한, 오타 정의자가 필요합니다. 패키지에는 다음과 같이 세 종류의 기본 오타 정의자 및 그것들의 조합이 내장되어 있습니다.
 
 * `kiwipiepy.basic_typos` (`'basic'`): 형태소 내의 오타를 교정하는 기본적인 오타 정의자입니다.
 * `kiwipiepy.continual_typos` (`'continual'`): 형태소 간의 연철 오타(`책을` <- `채글`)를 교정하는 오타 정의자입니다. (v0.17.1부터 지원)
@@ -521,12 +521,14 @@ cong, cong-global은 현재 x86-64를 제외한 아키텍처(Apple Silicon, Arm 
 * `kiwipiepy.basic_typos_with_continual_and_lengthening` (`'basic_with_continual_and_lengthening'`): basic, continual, lengthening 세 오타 정의자를 합친 오타 정의자입니다. (v0.19.0부터 지원)
 
 위의 기본 오타 정의자를 사용하거나 혹은 직접 오타 정의자를 정의하여 사용할 수 있습니다.
+
+0.23.0버전 이전까지는 오타 교정을 사용하기 위해 오타 생성자를 `typos` 인자로 Kiwi 인스턴스 생성 시에 전달해야 했으나, 0.23.0버전부터는 생성 시점이 아닌 분석 시점에 오타 생성자를 전달하는 방식으로 변경되었습니다.
+
 ```python
 >>> from kiwipiepy import Kiwi, TypoTransformer, TypoDefinition
+>>> kiwi = Kiwi()
 # 'basic' 대신 kiwipiepy.basic_typos이라고 입력해도 됨
->>> kiwi = Kiwi(typos='basic')
-# 초기에는 로딩 시간으로 5~10초 정도 소요됨
->>> kiwi.tokenize('외않됀대?') 
+>>> kiwi.tokenize('외않됀대?', typos='basic') 
 [Token(form='왜', tag='MAG', start=0, len=1),
  Token(form='안', tag='MAG', start=1, len=1),
  Token(form='되', tag='VV', start=2, len=1),
@@ -553,8 +555,7 @@ cong, cong-global은 현재 x86-64를 제외한 아키텍처(Apple Silicon, Arm 
  Token(form='다', tag='EF', start=8, len=1)]
 
 # 연철 오타 예제
->>> kiwi = Kiwi(typos='continual')
->>> kiwi.tokenize('오늘사무시레서')
+>>> kiwi.tokenize('오늘사무시레서', typos='continual')
 [Token(form='오늘', tag='NNG', start=0, len=2),
  Token(form='사무실', tag='NNG', start=2, len=4),
  Token(form='에서', tag='JKB', start=5, len=2)]
@@ -565,8 +566,7 @@ cong, cong-global은 현재 x86-64를 제외한 아키텍처(Apple Silicon, Arm 
  Token(form='어요', tag='EF', start=3, len=2)]
 
 # basic_with_continual 사용 예시
->>> kiwi = Kiwi(typos='basic_with_continual')
->>> kiwi.tokenize('웨 지가캤니?')
+>>> kiwi.tokenize('웨 지가캤니?', typos='basic_with_continual')
 [Token(form='왜', tag='MAG', start=0, len=1),
  Token(form='지각', tag='NNG', start=2, len=3),
  Token(form='하', tag='XSV', start=4, len=1),
@@ -576,7 +576,7 @@ cong, cong-global은 현재 x86-64를 제외한 아키텍처(Apple Silicon, Arm 
 ```
 오타 정의자를 직접 정의하는 방법에 대해서는 `kiwipiepy.TypoTransformer` 를 참조하십시오. 
 
-오타 교정 기능을 사용할 경우 Kiwi 초기화 시에 약 5~10초 정도의 시간이 추가로 소요되며, 문장 당 처리시간은 2배 정도로 늘어납니다. 메모리 사용량은 약 2~3배 정도 증가합니다.
+오타 교정 기능을 사용할 경우 문장 당 처리시간이 약 2배 정도로 늘어납니다.
 
 멀티스레딩
 ----------
@@ -688,6 +688,72 @@ print(kiwi.tokenize("약주 ᄒᆞᆫ 잔 드셧수과?", allowed_dialects='jeju
  Token(form='?', tag='SF', start=13, len=1)]
 ```
 
+OOV 탐지
+---------
+0.23.0 버전부터는 신조어나 사전에 등재되지 않은 고유 명사 등을 탐지하는 OOV(Out-Of-Vocabulary) 탐지 기능이 고도화되었습니다. 따라서 신조어가 포함된 문장을 분석할때 신조어를 여러 개의 형태소로 잘못 쪼개는 사례가 감소했습니다. 0.23.0에서 다음과 같이 세 종류의 OOV 탐지 방법을 지원합니다.
+* `oov_handling='rule'`: 길이에 기반한 규칙으로 OOV에 점수를 부여합니다. 0.23.0 버전 이전까지 쓰이던 방식입니다.
+* `oov_handling='chr'`: 경량 문자모델에 기반하여 OOV에 점수를 부여합니다. 이 방식은 규칙 기반 방식에 비해 OOV 탐지 성능이 크게 향상되었으며 0.23.0 버전부터는 기본값으로 사용됩니다. 
+* `oov_handling='chr_freq'`: 경량 문자모델에 추가로 문자열 빈도 정보를 활용하여 OOV에 점수를 부여합니다. 입력 데이터 내에서 여러 번 등장하는 명사 패턴을 OOV로 탐지하는데 효과적입니다.
+
+```python
+>>> from kiwipiepy import Kiwi
+>>> kiwi = Kiwi()
+# oov_handling='rule'로 설정 시 이전 방식대로 길이에 기반한 규칙으로 OOV를 탐지합니다.
+>>> kiwi.tokenize('알리오올리오가 진짜 맛있는 집', oov_handling='rule')
+[Token(form='알리', tag='VV', start=0, len=2),
+ Token(form='오', tag='EC', start=2, len=1), 
+ Token(form='올리', tag='VV', start=3, len=2), 
+ Token(form='오', tag='EC', start=5, len=1), 
+ Token(form='가', tag='JKS', start=6, len=1), 
+ Token(form='진짜', tag='MAG', start=8, len=2), 
+ Token(form='맛있', tag='VA', start=11, len=2), 
+ Token(form='는', tag='ETM', start=13, len=1), 
+ Token(form='집', tag='NNG', start=15, len=1)]
+
+# oov_handling='chr'로 설정 시 경량 문자모델에 기반하여 OOV를 탐지합니다. '알리오올리오'가 사전에 등재되지 않은 단어이지만 OOV로 잘 탐지되어서 잘못 쪼개지지 않고 하나의 형태소로 분석된 것을 볼 수 있습니다.
+# oov_handling의 기본값이 'chr'이므로, oov_handling은 생략해도 됩니다.
+>>> kiwi.tokenize('알리오올리오가 진짜 맛있는 집', oov_handling='chr') 
+[Token(form='알리오올리오', tag='NNG', start=0, len=6, oov=True),
+ Token(form='가', tag='JKS', start=6, len=1), 
+ Token(form='진짜', tag='MAG', start=8, len=2), 
+ Token(form='맛있', tag='VA', start=11, len=2), 
+ Token(form='는', tag='ETM', start=13, len=1), 
+ Token(form='집', tag='NNG', start=15, len=1)]
+
+# 종종 oov_handling='chr'만으로는 탐지가 어려운 경우도 있습니다.
+>>> kiwi.tokenize('엑소바이옴에서 나온 제품. 엑소바이옴은 화장품 회사로', oov_handling='chr')
+[Token(form='엑소', tag='NNP', start=0, len=2), 
+ Token(form='바이오', tag='NNG', start=2, len=3), 
+ Token(form='ᆷ', tag='ETN', start=4, len=1), 
+ Token(form='에서', tag='JKB', start=5, len=2), 
+ Token(form='나오', tagg='VV', start=8, len=2), 
+ Token(form='ᆫ', tag='ETM', start=9, len=1), 
+ Token(form='제품', tag='NNG', start=11, len=2), 
+ Token(form='.', tag='SF', start=13, len=1), 
+ Token(form='엑소', tag='NNP', start=15, len=2), 
+ Tooken(form='바이오', tag='NNG', start=17, len=3), 
+ Token(form='ᆷ', tag='ETN', start=19, len=1), 
+ Token(form='은', tag='JX', start=20, len=1), 
+ Token(form='화장품', tag='NNG', start=22, len=3), 
+ Token(form='회사', tagg='NNG', start=26, len=2), 
+ Token(form='로', tag='JKB', start=28, len=1)]
+
+# oov_handling='chr_freq'로 설정 시 OOV 탐지 시 빈도수 정보도 활용하게 됩니다. '엑소바이옴'이 반복적으로 등장하는 것을 보고 신조어일 것이라고 판단하게 됩니다.
+>>> kiwi.tokenize('엑소바이옴에서 나온 제품. 엑소바이옴은 화장품 회사로', oov_handling='chr_freq')
+[Token(form='엑소바이옴', tag='NNG', start=0, len=5, oov=True),
+ Token(form='에서', tag='JKB', start=5, len=2), 
+ Token(form='나오', tag='VV', start=8, len=2), 
+ Token(form='ᆫ', tag='ETM', start=9, len=1), 
+ Token(forrm='제품', tag='NNG', start=11, len=2), 
+ Token(form='.', tag='SF', start=13, len=1), 
+ Token(form='엑소바이옴', tag='NNP', start=15, len=5, oov=True), 
+ Token(form='은', tag='JX', start=20, len=1), 
+ Token(form='화장품', tag='NNG', start=22, len=3), 
+ Token(form='회사', tag='NNG', start=26, len=2), 
+ Token(form='로', tag='JKB', start=28, len=1)]
+```
+
+
 데모
 ----
 https://lab.bab2min.pe.kr/kiwi 에서 데모를 실행해 볼 수 있습니다.
@@ -778,6 +844,16 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.23.0 (2026-03-15)
+    * Kiwi 0.23.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.23.0 )이 반영되었습니다.
+        * OOV 탐지 기능 고도화
+            * 길이에 기반한 규칙으로 OOV에 점수를 부여하는 기존 방식 외에, 경량 문자모델과 빈도 정보에 기반하여 OOV에 점수를 부여하는 새로운 방식이 추가되었습니다.
+            * OOV 탐지 방식은 `oov_handling` 인자를 통해 선택할 수 있습니다.
+        * 오타 교정 방식 고도화
+            * 오타 교정 기능 사용시 메모리 사용량이 일반 분석 시와 비슷한 수준으로 줄어들도록 최적화되었습니다.
+            * 오타 교정 옵션을 Kiwi 인스턴스 생성 시점이 아니라 분석 시점에 전달하는 방식으로 변경되었습니다.
+            * 이제 다어절 명사에 대해서도 오타 교정 기능이 지원됩니다.
+
 * 0.22.1 (2025-11-25)
     * Kiwi 0.22.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.22.2 )이 반영되었습니다.
         * 사전에 등재되지 않은 단어를 분석할 때 종종 결과 형태소로 엉뚱한 문자열이 출력되는 버그 수정

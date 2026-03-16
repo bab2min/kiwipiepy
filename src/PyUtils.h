@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <array>
 #include <type_traits>
 #include <vector>
@@ -41,14 +42,23 @@
 
 namespace py
 {
+	template<class Ty>
+	struct CObject;
+
+	template<class Ty>
+	struct PObject;
+
 	template<class Ty = PyObject>
 	struct UniqueCObj
 	{
 		Ty* obj = nullptr;
-		
+
 		UniqueCObj() {}
 
-		explicit UniqueCObj(Ty* _obj) : obj(_obj) {}
+		explicit UniqueCObj(Ty* _obj) : obj(_obj) 
+		{
+			static_assert(std::is_same_v<PyObject, Ty> || std::is_base_of_v<CObject<Ty>, Ty>, "UniqueCObj can only be used with PyObject, CObject or PObject");
+		}
 
 		~UniqueCObj()
 		{
@@ -67,6 +77,24 @@ namespace py
 		{
 			std::swap(obj, o.obj);
 			return *this;
+		}
+
+		void incref() const
+		{
+			Py_INCREF(obj);
+		}
+
+		void copyFrom(Ty* o)
+		{
+			~UniqueCObj();
+			obj = o;
+			if (obj) incref();
+		}
+
+		UniqueCObj copy() const
+		{
+			if (obj) incref();
+			return UniqueCObj{ obj };
 		}
 
 		operator UniqueCObj<PyObject>()
@@ -107,6 +135,82 @@ namespace py
 		}
 	};
 
+	template<class Ty>
+	struct UniqueCObj<PObject<Ty>>
+	{
+		PObject<Ty>* obj = nullptr;
+
+		UniqueCObj() {}
+
+		explicit UniqueCObj(PObject<Ty>* _obj) : obj(_obj)
+		{
+		}
+
+		~UniqueCObj()
+		{
+			Py_XDECREF(obj);
+		}
+
+		UniqueCObj(const UniqueCObj&) = delete;
+		UniqueCObj& operator=(const UniqueCObj&) = delete;
+
+		UniqueCObj(UniqueCObj&& o) noexcept
+		{
+			std::swap(obj, o.obj);
+		}
+
+		UniqueCObj& operator=(UniqueCObj&& o) noexcept
+		{
+			std::swap(obj, o.obj);
+			return *this;
+		}
+
+		void incref() const
+		{
+			Py_INCREF(obj);
+		}
+
+		operator UniqueCObj<PyObject>()
+		{
+			return UniqueCObj<PyObject>{ (PyObject*)release() };
+		}
+
+		PObject<Ty>* get() const
+		{
+			return obj;
+		}
+
+		PObject<Ty>* release()
+		{
+			auto o = obj;
+			obj = nullptr;
+			return o;
+		}
+
+		operator bool() const
+		{
+			return !!obj;
+		}
+
+		explicit operator PObject<Ty>* () const
+		{
+			return obj;
+		}
+
+		Ty* operator->()
+		{
+			return &obj->value;
+		}
+
+		const Ty* operator->() const
+		{
+			return &obj->value;
+		}
+	};
+
+	template<class Ty>
+	using UniquePObj = UniqueCObj<PObject<Ty>>;
+
 	template<class Ty = PyObject>
 	struct SharedCObj
 	{
@@ -114,7 +218,10 @@ namespace py
 
 		SharedCObj() {}
 
-		SharedCObj(Ty* _obj) : obj(_obj) {}
+		SharedCObj(Ty* _obj) : obj(_obj) 
+		{
+			static_assert(std::is_same_v<PyObject, Ty> || std::is_base_of_v<CObject<Ty>, Ty>, "UniqueCObj can only be used with PyObject or CObject");
+		}
 
 		~SharedCObj()
 		{
@@ -144,6 +251,11 @@ namespace py
 		{
 			std::swap(obj, o.obj);
 			return *this;
+		}
+
+		void incref() const
+		{
+			Py_INCREF(obj);
 		}
 
 		Ty* get() const
@@ -530,6 +642,11 @@ namespace py
 		return ValueBuilder<_Ty>{}._toCpp(obj, out);
 	}
 
+	inline void clearError()
+	{
+		PyErr_Clear();
+	}
+
 	template<typename... _Rest>
 	inline UniqueObj buildPyTuple(_Rest&&... rest);
 
@@ -539,7 +656,7 @@ namespace py
 	{
 		UniqueObj operator()(_Ty v)
 		{
-			return UniqueObj{ PyLong_FromLongLong(v) };
+			return UniqueObj{ PyLong_FromLongLong((long long)v) };
 		}
 
 		bool _toCpp(PyObject* obj, _Ty& out)
@@ -590,6 +707,15 @@ namespace py
 	};
 
 	template<>
+	struct ValueBuilder<std::string_view>
+	{
+		UniqueObj operator()(const std::string_view& v)
+		{
+			return UniqueObj{ PyUnicode_FromStringAndSize(v.data(), v.size()) };
+		}
+	};
+
+	template<>
 	struct ValueBuilder<std::u16string>
 	{
 		UniqueObj operator()(const std::u16string& v)
@@ -620,6 +746,16 @@ namespace py
 				}
 			}
 			return true;
+		}
+	};
+
+
+	template<>
+	struct ValueBuilder<std::u16string_view>
+	{
+		UniqueObj operator()(const std::u16string_view& v)
+		{
+			return UniqueObj{ PyUnicode_DecodeUTF16((const char*)v.data(), v.size() * 2, nullptr, nullptr) };
 		}
 	};
 
@@ -750,7 +886,7 @@ namespace py
 
 		bool _toCpp(PyObject* obj, UniqueCObj<Ty>& out);
 	};
-	
+
 	template<typename Ty>
 	struct ValueBuilder<SharedCObj<Ty>>
 	{
@@ -780,6 +916,23 @@ namespace py
 				Py_INCREF(Py_None);
 				return UniqueObj{ Py_None };
 			}
+		}
+	};
+
+	template<class Ty>
+	struct ValueBuilder<PObject<Ty>*>
+	{
+		UniqueObj operator()(PObject<Ty>* v)
+		{
+			if (!v) v = Py_None;
+			Py_INCREF(v);
+			return UniqueObj{ v };
+		}
+
+		bool _toCpp(PyObject* obj, PObject<Ty>*& out)
+		{
+			out = (PObject<Ty>*)obj;
+			return true;
 		}
 	};
 
@@ -868,7 +1021,7 @@ namespace py
 #endif
 			PyObject* key, * value;
 			Py_ssize_t pos = 0;
-			while (PyDict_Next(obj, &pos, &key, &value)) 
+			while (PyDict_Next(obj, &pos, &key, &value))
 			{
 				_Ty1 k;
 				_Ty2 v;
@@ -945,7 +1098,7 @@ namespace py
 			return false;
 		}
 	};
-	
+
 
 #ifdef USE_NUMPY
 	enum NPY_TYPES {
@@ -1113,9 +1266,18 @@ namespace py
 	struct force_list_t {};
 	static constexpr force_list_t force_list{};
 
+	inline UniqueObj importFrom(const char* moduleName, const char* targetName)
+	{
+		UniqueObj module{ PyImport_ImportModule(moduleName) };
+		if (!module) throw ExcPropagation{};
+		UniqueObj target{ PyObject_GetAttrString(module.get(), targetName) };
+		if (!target) throw ExcPropagation{};
+		return target;
+	}
+
 #ifdef USE_NUMPY
 
-	void* getArrayDataPtr(PyObject* array)
+	inline void* getArrayDataPtr(PyObject* array)
 	{
 		UniqueObj ctypes{ PyObject_GetAttrString(array, "ctypes") };
 		if (!ctypes) throw ExcPropagation{};
@@ -1130,10 +1292,7 @@ namespace py
 	inline UniqueObj newEmptyArray(DType*& dataPtrOut, Int... shape)
 	{
 		static_assert((std::is_integral_v<Int> && ...), "shape parameters must be integral types");
-		UniqueObj np{ PyImport_ImportModule("numpy") };
-		if (!np) throw ExcPropagation{};
-		UniqueObj npempty{ PyObject_GetAttrString(np.get(), "empty") };
-		if (!npempty) throw ExcPropagation{};
+		UniqueObj npempty = importFrom("numpy", "empty");
 		UniqueObj array{ PyObject_CallFunctionObjArgs(
 			npempty.get(), buildPyTuple(shape...).get(), buildPyValue(detail::NpyType<DType>::dtype).get(), nullptr)
 		};
@@ -1142,13 +1301,29 @@ namespace py
 		return array;
 	}
 
+
+	template<class DType, class Int>
+	inline UniqueObj newEmptyArrayFromDim(DType*& dataPtrOut, size_t dim, const Int* shape)
+	{
+		static_assert(std::is_integral_v<Int>, "shape parameters must be integral types");
+		UniqueObj npempty = importFrom("numpy", "empty");
+		py::UniqueObj shapeObj{ PyTuple_New(dim) };
+		for (size_t i = 0; i < dim; ++i)
+		{
+			PyTuple_SetItem(shapeObj.get(), i, buildPyValue(shape[i]).release());
+		}
+		UniqueObj array{ PyObject_CallFunctionObjArgs(
+			npempty.get(), shapeObj.get(), buildPyValue(detail::NpyType<DType>::dtype).get(), nullptr)
+		};
+		if (!array) throw ExcPropagation{};
+		dataPtrOut = (DType*)getArrayDataPtr(array.get());
+		return array;
+	}
+
 	inline int getArrayDtype(PyObject* obj)
 	{
-		UniqueObj np{ PyImport_ImportModule("numpy") };
-		if (!np) throw ExcPropagation{};
-		UniqueObj ndarray{ PyObject_GetAttrString(np.get(), "ndarray") };
-		if (!ndarray) throw ExcPropagation{};
-		
+		UniqueObj ndarray = importFrom("numpy", "ndarray");
+
 		if (!PyObject_IsInstance(obj, ndarray.get())) return -1;
 		UniqueObj dtype{ PyObject_GetAttrString(obj, "dtype") };
 		if (!dtype) throw ExcPropagation{};
@@ -1360,8 +1535,8 @@ namespace py
 	inline typename std::enable_if<numpy_able<_Ty>::value, UniqueObj>::type
 		buildPyValue(const std::vector<_Ty>& v, cast_to_signed_t)
 	{
-		void* ptr = nullptr;
-		UniqueObj array = newEmptyArray<_Ty>(ptr, v.size());
+		std::make_signed_t<_Ty>* ptr = nullptr;
+		UniqueObj array = newEmptyArray<std::make_signed_t<_Ty>>(ptr, v.size());
 		std::memcpy(ptr, v.data(), sizeof(_Ty) * v.size());
 		return array;
 	}
@@ -1510,7 +1685,7 @@ namespace py
 		template<class _Ty>
 		inline bool isNull(_Ty&& v)
 		{
-			return IsNull<typename std::remove_reference<_Ty>::type>{}(std::forward<_Ty>(v));
+			return IsNull<std::remove_reference_t<_Ty>>{}(std::forward<_Ty>(v));
 		}
 
 		inline void setDictItemSkipNull(PyObject* dict, const char** keys)
@@ -1619,10 +1794,13 @@ namespace py
 
 		static PyObject* _new(PyTypeObject* subtype, PyObject* args, PyObject* kwargs)
 		{
+			static_assert(!std::is_polymorphic_v<Derived>, "Derived class must not be polymorphic");
 			return handleExc([&]()
 			{
 				py::UniqueObj ret{ PyType_GenericAlloc(subtype, 0) };
+				auto temp = ((Derived*)ret.get())->ob_base;
 				new ((Derived*)ret.get()) Derived;
+				((Derived*)ret.get())->ob_base = temp;
 				return ret.release();
 			});
 		}
@@ -1630,7 +1808,7 @@ namespace py
 		static void dealloc(Derived* self)
 		{
 			self->~Derived();
-			
+
 			auto* cobj = static_cast<CObject<Derived>*>(self);
 			Py_XDECREF(cobj->managedDict);
 			Py_XDECREF(cobj->managedWeakList);
@@ -1639,7 +1817,7 @@ namespace py
 			{
 				PyObject_GC_Del(self);
 			}
-			else 
+			else
 			{
 				PyObject_Free(self);
 			}
@@ -1651,7 +1829,14 @@ namespace py
 		template<class InitArgs, size_t ...idx>
 		PY_STRONG_INLINE static void initFromPython(Derived* self, PyObject* args, std::index_sequence<idx...>)
 		{
-			*self = Derived{ toCpp<std::tuple_element_t<idx, InitArgs>>(PyTuple_GetItem(args, idx))... };
+			auto temp = self->ob_base;
+			auto temp2 = self->managedDict;
+			auto temp3 = self->managedWeakList;
+			self->~Derived();
+			new (self) Derived{ toCpp<std::tuple_element_t<idx, InitArgs>>(PyTuple_GetItem(args, idx))... };
+			self->ob_base = temp;
+			self->managedDict = temp2;
+			self->managedWeakList = temp3;
 		}
 
 		static int init(Derived* self, PyObject* args, PyObject* kwargs)
@@ -1685,6 +1870,102 @@ namespace py
 
 		friend class TypeWrapper<Derived>;
 	};
+
+	template<class Ty>
+	struct PObject
+	{
+		friend class Module;
+
+		PyObject_HEAD;
+		PyObject* managedDict = nullptr;
+		PyObject* managedWeakList = nullptr;
+		Ty value;
+
+		Ty* operator->()
+		{
+			return &value;
+		}
+
+		const Ty* operator->() const
+		{
+			return &value;
+		}
+
+	private:
+		static PyObject* _new(PyTypeObject* subtype, PyObject* args, PyObject* kwargs)
+		{
+			return handleExc([&]()
+			{
+				py::UniqueObj ret{ PyType_GenericAlloc(subtype, 0) };
+				new (&((PObject*)ret.get())->value) Ty;
+				return ret.release();
+			});
+		}
+
+		static void dealloc(PObject* self)
+		{
+			self->value.~Ty();
+			Py_XDECREF(self->managedDict);
+			Py_XDECREF(self->managedWeakList);
+
+			if (PyType_HasFeature(Py_TYPE(self), Py_TPFLAGS_HAVE_GC))
+			{
+				PyObject_GC_Del(self);
+			}
+			else
+			{
+				PyObject_Free(self);
+			}
+		}
+
+		template<class InitArgs, size_t ...idx>
+		PY_STRONG_INLINE static void initFromPython(PObject* self, PyObject* args, std::index_sequence<idx...>)
+		{
+			self->value.~Ty();
+			new (&self->value) Ty{ toCpp<std::tuple_element_t<idx, InitArgs>>(PyTuple_GetItem(args, idx))... };
+		}
+
+		static int init(PObject* self, PyObject* args, PyObject* kwargs)
+		{
+			return handleExc([&]() -> int
+			{
+				using InitArgs = typename Ty::_InitArgs;
+				if constexpr (std::tuple_size_v<InitArgs> == 0)
+				{
+					if (args && PyTuple_Size(args) != 0)
+					{
+						throw TypeError{ "function takes " + std::to_string(std::tuple_size_v<InitArgs>) + " arguments (" + std::to_string(PyTuple_Size(args)) + " given)" };
+					}
+				}
+
+				if (std::tuple_size_v<InitArgs> != PyTuple_Size(args))
+				{
+					throw TypeError{ "function takes " + std::to_string(std::tuple_size_v<InitArgs>) + " arguments (" + std::to_string(PyTuple_Size(args)) + " given)" };
+				}
+				if (kwargs)
+				{
+					throw TypeError{ "function takes positional arguments only" };
+				}
+
+				initFromPython<InitArgs>(self, args, std::make_index_sequence<std::tuple_size_v<InitArgs>>{});
+				return 0;
+			});
+		}
+
+		friend class TypeWrapper<PObject<Ty>>;
+	};
+
+	template<class Ty>
+	PObject<Ty>* getPObjectAddress(Ty* value)
+	{
+		return reinterpret_cast<PObject<Ty>*>(reinterpret_cast<char*>(value) - offsetof(PObject<Ty>, value));;
+	}
+
+	template<class Ty>
+	const PObject<Ty>* getPObjectAddress(const Ty* value)
+	{
+		return reinterpret_cast<const PObject<Ty>*>(reinterpret_cast<const char*>(value) - offsetof(PObject<Ty>, value));;
+	}
 
 	template<class Derived, class RetTy, class Future = std::future<RetTy>>
 	struct ResultIter : public CObject<Derived>
@@ -1767,7 +2048,6 @@ namespace py
 
 	class Module
 	{
-		std::map<const char*, PyTypeObject*> types;
 		PyModuleDef def;
 		PyObject* mod = nullptr;
 
@@ -1792,10 +2072,22 @@ namespace py
 		PyObject* init(Defs&&... defs)
 		{
 			mod = PyModule_Create(&def);
+			if (!mod) return nullptr;
 #ifdef Py_GIL_DISABLED
 			PyUnstable_Module_SetGIL(mod, Py_MOD_GIL_NOT_USED);
 #endif
-			((addType(std::forward<Defs>(defs))), ...);
+			bool ok = true;
+			((ok = ok && addType(std::forward<Defs>(defs))), ...);
+			if (!ok)
+			{
+				if (!PyErr_Occurred())
+				{
+					PyErr_SetString(PyExc_RuntimeError, "Failed to initialize module types");
+				}
+				Py_DECREF(mod);
+				mod = nullptr;
+				return nullptr;
+			}
 			return mod;
 		}
 
@@ -1811,7 +2103,7 @@ namespace py
 
 		static constexpr PyObject* getTypeObj() { return (PyObject*)obj; }
 	};
-	
+
 	template<typename Ty> PyTypeObject* TypeWrapper<Ty>::obj = nullptr;
 
 	template<typename Ty>
@@ -1856,22 +2148,24 @@ namespace py
 
 	class CustomExcHandler
 	{
-		static std::unordered_map<std::type_index, PyObject*> handlers;
-
+		static std::unordered_map<std::type_index, PyObject*>& _get()
+		{
+			static std::unordered_map<std::type_index, PyObject*> handlers;
+			return handlers;
+		}
 	public:
+		
 		template<class CustomExc, class PyExc>
 		static void add()
 		{
-			handlers[std::type_index(typeid(CustomExc))] = PyExc{ "" }.pytype();
+			_get()[std::type_index(typeid(CustomExc))] = PyExc{ "" }.pytype();
 		}
 
 		static const std::unordered_map<std::type_index, PyObject*>& get()
 		{
-			return handlers;
+			return _get();
 		}
 	};
-
-	std::unordered_map<std::type_index, PyObject*> CustomExcHandler::handlers;
 
 	namespace detail
 	{
@@ -2053,6 +2347,8 @@ namespace py
 			template <std::size_t N>
 			using Arg = typename std::tuple_element<N, ArgsTuple>::type;
 
+			using ClassPtrOrFirstArgType = std::conditional_t<sizeof...(Ts) == 0, void, Arg<0>>;
+
 			static const std::size_t nargs{ sizeof...(Ts) };
 
 			template<Type func, size_t ...idx>
@@ -2067,7 +2363,20 @@ namespace py
 					throw TypeError{ "function takes positional arguments only" };
 				}
 
-				return func(toCpp<std::remove_const_t<std::remove_reference_t<Arg<idx>>>>(PyTuple_GetItem(args, idx))...);
+				return func(toCpp<std::remove_cv_t<std::remove_reference_t<Arg<idx>>>>(PyTuple_GetItem(args, idx))...);
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 1, ReturnType> get(Ts&&... args)
+			{
+				return func(std::forward<Ts>(args)...);
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 2, int> set(Arg<0> arg0, PyObject* val)
+			{
+				func(arg0, toCpp<std::remove_cv_t<std::remove_reference_t<Arg<1>>>>(val));
+				return 0;
 			}
 		};
 
@@ -2084,6 +2393,8 @@ namespace py
 			template <std::size_t N>
 			using Arg = typename std::tuple_element<N, ArgsTuple>::type;
 
+			using ClassPtrOrFirstArgType = std::conditional_t<sizeof...(Ts) == 0, void, Arg<0>>;
+
 			static const std::size_t nargs{ sizeof...(Ts) };
 
 			template<Type func, size_t ...idx>
@@ -2098,7 +2409,20 @@ namespace py
 					throw TypeError{ "function takes positional arguments only" };
 				}
 
-				return func(toCpp<std::remove_const_t<std::remove_reference_t<Arg<idx>>>>(PyTuple_GetItem(args, idx))...);
+				return func(toCpp<std::remove_cv_t<std::remove_reference_t<Arg<idx>>>>(PyTuple_GetItem(args, idx))...);
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 1, ReturnType> get(Ts&&... args)
+			{
+				return func(std::forward<Ts>(args)...);
+			}
+
+			template<Type func, size_t _nargs = nargs>
+			static constexpr std::enable_if_t<_nargs == 2, int> set(Arg<0> arg0, PyObject* val)
+			{
+				func(arg0, toCpp<std::remove_cv_t<std::remove_reference_t<Arg<1>>>>(val));
+				return 0;
 			}
 		};
 
@@ -2115,6 +2439,8 @@ namespace py
 			template <std::size_t N>
 			using Arg = typename std::tuple_element<N, ArgsTuple>::type;
 
+			using ClassPtrOrFirstArgType = C*;
+
 			static constexpr std::size_t nargs{ sizeof...(Ts) };
 
 			template<Type func, size_t ...idx>
@@ -2129,7 +2455,7 @@ namespace py
 					throw TypeError{ "function takes positional arguments only" };
 				}
 
-				return (self->*func)(toCpp<std::remove_const_t<std::remove_reference_t<Arg<idx>>>>(PyTuple_GetItem(args, idx))...);
+				return (self->*func)(toCpp<std::remove_cv_t<std::remove_reference_t<Arg<idx>>>>(PyTuple_GetItem(args, idx))...);
 			}
 
 			template<Type func, size_t _nargs = nargs>
@@ -2142,14 +2468,14 @@ namespace py
 			template<Type func, size_t _nargs = nargs>
 			static constexpr std::enable_if_t<_nargs == 1, ReturnType> ssizearg(ClassType* self, Py_ssize_t idx)
 			{
-				static_assert(std::is_integral_v<Arg<0>>, "ssizearg() must take one integral argument");
+				static_assert(std::is_integral_v<std::remove_cv_t<std::remove_reference_t<Arg<0>>>>, "ssizearg() must take one integral argument");
 				return (self->*func)(idx);
 			}
 
 			template<Type func, size_t _nargs = nargs>
 			static constexpr std::enable_if_t<_nargs == 1, ReturnType> binary(ClassType* self, PyObject* arg)
 			{
-				return (self->*func)(toCpp<Arg<0>>(arg));
+				return (self->*func)(toCpp< std::remove_cv_t<std::remove_reference_t<Arg<0>>>>(arg));
 			}
 
 			template<Type func, size_t _nargs = nargs>
@@ -2167,7 +2493,7 @@ namespace py
 			template<Type func, size_t _nargs = nargs>
 			static constexpr std::enable_if_t<_nargs == 1, int> set(ClassType* self, PyObject* val)
 			{
-				(self->*func)(toCpp<Arg<0>>(val));
+				(self->*func)(toCpp<std::remove_cv_t<std::remove_reference_t<Arg<0>>>>(val));
 				return 0;
 			}
 		};
@@ -2184,6 +2510,8 @@ namespace py
 
 			template <std::size_t N>
 			using Arg = typename std::tuple_element<N, ArgsTuple>::type;
+
+			using ClassPtrOrFirstArgType = C*;
 
 			static constexpr std::size_t nargs{ sizeof...(Ts) };
 
@@ -2212,14 +2540,14 @@ namespace py
 			template<Type func, size_t _nargs = nargs>
 			static constexpr std::enable_if_t<_nargs == 1, ReturnType> ssizearg(const ClassType* self, Py_ssize_t idx)
 			{
-				static_assert(std::is_integral_v<Arg<0>>, "ssizearg() must take one integral argument");
+				static_assert(std::is_integral_v< std::remove_cv_t<std::remove_reference_t<Arg<0>>>>, "ssizearg() must take one integral argument");
 				return (self->*func)(idx);
 			}
 
 			template<Type func, size_t _nargs = nargs>
 			static constexpr std::enable_if_t<_nargs == 1, ReturnType> binary(ClassType* self, PyObject* arg)
 			{
-				return (self->*func)(toCpp<Arg<0>>(arg));
+				return (self->*func)(toCpp< std::remove_cv_t<std::remove_reference_t<Arg<0>>>>(arg));
 			}
 
 			template<Type func, size_t _nargs = nargs>
@@ -2242,6 +2570,9 @@ namespace py
 			using Type = R(C::*);
 			using ReturnType = R;
 			using ClassType = C;
+			using ArgsTuple = std::tuple<>;
+
+			using ClassPtrOrFirstArgType = C*;
 
 			template<Type ptr>
 			static constexpr const ReturnType& get(ClassType* self)
@@ -2285,7 +2616,7 @@ namespace py
 			template<T ptr>
 			static constexpr lenfunc len()
 			{
-				return (lenfunc)[](PyObject* self) -> Py_ssize_t
+				return (lenfunc)[](PyObject* self)->Py_ssize_t
 				{
 					return handleExc([&]()
 					{
@@ -2297,7 +2628,7 @@ namespace py
 			template<T ptr>
 			static constexpr reprfunc repr()
 			{
-				return (reprfunc)[](PyObject* self) -> PyObject*
+				return (reprfunc)[](PyObject* self)->PyObject*
 				{
 					return handleExc([&]()
 					{
@@ -2309,7 +2640,7 @@ namespace py
 			template<T ptr>
 			static constexpr ssizeargfunc ssizearg()
 			{
-				return (ssizeargfunc)[](PyObject* self, Py_ssize_t idx) -> PyObject*
+				return (ssizeargfunc)[](PyObject* self, Py_ssize_t idx)->PyObject*
 				{
 					return handleExc([&]()
 					{
@@ -2321,8 +2652,21 @@ namespace py
 			template<T ptr>
 			static constexpr binaryfunc binary()
 			{
-				return (binaryfunc)[](PyObject* self, PyObject* arg) -> PyObject*
+				return (binaryfunc)[](PyObject* self, PyObject* arg)->PyObject*
 				{
+					return handleExc([&]()
+					{
+						return buildPyValue(Base::template binary<ptr>((typename Base::ClassType*)self, arg)).release();
+					});
+				};
+			}
+
+			template<T ptr>
+			static constexpr ternaryfunc ternary()
+			{
+				return (ternaryfunc)[](PyObject* self, PyObject* arg, PyObject* kwarg)->PyObject*
+				{
+					// ignore kwarg since we don't support it anyway
 					return handleExc([&]()
 					{
 						return buildPyValue(Base::template binary<ptr>((typename Base::ClassType*)self, arg)).release();
@@ -2333,11 +2677,11 @@ namespace py
 			template<T ptr>
 			static constexpr getter get()
 			{
-				return (getter)[](PyObject* self, void* closure) -> PyObject*
+				return (getter)[](PyObject* self, void* closure)->PyObject*
 				{
 					return handleExc([&]()
 					{
-						return buildPyValue(Base::template get<ptr>((typename Base::ClassType*)self)).release();
+						return buildPyValue(Base::template get<ptr>((typename Base::ClassPtrOrFirstArgType)self)).release();
 					});
 				};
 			}
@@ -2349,7 +2693,7 @@ namespace py
 				{
 					return handleExc([&]()
 					{
-						return Base::template set<ptr>((typename Base::ClassType*)self, val);
+						return Base::template set<ptr>((typename Base::ClassPtrOrFirstArgType)self, val);
 					});
 				};
 			}
@@ -2371,6 +2715,59 @@ namespace py
 		_PY_DETAILED_TEST_MEMFN(HasIter, iter);
 		_PY_DETAILED_TEST_MEMFN(HasIterNext, iternext);
 		_PY_DETAILED_TEST_MEMFN(HasLen, len);
+
+		template<auto f, auto g, class FClass, class FArgs, class GClass, class GArgs>
+		struct CompositorImpl;
+
+		template<auto f, auto g, class FClass, typename... FArgs, class GClass, typename... GArgs>
+		struct CompositorImpl<f, g, FClass, std::tuple<FArgs...>, GClass, std::tuple<GArgs...>> : public FClass
+		{
+			auto call(FArgs&&... args, GArgs&&... args2)
+			{
+				return std::invoke(g, std::invoke(f, this, std::forward<FArgs>(args)...), std::forward<GArgs>(args2)...);
+			}
+		};
+
+		template<auto f, auto g, typename... FArgs, class GClass, typename... GArgs>
+		struct CompositorImpl<f, g, void, std::tuple<FArgs...>, GClass, std::tuple<GArgs...>>
+		{
+			static auto call(FArgs&&... args, GArgs&&... args2)
+			{
+				return std::invoke(g, std::invoke(f, std::forward<FArgs>(args)...), std::forward<GArgs>(args2)...);
+			}
+		};
+
+		template<auto f, auto g, class FClass, typename... FArgs, class GArg1, typename... GArgs>
+		struct CompositorImpl<f, g, FClass, std::tuple<FArgs...>, void, std::tuple<GArg1, GArgs...>> : public FClass
+		{
+			auto call(FArgs&&... args, GArgs&&... args2)
+			{
+				return std::invoke(g, std::invoke(f, this, std::forward<FArgs>(args)...), std::forward<GArgs>(args2)...);
+			}
+		};
+
+		template<auto f, auto g, typename... FArgs, class GArg1, typename... GArgs>
+		struct CompositorImpl<f, g, void, std::tuple<FArgs...>, void, std::tuple<GArg1, GArgs...>>
+		{
+			static auto call(FArgs&&... args, GArgs&&... args2)
+			{
+				return std::invoke(g, std::invoke(f, std::forward<FArgs>(args)...), std::forward<GArgs>(args2)...);
+			}
+		};
+
+		template<auto f, auto g>
+		struct Compositor : public CompositorImpl<
+			f,
+			g,
+			typename CppWrapperImpl<decltype(f)>::ClassType,
+			typename CppWrapperImpl<decltype(f)>::ArgsTuple,
+			typename CppWrapperImpl<decltype(g)>::ClassType,
+			typename CppWrapperImpl<decltype(g)>::ArgsTuple>
+		{
+		};
+
+		template<auto f, auto g>
+		static constexpr auto compose = &Compositor<f, g>::call;
 	}
 
 	template <typename T, typename = void>
@@ -2435,6 +2832,12 @@ namespace py
 	template<auto getter, auto setter>
 	static constexpr NativePropety getsetDef = makePropertyDef<getter, setter>();
 
+	template<auto base, auto getter>
+	static constexpr NativePropety getDefComposition = makePropertyDef<detail::compose<base, getter>>();
+
+	template<auto base, auto getter, auto setter>
+	static constexpr NativePropety getsetDefComposition = makePropertyDef<detail::compose<base, getter>, detail::compose<base, setter>>();
+
 	namespace detail
 	{
 		template<const auto&... vs>
@@ -2474,7 +2877,7 @@ namespace py
 
 		template<const auto&... vs>
 		struct FilterProperties;
-		
+
 		template<>
 		struct FilterProperties<>
 		{
@@ -2515,9 +2918,19 @@ namespace py
 				return std::array<PyGetSetDef, sizeof...(vs) + 1>{ ((PyGetSetDef)vs)..., { nullptr } };
 			}
 		};
+
+		template<class Ty>
+		struct IsPObject : std::false_type
+		{
+		};
+
+		template<class Ty>
+		struct IsPObject<PObject<Ty>> : std::true_type
+		{
+		};
 	}
 
-	template<class Ty, const auto& ... defs>
+	template<class Ty, class BaseTy, const auto& ... defs>
 	class TypeDefinition
 	{
 		friend class Module;
@@ -2534,7 +2947,9 @@ namespace py
 		std::vector<PyType_Slot> slots;
 
 		using Class = Ty;
-		static_assert(std::is_base_of_v<CObject<Class>, Class>, "Only CObject has its TypeDefinition.");
+		using BaseClass = BaseTy;
+		static_assert(std::is_base_of_v<CObject<Class>, Class> || detail::IsPObject<Class>::value, "Only CObject or PObject has its TypeDefinition.");
+		static_assert(std::is_base_of_v<CObject<BaseClass>, BaseClass> || detail::IsPObject<Class>::value || std::is_same_v<BaseClass, void>, "BaseClass must be derived from CObject, PObject or void.");
 
 		inline static auto methodDefs = detail::MethodDefBuilder<Methods>::get();
 		inline static auto propertyDefs = detail::PropertyDefBuilder<Properties>::get();
@@ -2546,117 +2961,261 @@ namespace py
 			const std::vector<const char*>& _methodNames = {},
 			const std::vector<const char*>& _propertyNames = {},
 			const std::vector<PyType_Slot>& _slots = {}
-		) 
+		)
 			: typeName{ _typeName },
 			typeNameInModule{ _typeNameInModule },
 			typeFlags{ _typeFlags },
 			methodNames{ _methodNames },
 			propertyNames{ _propertyNames },
 			slots{ _slots }
-		{}
+		{
+		}
 
 		template<auto memFn>
-		constexpr TypeDefinition<Ty, defs..., methodDef<memFn, METH_VARARGS | METH_KEYWORDS>> method(const char* name) const
+		constexpr auto method(const char* name) const
 		{
-			auto ret = TypeDefinition<Ty, defs..., methodDef<memFn, METH_VARARGS | METH_KEYWORDS>>{ 
+			constexpr auto fn = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, memFn>;
+				else return memFn;
+			}();
+			auto ret = TypeDefinition<Ty, BaseTy, defs..., methodDef<fn, METH_VARARGS | METH_KEYWORDS>>{
 				typeName, typeNameInModule, typeFlags,
-				methodNames, propertyNames, slots 
+				methodNames, propertyNames, slots
 			};
 			ret.methodNames.emplace_back(name);
 			return ret;
 		}
 
 		template<auto memFn>
-		constexpr TypeDefinition<Ty, defs..., methodDef<memFn, METH_VARARGS | METH_KEYWORDS | METH_STATIC>> staticMethod(const char* name) const
+		constexpr auto staticMethod(const char* name) const
 		{
-			auto ret = TypeDefinition<Ty, defs..., methodDef<memFn, METH_VARARGS | METH_KEYWORDS | METH_STATIC>>{ 
+			auto ret = TypeDefinition<Ty, BaseTy, defs..., methodDef<memFn, METH_VARARGS | METH_KEYWORDS | METH_STATIC>>{
 				typeName, typeNameInModule, typeFlags,
-				methodNames, propertyNames, slots 
+				methodNames, propertyNames, slots
 			};
 			ret.methodNames.emplace_back(name);
 			return ret;
 		}
 
 		template<auto getter>
-		constexpr TypeDefinition<Ty, defs..., getDef<getter>> property(const char* name) const
+		constexpr auto property(const char* name) const
 		{
-			auto ret = TypeDefinition<Ty, defs..., getDef<getter>>{ 
+			constexpr auto g = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, getter>;
+				else return getter;
+			}();
+
+			auto ret = TypeDefinition<Ty, BaseTy, defs..., getDef<g>>{
 				typeName, typeNameInModule, typeFlags,
-				methodNames, propertyNames, slots 
+				methodNames, propertyNames, slots
 			};
 			ret.propertyNames.emplace_back(name);
 			return ret;
 		}
 
 		template<auto getter, auto setter>
-		constexpr TypeDefinition<Ty, defs..., getsetDef<getter, setter>> property(const char* name) const
+		constexpr auto property(const char* name) const
 		{
-			auto ret = TypeDefinition<Ty, defs..., getsetDef<getter, setter>>{ 
+			constexpr auto g = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, getter>;
+				else return getter;
+			}();
+			constexpr auto s = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, setter>;
+				else return setter;
+			}();
+			auto ret = TypeDefinition<Ty, BaseTy, defs..., getsetDef<g, s>>{
 				typeName, typeNameInModule, typeFlags,
-				methodNames, propertyNames, slots 
+				methodNames, propertyNames, slots
+			};
+			ret.propertyNames.emplace_back(name);
+			return ret;
+		}
+
+		template<auto base, auto getter>
+		constexpr auto property2(const char* name) const
+		{
+			constexpr auto b = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, base>;
+				else return base;
+			}();
+			auto ret = TypeDefinition<Ty, BaseTy, defs..., getDefComposition<b, getter>>{
+				typeName, typeNameInModule, typeFlags,
+				methodNames, propertyNames, slots
+			};
+			ret.propertyNames.emplace_back(name);
+			return ret;
+		}
+
+		template<auto base, auto getter, auto setter>
+		constexpr auto property2(const char* name) const
+		{
+			constexpr auto b = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, base>;
+				else return base;
+			}();
+			auto ret = TypeDefinition<Ty, BaseTy, defs..., getsetDefComposition<b, getter, setter>>{
+				typeName, typeNameInModule, typeFlags,
+				methodNames, propertyNames, slots
 			};
 			ret.propertyNames.emplace_back(name);
 			return ret;
 		}
 
 		template<auto memFn>
-		constexpr TypeDefinition<Ty, defs...> getAttrO() const
+		constexpr auto getAttrO() const
 		{
-			auto* ptr = py::CppWrapper<decltype(memFn)>::template binary<memFn>();
-			auto ret = TypeDefinition<Ty, defs...>{ 
+			constexpr auto fn = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, memFn>;
+				else return memFn;
+			}();
+			auto* ptr = py::CppWrapper<std::remove_const_t<decltype(fn)>>::template binary<fn>();
+			auto ret = TypeDefinition<Ty, BaseTy, defs...>{
 				typeName, typeNameInModule, typeFlags,
-				methodNames, propertyNames, slots 
+				methodNames, propertyNames, slots
 			};
 			ret.slots.emplace_back(PyType_Slot{ Py_tp_getattro, (void*)ptr });
 			return ret;
 		}
 
 		template<auto memFn>
-		constexpr TypeDefinition<Ty, defs...> sqLen() const
+		constexpr auto sqLen() const
 		{
-			auto* ptr = py::CppWrapper<decltype(memFn)>::template len<memFn>();
-			auto ret = TypeDefinition<Ty, defs...>{ 
+			constexpr auto fn = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, memFn>;
+				else return memFn;
+			}();
+			auto* ptr = py::CppWrapper<std::remove_const_t<decltype(fn)>>::template len<fn>();
+			auto ret = TypeDefinition<Ty, BaseTy, defs...>{
 				typeName, typeNameInModule, typeFlags,
-				methodNames, propertyNames, slots 
+				methodNames, propertyNames, slots
 			};
 			ret.slots.emplace_back(PyType_Slot{ Py_sq_length, (void*)ptr });
 			return ret;
 		}
 
 		template<auto memFn>
-		constexpr TypeDefinition<Ty, defs...> sqGetItem() const
+		constexpr auto sqGetItem() const
 		{
-			auto* ptr = py::CppWrapper<decltype(memFn)>::template ssizearg<memFn>();
-			auto ret = TypeDefinition<Ty, defs...>{ 
+			constexpr auto fn = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, memFn>;
+				else return memFn;
+			}();
+			auto* ptr = py::CppWrapper<std::remove_const_t<decltype(fn)>>::template ssizearg<fn>();
+			auto ret = TypeDefinition<Ty, BaseTy, defs...>{
 				typeName, typeNameInModule, typeFlags,
-				methodNames, propertyNames, slots 
+				methodNames, propertyNames, slots
 			};
 			ret.slots.emplace_back(PyType_Slot{ Py_sq_item, (void*)ptr });
 			return ret;
 		}
 
 		template<auto memFn>
-		constexpr TypeDefinition<Ty, defs...> mpLen() const
+		constexpr auto mpLen() const
 		{
-			auto* ptr = py::CppWrapper<decltype(memFn)>::template len<memFn>();
-			auto ret = TypeDefinition<Ty, defs...>{ 
+			constexpr auto fn = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, memFn>;
+				else return memFn;
+			}();
+			auto* ptr = py::CppWrapper<std::remove_const_t<decltype(fn)>>::template len<fn>();
+			auto ret = TypeDefinition<Ty, BaseTy, defs...>{
 				typeName, typeNameInModule, typeFlags,
-				methodNames, propertyNames, slots 
+				methodNames, propertyNames, slots
 			};
 			ret.slots.emplace_back(PyType_Slot{ Py_mp_length, (void*)ptr });
 			return ret;
 		}
 
 		template<auto memFn>
-		constexpr TypeDefinition<Ty, defs...> mpGetItem() const
+		constexpr auto mpGetItem() const
 		{
-			auto* ptr = py::CppWrapper<decltype(memFn)>::template binary<memFn>();
-			auto ret = TypeDefinition<Ty, defs...>{ 
+			constexpr auto fn = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, memFn>;
+				else return memFn;
+			}();
+			auto* ptr = py::CppWrapper<std::remove_const_t<decltype(fn)>>::template binary<fn>();
+			auto ret = TypeDefinition<Ty, BaseTy, defs...>{
 				typeName, typeNameInModule, typeFlags,
-				methodNames, propertyNames, slots 
+				methodNames, propertyNames, slots
 			};
 			ret.slots.emplace_back(PyType_Slot{ Py_mp_subscript, (void*)ptr });
 			return ret;
+		}
+
+		template<auto memFn>
+		constexpr auto repr() const
+		{
+			constexpr auto fn = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, memFn>;
+				else return memFn;
+			}();
+			auto* ptr = py::CppWrapper<std::remove_const_t<decltype(fn)>>::template repr<fn>();
+			auto ret = TypeDefinition<Ty, BaseTy, defs...>{
+				typeName, typeNameInModule, typeFlags,
+				methodNames, propertyNames, slots
+			};
+			ret.slots.emplace_back(PyType_Slot{ Py_tp_repr, (void*)ptr });
+			return ret;
+		}
+
+		template<auto memFn>
+		constexpr auto iter() const
+		{
+			constexpr auto fn = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, memFn>;
+				else return memFn;
+			}();
+			auto* ptr = py::CppWrapper<std::remove_const_t<decltype(fn)>>::template repr<fn>();
+			auto ret = TypeDefinition<Ty, BaseTy, defs...>{
+				typeName, typeNameInModule, typeFlags,
+				methodNames, propertyNames, slots
+			};
+			ret.slots.emplace_back(PyType_Slot{ Py_tp_iter, (void*)ptr });
+			return ret;
+		}
+
+		template<auto memFn>
+		constexpr auto iternext() const
+		{
+			constexpr auto fn = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, memFn>;
+				else return memFn;
+			}();
+			auto* ptr = py::CppWrapper<std::remove_const_t<decltype(fn)>>::template repr<fn>();
+			auto ret = TypeDefinition<Ty, BaseTy, defs...>{
+				typeName, typeNameInModule, typeFlags,
+				methodNames, propertyNames, slots
+			};
+			ret.slots.emplace_back(PyType_Slot{ Py_tp_iternext, (void*)ptr });
+			return ret;
+		}
+
+		template<auto memFn>
+		constexpr auto call() const
+		{
+			constexpr auto fn = []() {
+				if constexpr (detail::IsPObject<Ty>::value) return detail::compose<&Ty::value, memFn>;
+				else return memFn;
+			}();
+			auto* ptr = py::CppWrapper<std::remove_const_t<decltype(fn)>>::template ternary<fn>();
+			auto ret = TypeDefinition<Ty, BaseTy, defs...>{
+				typeName, typeNameInModule, typeFlags,
+				methodNames, propertyNames, slots
+			};
+			ret.slots.emplace_back(PyType_Slot{ Py_tp_call, (void*)ptr });
+			return ret;
+		}
+
+		bool hasDefinition(int slot) const
+		{
+			for (const auto& s : slots)
+			{
+				if (s.slot == slot)
+				{
+					return true;
+				}
+			}
+			return false;
 		}
 	};
 
@@ -2702,8 +3261,8 @@ namespace py
 		{
 		};
 
-		template<class Ty, const auto& ... defs>
-		struct IsTypeDefinition<TypeDefinition<Ty, defs...>> : std::true_type
+		template<class Ty, class BaseTy, const auto& ... defs>
+		struct IsTypeDefinition<TypeDefinition<Ty, BaseTy, defs...>> : std::true_type
 		{
 		};
 
@@ -2718,10 +3277,16 @@ namespace py
 		};
 	}
 
-	template<class Ty>
+	template<class Ty, class BaseTy = void>
 	constexpr auto define(const char* name, const char* nameInModule, int flags = Py_TPFLAGS_DEFAULT)
 	{
-		return TypeDefinition<Ty>{ name, nameInModule, flags };
+		return TypeDefinition<Ty, BaseTy>{ name, nameInModule, flags };
+	}
+
+	template<class Ty, class BaseTy = void>
+	constexpr auto defineP(const char* name, const char* nameInModule, int flags = Py_TPFLAGS_DEFAULT)
+	{
+		return TypeDefinition<PObject<Ty>, std::conditional_t<std::is_same_v<BaseTy, void>, void, PObject<BaseTy>>>{ name, nameInModule, flags };
 	}
 
 	inline auto defineModule()
@@ -2735,7 +3300,7 @@ namespace py
 		: Module{ name, doc }
 	{
 		static_assert(detail::IsModuleDefinition<Def>::value, "Module constructor only accepts ModuleDefinition.");
-		
+
 		if (!d.methodNames.empty())
 		{
 			auto* defs = d.methodDefs.data();
@@ -2748,11 +3313,13 @@ namespace py
 	}
 
 
-	template<class TypeDef>
-	bool Module::addType(TypeDef&& def)
+	template<class TypeDefR>
+	bool Module::addType(TypeDefR&& def)
 	{
+		using TypeDef = std::remove_cv_t<std::remove_reference_t<TypeDefR>>;
 		static_assert(detail::IsTypeDefinition<TypeDef>::value, "addType only accepts TypeDefinition.");
 		using Ty = typename TypeDef::Class;
+		using BaseTy = typename TypeDef::BaseClass;
 
 		PyType_Spec spec;
 		spec.name = def.typeName;
@@ -2777,17 +3344,26 @@ namespace py
 
 		if constexpr (detail::HasIter<Ty>::value)
 		{
-			slots.emplace_back(PyType_Slot{ Py_tp_iter, (void*)CppWrapper<decltype(&Ty::iter)>::template repr<&Ty::iter>() });
+			if (!def.hasDefinition(Py_tp_iter))
+			{
+				slots.emplace_back(PyType_Slot{ Py_tp_iter, (void*)CppWrapper<decltype(&Ty::iter)>::template repr<&Ty::iter>() });
+			}
 		}
 
 		if constexpr (detail::HasIterNext<Ty>::value)
 		{
-			slots.emplace_back(PyType_Slot{ Py_tp_iternext, (void*)CppWrapper<decltype(&Ty::iternext)>::template repr<&Ty::iternext>() });
+			if (!def.hasDefinition(Py_tp_iternext))
+			{
+				slots.emplace_back(PyType_Slot{ Py_tp_iternext, (void*)CppWrapper<decltype(&Ty::iternext)>::template repr<&Ty::iternext>() });
+			}
 		}
 
 		if constexpr (detail::HasRepr<Ty>::value)
 		{
-			slots.emplace_back(PyType_Slot{ Py_tp_repr, (void*)CppWrapper<decltype(&Ty::repr)>::template repr<&Ty::repr>() });
+			if (!def.hasDefinition(Py_tp_repr))
+			{
+				slots.emplace_back(PyType_Slot{ Py_tp_repr, (void*)CppWrapper<decltype(&Ty::repr)>::template repr<&Ty::repr>() });
+			}
 		}
 
 		if (!def.methodNames.empty())
@@ -2813,12 +3389,58 @@ namespace py
 		slots.insert(slots.end(), def.slots.begin(), def.slots.end());
 		slots.emplace_back(PyType_Slot{ 0, nullptr });
 		spec.slots = slots.data();
-		auto typeObj = (PyTypeObject*)PyType_FromSpec(&spec);
+		PyTypeObject* typeObj;
+		if constexpr (std::is_same_v<BaseTy, void>)
+		{
+			typeObj = (PyTypeObject*)PyType_FromSpec(&spec);
+		}
+		else
+		{
+			PyTypeObject* baseTypeObj = TypeWrapper<BaseTy>::obj;
+			if (!baseTypeObj)
+			{
+				std::cerr << "Base type " << def.typeName << " is not registered in module." << std::endl;
+				return false;
+			}
+			typeObj = (PyTypeObject*)PyType_FromSpecWithBases(&spec, buildPyTuple((PyObject*)baseTypeObj).get());
+		}
 		if (!typeObj) return false;
 
 		TypeWrapper<Ty>::obj = typeObj;
 		Py_INCREF(typeObj);
 		PyModule_AddObject(mod, def.typeNameInModule, (PyObject*)typeObj);
 		return true;
+	}
+
+	template<class Ty>
+	Ty* checkType(PyObject* obj, const char* errorMsg = nullptr)
+	{
+		auto* ptr = py::TypeWrapper<Ty>::obj;
+		if (!ptr)
+		{
+			throw TypeError{ "type not found in module" };
+		}
+		if (!PyObject_TypeCheck(obj, ptr))
+		{
+			if (errorMsg) throw TypeError{ errorMsg };
+			else return nullptr;
+		}
+		return (Ty*)obj;
+	}
+
+	template<class Ty>
+	py::UniqueCObj<Ty> checkType(py::UniqueObj obj, const char* errorMsg = nullptr)
+	{
+		auto* ptr = py::TypeWrapper<Ty>::obj;
+		if (!ptr)
+		{
+			throw TypeError{ "type not found in module" };
+		}
+		if (!PyObject_TypeCheck(obj.get(), ptr))
+		{
+			if (errorMsg) throw TypeError{ errorMsg };
+			else return {};
+		}
+		return py::UniqueCObj<Ty>{ (Ty*)obj.release() };
 	}
 }

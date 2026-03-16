@@ -44,6 +44,21 @@ class Match(IntFlag):
     ALL = URL | EMAIL | HASHTAG | MENTION | SERIAL | EMOJI
     """ URL, EMAIL, HASHTAG, MENTION, SERIAL, EMOJI을 모두 사용합니다. """
     
+    OOV_RULE_ONLY = 0 << 8
+    """ 사전에 없는 단어에 대해 규칙만을 사용하여 매칭합니다. """
+
+    OOV_CHR_MODEL = 1 << 8
+    """ 사전에 없는 단어에 대해 문자 기반 OOV 모델을 사용하여 매칭합니다. """
+
+    OOV_CHR_FREQ_MODEL = 2 << 8
+    """ 사전에 없는 단어에 대해 문자 빈도 기반 OOV 모델을 사용하여 매칭합니다. """
+
+    OOV_CHR_FREQ_BRANCH_MODEL = 3 << 8
+    """ 사전에 없는 단어에 대해 문자 빈도 및 브랜치 기반 OOV 모델을 사용하여 매칭합니다. """
+
+    OOV_MASK = 3 << 8
+    """ OOV 옵션들에 대한 마스크 """
+
     NORMALIZING_CODA = 1 << 16
     """ '먹었엌ㅋㅋ'처럼 받침이 덧붙어서 분석에 실패하는 경우, 받침을 분리하여 정규화합니다. """
     
@@ -117,6 +132,13 @@ class Match(IntFlag):
     .. versionadded:: 0.20.0
     """
     
+    JOIN_PARTICLE_YO = 1 << 27
+    """
+    어미(EC/EF)와 조사 "요/JX"를 통합하여 매칭한다 (예: 고/EC + 요/JX => 고요/EC)
+
+    .. versionadded:: 0.23.0
+    """
+
     JOIN_V_SUFFIX = JOIN_VERB_SUFFIX | JOIN_ADJ_SUFFIX
     """
     동사/형용사형 파생접미사를 분리하지 않고 결합합니다.

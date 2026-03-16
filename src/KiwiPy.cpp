@@ -69,6 +69,8 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 				if (conds == "any") condVowel = CondVowel::any;
 				else if (conds == "vowel") condVowel = CondVowel::vowel;
 				else if (conds == "applosive") condVowel = CondVowel::applosive;
+				else if (conds == "continual") condVowel = CondVowel::continual;
+				else throw py::ValueError{ "Invalid condVowel: " + conds };
 			}
 
 			for (auto& o : orig)
@@ -148,7 +150,7 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 #ifdef Py_GIL_DISABLED
 			Py_BEGIN_CRITICAL_SECTION(this);
 #endif
-			ptt = tt.prepare();
+			ptt = tt.prepare(true);
 			prepared = true;
 #ifdef Py_GIL_DISABLED
 			Py_END_CRITICAL_SECTION();
@@ -742,8 +744,12 @@ KiwiConfig toKiwiConfig(PyObject* obj)
 	KiwiConfig c;
 	setValueFromAttr(c.integrateAllomorph, obj, "integrate_allomorph");
 	setValueFromAttr(c.cutOffThreshold, obj, "cutoff_threshold");
-	setValueFromAttr(c.unkFormScoreScale, obj, "unk_form_score_scale");
-	setValueFromAttr(c.unkFormScoreBias, obj, "unk_form_score_bias");
+	setValueFromAttr(c.oovRuleScale, obj, "oov_rule_scale");
+	setValueFromAttr(c.oovRuleBias, obj, "oov_rule_bias");
+	setValueFromAttr(c.oovChrBias, obj, "oov_chr_bias");
+	setValueFromAttr(c.oovGlobalWeight, obj, "oov_global_weight");
+	setValueFromAttr(c.oovLocalWeight, obj, "oov_local_weight");
+	setValueFromAttr(c.oovGlobalMinFreq, obj, "oov_global_min_freq");
 	setValueFromAttr(c.spacePenalty, obj, "space_penalty");
 	setValueFromAttr(c.typoCostWeight, obj, "typo_cost_weight");
 	setValueFromAttr(c.maxUnkFormSize, obj, "max_unk_form_size");
@@ -755,8 +761,6 @@ struct KiwiObject : py::CObject<KiwiObject>
 {
 	KiwiBuilder builder;
 	mutable std::shared_ptr<Kiwi> kiwi;
-	TypoTransformerObject* typos = nullptr;
-	float typoCostThreshold = 2.5f;
 	Vector<vector<u16string>> contextForms;
 	Vector<pair<Vector<uint32_t>, Vector<size_t>>> contextAnalyses;
 
@@ -772,8 +776,6 @@ struct KiwiObject : py::CObject<KiwiObject>
 		bool,
 		bool,
 		std::string,
-		PyObject*,
-		float,
 		Dialect
 	>;
 
@@ -786,25 +788,9 @@ struct KiwiObject : py::CObject<KiwiObject>
 		bool loadTypoDict = true, 
 		bool loadMultiDict = true,
 		const std::string& modelType = {},
-		PyObject* _typos = nullptr, 
-		float _typoCostThreshold = 2.5f,
 		Dialect enabledDialects = Dialect::standard
 	)
 	{
-		if (_typos == nullptr || _typos == Py_None)
-		{
-			_typos = nullptr;
-		}
-		else if (PyObject_IsInstance(_typos, (PyObject*)py::Type<TypoTransformerObject>))
-		{
-			typos = (TypoTransformerObject*)_typos;
-		}
-		else
-		{
-			throw py::ValueError{ "invalid `typos` value: " + py::repr(_typos)};
-		}
-		typoCostThreshold = _typoCostThreshold;
-
 		BuildOption boptions = BuildOption::none;
 		boptions |= integrateAllomorph ? BuildOption::integrateAllomorph : BuildOption::none;
 		boptions |= loadDefaultDict ? BuildOption::loadDefaultDict : BuildOption::none;
@@ -870,7 +856,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 		std::unique_lock lock{ *rwMutex };
 		if (kiwi) return kiwi;
 #endif
-		kiwi = std::make_shared<Kiwi>(builder.build(typos ? typos->tt : getDefaultTypoSet(DefaultTypoSet::withoutTypo), typoCostThreshold));
+		kiwi = std::make_shared<Kiwi>(builder.build());
 		return kiwi;
 	}
 
@@ -946,6 +932,8 @@ struct KiwiObject : py::CObject<KiwiObject>
 		bool openEnding = false, 
 		Dialect allowedDialects = Dialect::standard,
 		float dialectCost = 3.f,
+		PyObject* typos = Py_None,
+		float typoCostThreshold = 2.5f,
 		PyObject* pretokenized = Py_None,
 		PyObject* config = Py_None);
 	py::UniqueObj extractAddWords(PyObject* sentences, size_t minCnt = 10, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true);
@@ -997,8 +985,12 @@ struct KiwiObject : py::CObject<KiwiObject>
 		static const char* keys[] = {
 			"integrate_allomorph",
 			"cutoff_threshold",
-			"unk_form_score_scale",
-			"unk_form_score_bias",
+			"oov_rule_scale",
+			"oov_rule_bias",
+			"oov_chr_bias",
+			"oov_global_weight",
+			"oov_local_weight",
+			"oov_global_min_freq",
 			"space_penalty",
 			"typo_cost_weight",
 			"max_unk_form_size",
@@ -1009,8 +1001,12 @@ struct KiwiObject : py::CObject<KiwiObject>
 			keys,
 			config.integrateAllomorph,
 			config.cutOffThreshold,
-			config.unkFormScoreScale,
-			config.unkFormScoreBias,
+			config.oovRuleScale,
+			config.oovRuleBias,
+			config.oovChrBias,
+			config.oovGlobalWeight,
+			config.oovLocalWeight,
+			config.oovGlobalMinFreq,
 			config.spacePenalty,
 			config.typoCostWeight,
 			config.maxUnkFormSize,
@@ -1053,6 +1049,7 @@ struct TokenObject : py::CObject<TokenObject>
 	ScriptType _script = ScriptType::unknown;
 	uint16_t _dialect = 0;
 	bool _regularity = false;
+	bool _oov = false;
 
 	using _InitArgs = std::tuple<int>;
 	
@@ -1151,6 +1148,15 @@ struct TokenObject : py::CObject<TokenObject>
 					"len=" + to_string(_len) + ", "
 					"sense=" + to_string(_sense) + ")";
 			}
+			else if (_oov)
+			{
+				return "Token("
+					"form=" + py::reprFromCpp(_form) + ", "
+					"tag=" + py::reprFromCpp(_tag) + ", "
+					"start=" + to_string(_pos) + ", "
+					"len=" + to_string(_len) + ", "
+					"oov=True)";
+			}
 			else
 			{
 				return "Token("
@@ -1168,6 +1174,13 @@ struct TokenObject : py::CObject<TokenObject>
 					"form=" + py::reprFromCpp(_form) + ", "
 					"tag=" + py::reprFromCpp(_tag) + ", "
 					"sense=" + to_string(_sense) + ")";
+			}
+			else if (_oov)
+			{
+				return "Token("
+					"form=" + py::reprFromCpp(_form) + ", "
+					"tag=" + py::reprFromCpp(_tag) + ", "
+					"oov=True)";
 			}
 			else
 			{
@@ -1266,6 +1279,10 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			if (q.tag == POSTag::sl || q.tag == POSTag::sh || q.tag == POSTag::sw || q.tag == POSTag::w_emoji)
 			{
 				tItem->_script = q.script;
+			}
+			else if (q.senseId == 255)
+			{
+				tItem->_oov = true;
 			}
 			else
 			{
@@ -2309,10 +2326,18 @@ py::UniqueObj KiwiObject::extractAddWords(PyObject* sentences, size_t minCnt, si
 py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, 
 	Match matchOptions, bool echo, PyObject* blockList, bool openEnding, 
 	Dialect allowedDialects, float dialectCost,
+	PyObject* typos, float typoCostThreshold,
 	PyObject* pretokenized, PyObject* config)
 {
 	auto kiwiInst = doPrepare();
 	KiwiConfig cConfig = toKiwiConfig(config);
+
+	const PreparedTypoTransformer* ptt = nullptr;
+	if (typos && typos != Py_None)
+	{
+		auto tt = py::checkType<TypoTransformerObject>(typos);
+		ptt = &tt->getPtt();
+	}
 
 	if (PyUnicode_Check(text))
 	{
@@ -2340,7 +2365,7 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 			so = py::toCpp<py::StringWithOffset<u16string>>(text);
 			updatePretokenizedSpanToU16(pretokenizedSpans.first, so);
 		}
-		auto res = kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs, openEnding, allowedDialects, dialectCost}, pretokenizedSpans.first, cConfig);
+		auto res = kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs, openEnding, allowedDialects, dialectCost, ptt, typoCostThreshold }, pretokenizedSpans.first, cConfig);
 		if (res.size() > topN) res.erase(res.begin() + topN, res.end());
 		return resToPyList(move(res), this, kiwiInst, move(pretokenizedSpans.second));
 	}
@@ -2354,7 +2379,7 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 		Py_INCREF(this);
 		ret->inputIter = move(iter);
 		ret->topN = topN;
-		ret->options = AnalyzeOption{ matchOptions, nullptr, openEnding, allowedDialects, dialectCost };
+		ret->options = AnalyzeOption{ matchOptions, nullptr, openEnding, allowedDialects, dialectCost, ptt, typoCostThreshold };
 		ret->config = cConfig;
 		ret->echo = !!echo;
 		ret->kiwiInst = kiwiInst;
@@ -2971,6 +2996,143 @@ struct NgramExtractorObject : py::CObject<NgramExtractorObject>
 	}
 };
 
+struct ChrDatasetIterObject;
+
+struct ChrDatasetObject : py::CObject<ChrDatasetObject>
+{
+	using _InitArgs = tuple<size_t, size_t, size_t, float, bool, std::vector<std::pair<size_t, std::vector<uint32_t>>>>;
+
+	ChrDataset dataset;
+
+	ChrDatasetObject() = default;
+
+	ChrDatasetObject(size_t batchSize, size_t causalContextSize, size_t windowSize, float dropoutProb, bool sampleWithoutWeight,
+		const std::vector<std::pair<size_t, std::vector<uint32_t>>>& contextualMapper = {})
+		: dataset{ batchSize, causalContextSize, windowSize, dropoutProb, sampleWithoutWeight, contextualMapper }
+	{
+	}
+
+	void addSentence(const string& text, float weight, const string& nonLabelPrefix)
+	{
+		dataset.addSentence(text, weight, nonLabelPrefix);
+	}
+
+	void seed(size_t seed)
+	{
+		dataset.seed(seed);
+	}
+
+	double totalWeight() const
+	{
+		return dataset.getTotalWeight();
+	}
+
+	std::vector<float> getVocabProbs(double epsilon) const
+	{
+		return dataset.getVocabProbs(epsilon);
+	}
+
+	size_t len() const
+	{
+		return dataset.numSents();
+	}
+
+	size_t getVocabSize() const
+	{
+		return dataset.vocabSize();
+	}
+
+	size_t getBatchSize() const
+	{
+		return dataset.getBatchSize();
+	}
+
+	size_t getWindowSize() const
+	{
+		return dataset.getWindowSize();
+	}
+
+	py::UniqueCObj<ChrDatasetIterObject> iter() const
+	{
+		py::UniqueCObj<ChrDatasetIterObject> ret{ (ChrDatasetIterObject*)PyObject_CallFunctionObjArgs((PyObject*)py::Type<ChrDatasetIterObject>, this, nullptr) };
+		return ret;
+	}
+
+	std::vector<std::pair<std::vector<uint32_t>, double>> extractPrefixes(
+		float resolution, float minWeight,
+		size_t maxLength, size_t numWorkers = 1, bool exclusiveCnt = false) const
+	{
+		return dataset.extractPrefixes(resolution, minWeight, maxLength, numWorkers, exclusiveCnt);
+	}
+
+	static std::vector<int32_t> encode(const std::string& str)
+	{
+		ChrTokenizer tokenizer;
+		std::vector<int32_t> ids(str.size());
+
+		const size_t n = tokenizer.encode(str, ids.data(), ids.size());
+		ids.resize(n);
+		return ids;
+	}
+
+	static std::string decode(const std::vector<int32_t>& ids)
+	{
+		ChrTokenizer tokenizer;
+		const auto str = tokenizer.decode(ids.data(), ids.size());
+		return utf16To8(str);
+	}
+};
+
+struct ChrDatasetIterObject : py::CObject<ChrDatasetIterObject>
+{
+	py::UniqueCObj<ChrDatasetObject> obj;
+
+	using _InitArgs = tuple<py::UniqueCObj<ChrDatasetObject>>;
+
+	ChrDatasetIterObject() = default;
+
+	ChrDatasetIterObject(py::UniqueCObj<ChrDatasetObject>&& dataset)
+	{
+		obj = std::move(dataset);
+		obj->dataset.reset();
+	}
+
+	py::UniqueCObj<ChrDatasetIterObject> iter() const
+	{
+		Py_INCREF(this);
+		return py::UniqueCObj<ChrDatasetIterObject>(const_cast<ChrDatasetIterObject*>(this));
+	}
+
+	py::UniqueObj iternext()
+	{
+		const size_t batchSize = obj->dataset.getBatchSize();
+		const size_t causalContextSize = obj->dataset.getCausalContextSize();
+		const size_t windowSize = obj->dataset.getWindowSize();
+		const size_t bs = batchSize, ws = causalContextSize + windowSize;
+		int64_t* inDataPtr = nullptr;
+		int64_t* outDataPtr = nullptr;
+		py::UniqueObj inData = py::newEmptyArray(inDataPtr, bs, ws);
+		py::UniqueObj outData = py::newEmptyArray(outDataPtr, bs, causalContextSize);
+		memset(inDataPtr, -1, sizeof(int64_t) * bs * ws);
+		memset(outDataPtr, -1, sizeof(int64_t) * bs * causalContextSize);
+
+		const size_t sz = obj->dataset.next(
+			inDataPtr,
+			outDataPtr
+		);
+		if (!sz) throw py::ExcPropagation{};
+
+		if (sz < batchSize)
+		{
+			py::UniqueObj slice{ PySlice_New(nullptr, py::buildPyValue(sz).get(), nullptr) };
+			inData = py::UniqueObj{ PyObject_GetItem(inData.get(), slice.get()) };
+			outData = py::UniqueObj{ PyObject_GetItem(outData.get(), slice.get()) };
+		}
+
+		return py::buildPyTuple(inData, outData);
+	}
+};
+
 PyMODINIT_FUNC PyInit__kiwipiepy()
 {
 	py::CustomExcHandler::add<kiwi::IOException, py::OSError>();
@@ -3047,7 +3209,6 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 		.template method<&KiwiObject::morphemeSimilarity>("morpheme_similarity")
 		.template method<&KiwiObject::contextSimilarity>("context_similarity")
 		.template property<&KiwiObject::getGlobalConfig, &KiwiObject::setGlobalConfig>("__global_config")
-		.template property<&KiwiObject::typoCostThreshold, &KiwiObject::typoCostThreshold>("_typo_cost_threshold")
 		.template property<&KiwiObject::getNumWorkers>("_num_workers")
 		.template property<&KiwiObject::getModelType>("_model_type"),
 
@@ -3077,6 +3238,7 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 		.template property<&TokenObject::script>("script")
 		.template property<&TokenObject::_sense>("sense")
 		.template property<&TokenObject::_dialect>("dialect")
+		.template property<&TokenObject::_oov>("oov")
 		.template sqLen<&TokenObject::len>()
 		.template sqGetItem<&TokenObject::getitem>(),
 
@@ -3104,6 +3266,21 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 		py::define<NgramExtractorObject>("kiwipiepy._NgramExtractor", "_NgramExtractor", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
 		.template method<&NgramExtractorObject::add>("add")
 		.template method<&NgramExtractorObject::extract>("extract")
-		.template staticMethod<&pyExtractSubstrings>("_extract_substrings")
+		.template staticMethod<&pyExtractSubstrings>("_extract_substrings"),
+
+		py::define<ChrDatasetObject>("kiwipiepy._ChrDataset", "_ChrDataset", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
+		.template method<&ChrDatasetObject::addSentence>("add_sentence")
+		.template method<&ChrDatasetObject::seed>("seed")
+		.template method<&ChrDatasetObject::getVocabProbs>("get_vocab_probs")
+		.template method<&ChrDatasetObject::extractPrefixes>("extract_prefixes")
+		.template property<&ChrDatasetObject::getVocabSize>("vocab_size")
+		.template property<&ChrDatasetObject::getBatchSize>("batch_size")
+		.template property<&ChrDatasetObject::getWindowSize>("window_size")
+		.template property<&ChrDatasetObject::totalWeight>("total_weight")
+		.template sqLen<&ChrDatasetObject::len>()
+		.template staticMethod<&ChrDatasetObject::encode>("encode")
+		.template staticMethod<&ChrDatasetObject::decode>("decode"),
+
+		py::define<ChrDatasetIterObject>("kiwipiepy._ChrDatasetIter", "_ChrDatasetIter", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
 	);
 }
