@@ -503,7 +503,9 @@ print(kiwi.tokenize("약주 ᄒᆞᆫ 잔 드셧수과?", allowed_dialects='jeju
  Token(form='는', tag='ETM', start=13, len=1), 
  Token(form='집', tag='NNG', start=15, len=1)]
 
-# oov_handling='chr'로 설정 시 경량 문자모델에 기반하여 OOV를 탐지합니다. '알리오올리오'는 사전에 등재되지 않은 단어이지만 OOV로 잘 탐지되어서 잘못 쪼개지지 않고 하나의 형태소로 분석된 것을 볼 수 있습니다.
+# oov_handling='chr'로 설정 시 경량 문자모델에 기반하여 OOV를 탐지합니다.
+# '알리오올리오'는 사전에 등재되지 않은 단어이지만 OOV로 잘 탐지되어서
+# 잘못 쪼개지지 않고 하나의 형태소로 분석된 것을 볼 수 있습니다.
 # oov_handling의 기본값은 'chr'이므로, oov_handling은 생략해도 됩니다.
 >>> kiwi.tokenize('알리오올리오가 진짜 맛있는 집', oov_handling='chr') 
 [Token(form='알리오올리오', tag='NNG', start=0, len=6, oov=True),
@@ -531,7 +533,8 @@ print(kiwi.tokenize("약주 ᄒᆞᆫ 잔 드셧수과?", allowed_dialects='jeju
  Token(form='회사', tagg='NNG', start=26, len=2), 
  Token(form='로', tag='JKB', start=28, len=1)]
 
-# oov_handling='chr_freq'로 설정 시 OOV 탐지 시 빈도수 정보도 활용하게 됩니다. '엑소바이옴'이 반복적으로 등장하는 것을 보고 신조어일 것이라고 판단하게 됩니다.
+# oov_handling='chr_freq'로 설정 시 OOV 탐지 시 빈도수 정보도 활용하게 됩니다.
+# '엑소바이옴'이 반복적으로 등장하는 것을 보고 신조어일 것이라고 판단하게 됩니다.
 >>> kiwi.tokenize('엑소바이옴에서 나온 제품. 엑소바이옴은 화장품 회사로', oov_handling='chr_freq')
 [Token(form='엑소바이옴', tag='NNG', start=0, len=5, oov=True),
  Token(form='에서', tag='JKB', start=5, len=2), 
