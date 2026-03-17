@@ -41,7 +41,7 @@ jobs:
         python3 setup.py install
         cd ..
         
-        python3 setup.py install
+        NUM_AVAILABLE_CPU_CORES=2 python3 setup.py install
     - name: gen doc
       run: |
         export KIWIPIEPY_VER="`python3 -m pip show kiwipiepy | grep Version | cut -d' ' -f2`"
