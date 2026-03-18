@@ -40,6 +40,18 @@
 #define PY_STRONG_INLINE __forceinline 
 #endif
 
+#if defined(_WIN32) || defined(_WIN64)
+#define LITTLE_ENDIAN 1
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__)
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define LITTLE_ENDIAN 1
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define LITTLE_ENDIAN 0
+#else
+#error "Unknown endianness"
+#endif
+#endif
+
 namespace py
 {
 	template<class Ty>
@@ -720,7 +732,8 @@ namespace py
 	{
 		UniqueObj operator()(const std::u16string& v)
 		{
-			return UniqueObj{ PyUnicode_DecodeUTF16((const char*)v.data(), v.size() * 2, nullptr, nullptr) };
+			int byteorder = LITTLE_ENDIAN ? -1 : 1;
+			return UniqueObj{ PyUnicode_DecodeUTF16((const char*)v.data(), v.size() * 2, nullptr, &byteorder) };
 		}
 
 		bool _toCpp(PyObject* obj, std::u16string& out)
@@ -755,7 +768,8 @@ namespace py
 	{
 		UniqueObj operator()(const std::u16string_view& v)
 		{
-			return UniqueObj{ PyUnicode_DecodeUTF16((const char*)v.data(), v.size() * 2, nullptr, nullptr) };
+			int byteorder = LITTLE_ENDIAN ? -1 : 1;
+			return UniqueObj{ PyUnicode_DecodeUTF16((const char*)v.data(), v.size() * 2, nullptr, &byteorder) };
 		}
 	};
 
