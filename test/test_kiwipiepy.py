@@ -1009,3 +1009,10 @@ def test_dialect():
     assert tokens[3].tagged_form == "드시/VV"
     assert tokens[4].tagged_form in ("엇/EP", "었/EP")
     assert tokens[5].tagged_form == "수과/EF"
+
+def test_issue_216():
+    from kiwipiepy import Kiwi
+    kiwi = Kiwi()
+    tokens = kiwi.tokenize("테스트용\ufeff문자열입니다.")
+    for token in tokens:
+        assert token.form
