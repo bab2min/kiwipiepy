@@ -844,6 +844,14 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.23.0 (2026-04-05)
+    * Kiwi 0.23.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.23.1 )이 반영되었습니다.
+        * Arm NEON용 양자화 커널 구현. 이제 Arm NEON 아키텍처에서도 CoNg 모델 사용시 최적화된 커널을 사용하게 되어 전보다 분석속도가 20% 가량 향샹되었습니다.
+        * AVX-VNNI 최적화 커널에서 AVX512 명령어를 사용하여 오류가 발생하던 버그 수정
+        * 문장 시작 위치의 1., 2., 3. 등이 종종 SB 대신 SN로 분석되는 오류 수정
+        * Splitter 신규 구현체에서 종종 메모리 과다 사용하거나, 빈 결과값을 리턴하는 등의 문제를 해결
+    * 형태소 분석 결과의 form이 U+FEFF로 시작할 때 이 문자열이 Python str타입으로 변환되는 과정에서 U+FEFF가 제거되는 버그 수정
+
 * 0.23.0 (2026-03-15)
     * Kiwi 0.23.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.23.0 )이 반영되었습니다.
         * OOV 탐지 기능 고도화
