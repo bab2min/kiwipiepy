@@ -2535,6 +2535,25 @@ inline uint32_t convertToMorphId(const Kiwi* kiwi, PyObject* target, E&& errorMs
 		{
 			throw py::ValueError{ "No morpheme found for the given form: " + utf16To8(form) };
 		}
+
+		// senseId를 지정하지 않은 경우 senseId == 0인 경우가 유일하게 존재하면 그걸 선택함.
+		if (senseId == undefSenseId && cands.size() > 1)
+		{
+			auto it = find_if(cands.begin(), cands.end(), [](const Morpheme* m)
+			{
+				return m->senseId == 0;
+			});
+			if (it != cands.end() && find_if(it + 1, cands.end(), [](const Morpheme* m)
+			{
+				return m->senseId == 0;
+			}) == cands.end())
+			{
+				auto selected = *it;
+				cands.clear();
+				cands.emplace_back(selected);
+			}
+		}
+
 		if (cands.size() > 1)
 		{
 			string errMsg = "Multiple morphemes found for the given form: ";
