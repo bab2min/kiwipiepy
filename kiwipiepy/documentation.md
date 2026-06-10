@@ -844,7 +844,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
-* 0.23.0 (2026-04-05)
+* 0.23.1 (2026-04-05)
     * Kiwi 0.23.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.23.1 )이 반영되었습니다.
         * Arm NEON용 양자화 커널 구현. 이제 Arm NEON 아키텍처에서도 CoNg 모델 사용시 최적화된 커널을 사용하게 되어 전보다 분석속도가 20% 가량 향샹되었습니다.
         * AVX-VNNI 최적화 커널에서 AVX512 명령어를 사용하여 오류가 발생하던 버그 수정
