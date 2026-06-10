@@ -56,6 +56,9 @@ class Match(IntFlag):
     OOV_CHR_FREQ_BRANCH_MODEL = 3 << 8
     """ 사전에 없는 단어에 대해 문자 빈도 및 브랜치 기반 OOV 모델을 사용하여 매칭합니다. """
 
+    OOV_TOTAL_CONSISTENCY = 1 << 10
+    """ (실험적 기능) """
+
     OOV_MASK = 3 << 8
     """ OOV 옵션들에 대한 마스크 """
 

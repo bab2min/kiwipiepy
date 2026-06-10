@@ -216,7 +216,9 @@ def _convert_oov_handling(oov_handling: Union[str, int]) -> Match:
         return Match.OOV_CHR_FREQ_MODEL
     elif oov_handling == 'chr_freq_branch':
         return Match.OOV_CHR_FREQ_BRANCH_MODEL
-    elif oov_handling in (Match.OOV_RULE_ONLY, Match.OOV_CHR_MODEL, Match.OOV_CHR_FREQ_MODEL, Match.OOV_CHR_FREQ_BRANCH_MODEL):
+    elif oov_handling == 'chr_freq_consistency':
+        return Match.OOV_CHR_FREQ_MODEL | Match.OOV_TOTAL_CONSISTENCY
+    elif oov_handling in (Match.OOV_RULE_ONLY, Match.OOV_CHR_MODEL, Match.OOV_CHR_FREQ_MODEL, Match.OOV_CHR_FREQ_BRANCH_MODEL, Match.OOV_TOTAL_CONSISTENCY, Match.OOV_CHR_FREQ_MODEL | Match.OOV_TOTAL_CONSISTENCY):
         return oov_handling
     else:
         raise ValueError(f"Unknown oov_handling option: {oov_handling}. Should be one of (None, 'rule', 'chr', 'chr_freq', 'chr_freq_branch').")
