@@ -847,6 +847,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 * 0.23.2 (2026-06-12)
     * Kiwi 0.23.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.23.2 )이 반영되었습니다.
         * Windows에서 모델 파일의 경로가 유니코드 문자를 포함할 때 로딩에 실패하는 버그 수정
+        * (실험적 기능) 분석 옵션에 `OOV_TOTAL_CONSISTENCY`가 추가되었습니다. 이 옵션은 OOV 탐지 기능이 입력 텍스트 전체 내에서 일관되게 작동하도록 만들지만 분석 속도가 크게 느려집니다.
     * `Kiwi.most_similar_morphemes`, `Kiwi.morpheme_similarity` 메소드에서 의미 번호를 지정하지 않으면 기본 의미 번호(0번)가 사용되도록 변경되었습니다. 이전에는 의미 번호를 명시적으로 지정하지 않으면 오류가 발생하는 버그가 있었습니다.
 
 * 0.23.1 (2026-04-05)
