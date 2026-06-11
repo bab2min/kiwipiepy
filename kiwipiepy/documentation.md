@@ -844,6 +844,11 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.23.2 (2026-06-12)
+    * Kiwi 0.23.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.23.2 )이 반영되었습니다.
+        * Windows에서 모델 파일의 경로가 유니코드 문자를 포함할 때 로딩에 실패하는 버그 수정
+    * `Kiwi.most_similar_morphemes`, `Kiwi.morpheme_similarity` 메소드에서 의미 번호를 지정하지 않으면 기본 의미 번호(0번)가 사용되도록 변경되었습니다. 이전에는 의미 번호를 명시적으로 지정하지 않으면 오류가 발생하는 버그가 있었습니다.
+
 * 0.23.1 (2026-04-05)
     * Kiwi 0.23.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.23.1 )이 반영되었습니다.
         * Arm NEON용 양자화 커널 구현. 이제 Arm NEON 아키텍처에서도 CoNg 모델 사용시 최적화된 커널을 사용하게 되어 전보다 분석속도가 20% 가량 향샹되었습니다.
