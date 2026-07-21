@@ -175,6 +175,28 @@ def test_pretokenized():
     finally:
         assert is_raised
 
+def test_pretokenized_non_bmp_offsets():
+    kiwi = Kiwi()
+    texts = ['AB', '😀A']
+
+    def pretokenized(value):
+        return [(0, len(value), [
+            PretokenizedToken('X', 'NNP', 0, 1),
+            PretokenizedToken('A', 'SL', 1, 2),
+        ])]
+
+    expected = [('X', 0, 1), ('A', 1, 2)]
+    for text in texts:
+        assert [
+            (token.form, token.start, token.end)
+            for token in kiwi.tokenize(text, pretokenized=pretokenized(text))
+        ] == expected
+
+    assert [
+        [(token.form, token.start, token.end) for token in tokens]
+        for tokens in kiwi.tokenize(iter(texts), pretokenized=pretokenized)
+    ] == [expected, expected]
+
 def test_re_word():
     text = '{평만경(平滿景)}이 사람을 시켜 {침향(沈香)} 10냥쭝을 바쳤으므로'
 

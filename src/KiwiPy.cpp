@@ -1230,7 +1230,9 @@ inline const char* getTagStr(const POSTag tag, const u16string& form)
 	return tagToString(tag);
 }
 
-py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, const shared_ptr<Kiwi>& kiwiInst, vector<py::UniqueObj>&& userValues = {})
+py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj,
+	const shared_ptr<Kiwi>& kiwiInst, vector<py::UniqueObj>&& userValues = {},
+	const vector<size_t>* sourceOffsets = nullptr)
 {
 	// set the following objects semi-immortal. (they are neither freed nor managed)
 	// it prevents crashes at Python3.12
@@ -1249,7 +1251,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 		for (auto& q : p.first)
 		{
 			size_t u32chrs = 0;
-			for (auto u : q.str)
+			if (!sourceOffsets) for (auto u : q.str)
 			{
 				if ((u & 0xFC00) == 0xD800) u32chrs++;
 			}
@@ -1261,8 +1263,22 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			tItem->_rawTag = q.tag;
 			tItem->resultHash = resultHash;
 			tItem->_tag = getTagStr(q.tag, tItem->_form);
-			tItem->_pos = q.position - u32offset;
-			tItem->_len = q.length - u32chrs;
+			if (sourceOffsets)
+			{
+				const size_t sourceBegin = q.position;
+				const size_t sourceEnd = sourceBegin + q.length;
+				const size_t pyBegin = upper_bound(sourceOffsets->begin(), sourceOffsets->end(), sourceBegin)
+					- sourceOffsets->begin() - 1;
+				const size_t pyEnd = lower_bound(sourceOffsets->begin(), sourceOffsets->end(), sourceEnd)
+					- sourceOffsets->begin();
+				tItem->_pos = (uint32_t)pyBegin;
+				tItem->_len = (uint32_t)(pyEnd - pyBegin);
+			}
+			else
+			{
+				tItem->_pos = q.position - u32offset;
+				tItem->_len = q.length - u32chrs;
+			}
 			tItem->_wordPosition = q.wordPosition;
 			tItem->_sentPosition = q.sentPosition;
 			tItem->_subSentPosition = q.subSentPosition;
@@ -1311,7 +1327,7 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj, 
 			}
 
 			PyList_SetItem(rList.get(), jdx++, (PyObject*)tItem.release());
-			u32offset += u32chrs;
+			if (!sourceOffsets) u32offset += u32chrs;
 		}
 		PyList_SetItem(retList.get(), idx++, py::buildPyTuple(move(rList), p.second).release());
 	}
@@ -1891,7 +1907,9 @@ auto makeFutureCarrier(std::future<FutureTy>&& future, CarriedTy&& carried)
 	return FutureCarrier<FutureTy, std::remove_reference_t<CarriedTy>>{ std::move(future), std::forward<CarriedTy>(carried) };
 }
 
-struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, FutureCarrier<vector<TokenResult>, vector<py::UniqueObj>>>
+using AnalysisContext = pair<vector<py::UniqueObj>, vector<size_t>>;
+
+struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, FutureCarrier<vector<TokenResult>, AnalysisContext>>
 {
 	py::UniqueCObj<KiwiObject> kiwi;
 	std::shared_ptr<Kiwi> kiwiInst;
@@ -1913,12 +1931,16 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 		waitQueue();
 	}
 
-	py::UniqueObj buildPy(pair<vector<TokenResult>, vector<py::UniqueObj>>&& v)
+	py::UniqueObj buildPy(pair<vector<TokenResult>, AnalysisContext>&& v)
 	{
 		return py::handleExc([&]()
 		{
 			if (v.first.size() > topN) v.first.erase(v.first.begin() + topN, v.first.end());
-			return resToPyList(move(v.first), kiwi.get(), kiwiInst, move(v.second));
+			auto context = move(v.second);
+			return resToPyList(
+				move(v.first), kiwi.get(), kiwiInst, move(context.first),
+				context.second.empty() ? nullptr : &context.second
+			);
 		});
 	}
 
@@ -1948,7 +1970,7 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 				move(pretokenized.first),
 				config
 			),
-			move(pretokenized.second)
+			AnalysisContext{ move(pretokenized.second), move(so.offsets) }
 		);
 	}
 };
@@ -2367,7 +2389,10 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 		}
 		auto res = kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs, openEnding, allowedDialects, dialectCost, ptt, typoCostThreshold }, pretokenizedSpans.first, cConfig);
 		if (res.size() > topN) res.erase(res.begin() + topN, res.end());
-		return resToPyList(move(res), this, kiwiInst, move(pretokenizedSpans.second));
+		return resToPyList(
+			move(res), this, kiwiInst, move(pretokenizedSpans.second),
+			so.offsets.empty() ? nullptr : &so.offsets
+		);
 	}
 	else
 	{
