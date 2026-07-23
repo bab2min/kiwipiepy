@@ -1113,13 +1113,15 @@ result: List[Tuple[str, float, int, float]]
         if callable(override_pretokenized):
             spans = override_pretokenized(text)
             if spans: 
-                if not all(0 <= s <= e <= len(text) for s, e, *_ in spans):
+                # 빈 span은 native splitter에서 길이 - 1을 계산하므로 public API에서 막는다.
+                if not all(0 <= s < e <= len(text) for s, e, *_ in spans):
                     raise ValueError("All spans must be valid range of text")
                 span_groups.append(spans)
         elif override_pretokenized is not None:
             spans = override_pretokenized
             if spans: 
-                if not all(0 <= s <= e <= len(text) for s, e, *_ in spans):
+                # 빈 span은 native splitter에서 길이 - 1을 계산하므로 public API에서 막는다.
+                if not all(0 <= s < e <= len(text) for s, e, *_ in spans):
                     raise ValueError("All spans must be valid range of text")
                 span_groups.append(spans)
         
@@ -1565,6 +1567,8 @@ pretokenized: Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenLis
 
     형태소 분석에 앞서 텍스트 내 특정 구간의 형태소 분석 결과를 미리 정의합니다. 이 값에 의해 정의된 텍스트 구간은 항상 해당 방법으로만 토큰화됩니다.
     이 값은 str을 입력 받아 `PretokenizedTokenList`를 반환하는 `Callable`로 주어지거나, `PretokenizedTokenList` 값 단독으로 주어질 수 있습니다.
+    각 외부 구간은 Python code point 기준으로 `0 <= begin < end <= len(text)`를 만족해야 하며,
+    내부 `PretokenizedToken`의 구간도 해당 외부 구간 안에 있어야 합니다.
     `text`가 `Iterable[str]`인 경우 `pretokenized`는 None 혹은 `Callable`로 주어져야 합니다. 자세한 것은 아래 Notes의 예시를 참조하십시오.
 allowed_dialects: Union[Dialect, str]
     .. versionadded:: 0.22.0

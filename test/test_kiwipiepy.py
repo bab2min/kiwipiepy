@@ -197,6 +197,70 @@ def test_pretokenized_non_bmp_offsets():
         for tokens in kiwi.tokenize(iter(texts), pretokenized=pretokenized)
     ] == [expected, expected]
 
+def test_pretokenized_ranges_reject_empty_and_overflow():
+    """native 입력도 빈 범위와 uint32 범위를 안전하게 거절한다."""
+    from _kiwipiepy import _Kiwi
+
+    kiwi = Kiwi()
+    native_args = (
+        'AB', 1, Match.ALL, False, None, False, 0, 3.0,
+        None, 2.5,
+    )
+
+    def assert_value_error(fn):
+        try:
+            fn()
+        except ValueError:
+            return
+        raise AssertionError('expected ValueError')
+
+    # 빈 group만 여럿 넘겨도 병합용 임시 배열의 첫 원소를 읽지 않아야 한다.
+    ordinary = _Kiwi.analyze(kiwi, *native_args, None, kiwi.global_config)
+    empty_groups = _Kiwi.analyze(kiwi, *native_args, [[], []], kiwi.global_config)
+    assert [
+        [token.tagged_form for token in tokens] for tokens, _ in empty_groups
+    ] == [
+        [token.tagged_form for token in tokens] for tokens, _ in ordinary
+    ]
+
+    # 공개 래퍼의 사전 검사를 우회하는 native 호출도 zero-width span으로
+    # splitter가 길이 - 1을 계산하지 않도록 ValueError로 끝나야 한다.
+    for pretokenized in [
+        [[(0, 0)]],
+        [[(1, 1)]],
+        [[(2, 1)]],
+        [[(0, 3)]],
+    ]:
+        assert_value_error(lambda pretokenized=pretokenized: _Kiwi.analyze(
+            kiwi, *native_args, pretokenized, kiwi.global_config,
+        ))
+
+    # Python int를 uint32_t로 바로 좁히면 2**32가 0이 된다. outer와 inner
+    # 위치 모두 변환 전에 거절해 잘못된 원문 범위로 분석하지 않게 한다.
+    overflow = 2 ** 32
+    for pretokenized in [
+        [[(overflow, overflow + 1)]],
+        [[(0, 2, ('A', 'SL', overflow, overflow + 1))]],
+    ]:
+        assert_value_error(lambda pretokenized=pretokenized: _Kiwi.analyze(
+            kiwi, *native_args, pretokenized, kiwi.global_config,
+        ))
+
+    for pretokenized in [[(0, 0)], [(1, 1)]]:
+        assert_value_error(lambda pretokenized=pretokenized: kiwi.tokenize(
+            'AB', pretokenized=pretokenized,
+        ))
+
+    invalid_tokens = [
+        PretokenizedToken('A', 'SL', -1, 1),
+        PretokenizedToken('A', 'SL', 1, 0),
+        PretokenizedToken('A', 'SL', 0, 3),
+    ]
+    for token in invalid_tokens:
+        assert_value_error(lambda token=token: kiwi.tokenize(
+            'AB', pretokenized=[(0, 2, token)],
+        ))
+
 def test_re_word():
     text = '{평만경(平滿景)}이 사람을 시켜 {침향(沈香)} 10냥쭝을 바쳤으므로'
 
