@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <fstream>
 #include <algorithm>
+#include <limits>
 #include <mutex>
 #include <shared_mutex>
 
@@ -1720,6 +1721,18 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 	}
 };
 
+inline uint32_t toPretokenizedOffset(uint64_t offset)
+{
+	// PretokenizedSpan과 BasicToken은 uint32_t offset만 저장한다. Python int를
+	// 먼저 좁히면 2^32가 0으로 돌아가 유효한 원문 범위처럼 보일 수 있으므로
+	// 변환 전에 공통으로 상한을 검사한다.
+	if (offset > numeric_limits<uint32_t>::max())
+	{
+		throw py::ValueError{ "`pretokenized` offsets must be in the uint32_t range." };
+	}
+	return (uint32_t)offset;
+}
+
 inline pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> makePretokenizedSpans(PyObject* obj)
 {
 	vector<PretokenizedSpan> ret;
@@ -1732,14 +1745,22 @@ inline pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> makePretokenizedSpa
 	py::foreach<PyObject*>(obj, [&](PyObject* group)
 	{
 		py::foreachVisit<variant<
-			tuple<uint32_t, uint32_t>,
-			tuple<uint32_t, uint32_t, PyObject*>,
-			tuple<uint32_t, uint32_t, PyObject*, PyObject*>
+			tuple<uint64_t, uint64_t>,
+			tuple<uint64_t, uint64_t, PyObject*>,
+			tuple<uint64_t, uint64_t, PyObject*, PyObject*>
 		>>(group, [&](auto&& item)
 		{
 			using T = decay_t<decltype(item)>;
-			ret.emplace_back(PretokenizedSpan{ get<0>(item), get<1>(item) });
-			if constexpr (is_same_v<T, tuple<uint32_t, uint32_t, PyObject*>> || is_same_v<T, tuple<uint32_t, uint32_t, PyObject*, PyObject*>>)
+			const auto begin = toPretokenizedOffset(get<0>(item));
+			const auto end = toPretokenizedOffset(get<1>(item));
+			// 단순 품사 표기에서 end - begin을 저장하기 전에 빈/역방향
+			// span을 거절해 unsigned wraparound가 뒤 경계 검사를 우회하지 않게 한다.
+			if (begin >= end)
+			{
+				throw py::ValueError{ "A `pretokenized` span must be a non-empty range." };
+			}
+			ret.emplace_back(PretokenizedSpan{ begin, end });
+			if constexpr (is_same_v<T, tuple<uint64_t, uint64_t, PyObject*>> || is_same_v<T, tuple<uint64_t, uint64_t, PyObject*, PyObject*>>)
 			{
 				if (PyUnicode_Check(get<2>(item))) // POSTag
 				{
@@ -1749,12 +1770,12 @@ inline pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> makePretokenizedSpa
 					auto& token = ret.back().tokenization.back();
 					token.tag = tag;
 					token.begin = 0;
-					token.end = get<1>(item) - get<0>(item);
+					token.end = end - begin;
 				}
 				else
 				{
-					tuple<u16string, u16string, size_t, size_t> singleItem;
-					if (py::toCpp<tuple<u16string, u16string, size_t, size_t>>(get<2>(item), singleItem))
+					tuple<u16string, u16string, uint64_t, uint64_t> singleItem;
+					if (py::toCpp<tuple<u16string, u16string, uint64_t, uint64_t>>(get<2>(item), singleItem))
 					{
 						auto tag = parseTag(get<1>(singleItem));
 						if (tag == POSTag::max) throw py::ValueError{ "wrong tag value: " + utf16To8(get<1>(singleItem)) };
@@ -1762,12 +1783,12 @@ inline pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> makePretokenizedSpa
 						auto& token = ret.back().tokenization.back();
 						token.form = move(get<0>(singleItem));
 						token.tag = tag;
-						token.begin = get<2>(singleItem);
-						token.end = get<3>(singleItem);
+						token.begin = toPretokenizedOffset(get<2>(singleItem));
+						token.end = toPretokenizedOffset(get<3>(singleItem));
 					}
 					else
 					{
-						py::foreach<tuple<u16string, u16string, size_t, size_t>>(get<2>(item), [&](auto&& i)
+						py::foreach<tuple<u16string, u16string, uint64_t, uint64_t>>(get<2>(item), [&](auto&& i)
 						{
 							auto tag = parseTag(get<1>(i));
 							if (tag == POSTag::max) throw py::ValueError{ "wrong tag value: " + utf16To8(get<1>(i)) };
@@ -1775,14 +1796,14 @@ inline pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> makePretokenizedSpa
 							auto& token = ret.back().tokenization.back();
 							token.form = move(get<0>(i));
 							token.tag = tag;
-							token.begin = get<2>(i);
-							token.end = get<3>(i);
+							token.begin = toPretokenizedOffset(get<2>(i));
+							token.end = toPretokenizedOffset(get<3>(i));
 						}, "");
 					}
 				}
 			}
 
-			if constexpr (is_same_v<T, tuple<uint32_t, uint32_t, PyObject*, PyObject*>>)
+			if constexpr (is_same_v<T, tuple<uint64_t, uint64_t, PyObject*, PyObject*>>)
 			{
 				userValues.emplace_back(py::UniqueObj{ get<3>(item) });
 				Py_INCREF(userValues.back().get());
@@ -1795,7 +1816,7 @@ inline pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> makePretokenizedSpa
 		groupBoundaries.emplace_back(ret.size());
 	}, "`pretokenized` must be an iterable of `Tuple[int, int]`, `Tuple[int, int, str]`, `Tuple[int, int, List[Token]]`");
 
-	if (groupBoundaries.size() > 1)
+	if (groupBoundaries.size() > 1 && !ret.empty())
 	{
 		spanPtrs.reserve(ret.size());
 		size_t g = 0;
@@ -1845,15 +1866,32 @@ inline pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> makePretokenizedSpa
 
 inline void updatePretokenizedSpanToU16(vector<PretokenizedSpan>& spans, const py::StringWithOffset<u16string>& so)
 {
+	const size_t sourceLength = so.offsets.empty() ? 0 : so.offsets.size() - 1;
 	for (auto& s : spans)
 	{
+		// 외부 span과 내부 Token 위치는 Python code point 단위다. UTF-16
+		// 위치표를 참조하기 전에 두 범위를 모두 검증해 잘못된 인덱스를 막는다.
+		if (s.begin >= s.end || s.end > sourceLength)
+		{
+			throw py::ValueError{ "A `pretokenized` span is outside the source text." };
+		}
+		const size_t spanBegin = s.begin;
+		const size_t spanEnd = s.end;
+		const size_t spanLength = spanEnd - spanBegin;
+		const size_t u16SpanBegin = so.offsets[spanBegin];
 		for (auto& t : s.tokenization)
 		{
-			t.begin = so.offsets[s.begin + t.begin] - so.offsets[s.begin];
-			t.end = so.offsets[s.begin + t.end] - so.offsets[s.begin];
+			// 기존 API가 허용하던 zero-length 내부 형태소는 유지하고, 역방향
+			// 위치와 outer span 밖의 위치만 거절해 호환성을 보존한다.
+			if (t.begin > t.end || t.end > spanLength)
+			{
+				throw py::ValueError{ "A token in `pretokenized` is outside its span." };
+			}
+			t.begin = so.offsets[spanBegin + t.begin] - u16SpanBegin;
+			t.end = so.offsets[spanBegin + t.end] - u16SpanBegin;
 		}
-		s.begin = so.offsets[s.begin];
-		s.end = so.offsets[s.end];
+		s.begin = u16SpanBegin;
+		s.end = so.offsets[spanEnd];
 
 		if (s.tokenization.size() == 1 && s.tokenization[0].form.empty())
 		{
