@@ -1081,3 +1081,108 @@ def test_issue_216():
     tokens = kiwi.tokenize("테스트용\ufeff문자열입니다.")
     for token in tokens:
         assert token.form
+
+
+def test_split():
+    kiwi = Kiwi()
+    cases = {
+        '했다': ['했', '다'],
+        '하였다': ['하', '였', '다'],
+        '귀여워요': ['귀여워요'],
+        '걸어': ['걸', '어'],
+        '학생입니다': ['학생', '입니다'],
+        '도와': ['도', '와'],
+        '안녕하세요': ['안녕', '하', '세요'],
+    }
+    for text, expected in cases.items():
+        assert kiwi.split(text) == expected
+
+    assert kiwi.split('시곗바늘', saisiot=True) == ['시곗', '바늘']
+    assert kiwi.split(
+        'ABC',
+        pretokenized=[(0, 1, [PretokenizedToken('X', 'NNP', 0, 1)])],
+    ) == ['A', 'BC']
+
+    text = ' \t😀했다  안녕\n'
+    parts = kiwi.split(text)
+    assert parts == ['😀', '했', '다', '안녕']
+
+    assert kiwi.split('\u2800') == []
+    assert kiwi.split('A\u2800B') == ['A', 'B']
+
+    assert kiwi.split(
+        'A B',
+        pretokenized=[(0, 3, 'NNP')],
+    ) == ['A B']
+    assert kiwi.split('랠프 월도 에머슨') == ['랠프 월도 에머슨']
+
+    texts = ['했다', '귀여워요', '']
+    expected = [['했', '다'], ['귀여워요'], []]
+    assert list(kiwi.split(iter(texts))) == expected
+    assert list(kiwi.split(iter(texts), echo=True)) == list(zip(expected, texts))
+
+
+def test_split_with_tags():
+    kiwi = Kiwi()
+    cases = {
+        '했다': [('했', 'VV+EP'), ('다', 'EF')],
+        '시켰어요': [('시켰', 'VV+EP'), ('어요', 'EF')],
+        '학생입니다': [('학생', 'NNG'), ('입니다', 'VCP+EF')],
+        '거야': [('거', 'NNB'), ('야', 'VCP+EF')],
+        '랠프 월도 에머슨': [('랠프 월도 에머슨', 'NNP')],
+    }
+    for text, expected in cases.items():
+        assert kiwi.split(text, return_tags=True) == expected
+
+    assert kiwi.split('시곗바늘', saisiot=True, return_tags=True) == [
+        ('시곗', 'NNG+Z_SIOT'),
+        ('바늘', 'NNG'),
+    ]
+    assert kiwi.split('A\u2800B', return_tags=True) == [('A', 'SL'), ('B', 'SL')]
+
+    assert kiwi.split(
+        'A B',
+        pretokenized=[(0, 3, 'NNP')],
+        return_tags=True,
+    ) == [('A B', 'NNP')]
+
+    texts = ['했다', '']
+    expected = [[('했', 'VV+EP'), ('다', 'EF')], []]
+    assert list(kiwi.split(iter(texts), return_tags=True)) == expected
+    assert list(kiwi.split(iter(texts), return_tags=True, echo=True)) == list(zip(expected, texts))
+
+
+def test_split_by_spans_boundaries():
+    from types import SimpleNamespace
+    from kiwipiepy._wrap import _split_by_spans
+
+    def token(form, tag, start, end):
+        return SimpleNamespace(form=form, tag=tag, start=start, end=end)
+
+    # Token이 없는 구간은 버리되 하나의 Token span 내부 공백은 보존합니다.
+    assert _split_by_spans('A\u2800B', [
+        token('A', 'SL', 0, 1),
+        token('B', 'SL', 2, 3),
+    ]) == ['A', 'B']
+    assert _split_by_spans('A B', [token('A B', 'NNP', 0, 3)]) == ['A B']
+
+    # 태그 순서는 위치 정렬 순서가 아니라 형태소 분석 결과 순서를 따릅니다.
+    crossed = [
+        token('B', 'EP', 1, 2),
+        token('AB', 'VV', 0, 2),
+    ]
+    assert _split_by_spans('AB', crossed, return_tags=True) == [('AB', 'EP+VV')]
+
+    # 길이가 0인 Token은 다음 표면형에, 다음 표면형이 없으면 이전에 결합합니다.
+    assert _split_by_spans('AB', [
+        token('A', 'NNG', 0, 1),
+        token('이', 'VCP', 1, 1),
+        token('B', 'EF', 1, 2),
+    ], return_tags=True) == [('A', 'NNG'), ('B', 'VCP+EF')]
+    assert _split_by_spans('A', [
+        token('A', 'NNG', 0, 1),
+        token('만', 'JX', 1, 1),
+    ], return_tags=True) == [('A', 'NNG+JX')]
+    assert _split_by_spans('', [
+        token('이', 'VCP', 0, 0),
+    ], return_tags=True) == []
