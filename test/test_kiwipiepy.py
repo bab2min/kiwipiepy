@@ -3,6 +3,7 @@ import sys
 import re
 import tempfile
 import itertools
+import pickle
 
 from kiwipiepy import Kiwi, SplitToken, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings, Match
 from kiwipiepy.utils import Stopwords
@@ -1153,6 +1154,38 @@ def test_split():
     ]
     assert list(kiwi.split(iter(texts))) == expected
     assert list(kiwi.split(iter(texts), echo=True)) == list(zip(expected, texts))
+
+    pretokenized_inputs = []
+
+    def pretokenize(text):
+        pretokenized_inputs.append(text)
+        return [(0, len(text), 'NNP')]
+
+    texts = ['A B', 'CD']
+    expected = [
+        [SplitToken('A B', 'NNP', 0, 3)],
+        [SplitToken('CD', 'NNP', 0, 2)],
+    ]
+    assert list(kiwi.split(iter(texts), pretokenized=pretokenize)) == expected
+    assert pretokenized_inputs == texts
+
+    pretokenized_inputs.clear()
+    assert list(kiwi.split(
+        iter(texts), pretokenized=pretokenize, echo=True,
+    )) == list(zip(expected, texts))
+    assert pretokenized_inputs == texts
+
+
+def test_split_token():
+    token = SplitToken('했', 'VV+EP', 0, 1)
+
+    assert token.form == '했'
+    assert token.tag == 'VV+EP'
+    assert token.start == 0
+    assert token.len == 1
+    assert token == SplitToken('했', 'VV+EP', 0, 1)
+    assert SplitToken.__module__ == 'kiwipiepy'
+    assert pickle.loads(pickle.dumps(token)) == token
 
 
 def test_split_by_spans_boundaries():

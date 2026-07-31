@@ -42,6 +42,7 @@ def _split_by_spans(
         start, end = tokens[token_index].start, tokens[token_index].end
         if start == end:
             continue
+        # 겹치는 구간은 합치고, 맞닿기만 한 구간은 따로 둡니다.
         if spans and start < spans[-1][1]:
             spans[-1][1] = max(spans[-1][1], end)
         else:
@@ -56,7 +57,7 @@ def _split_by_spans(
         elif tokens[token_index].start == tokens[token_index].end:
             token_span_indices[token_index] = next_span_index
 
-    # 마지막에 놓인 길이 0 형태소는 앞선 표면 구간에 결합합니다.
+    # 뒤에 표면 구간이 없는 길이 0 형태소는 앞선 표면 구간에 결합합니다.
     previous_span_index = None
     for token_index, token in enumerate(tokens):
         if token_span_indices[token_index] is not None:
@@ -1863,8 +1864,10 @@ split_complex: bool
     `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 compatible_jamo: bool
     `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
-saisiot: bool
+saisiot: Optional[bool]
     `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+echo: bool
+    text가 str의 Iterable이고 이 값이 True이면 분할 결과와 원문을 함께 반환합니다.
 blocklist: Union[MorphemeSet, Iterable[str]]
     `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 open_ending: bool
@@ -1883,8 +1886,6 @@ typo_cost_threshold: float
     `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 override_config: KiwiConfig
     `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
-echo: bool
-    text가 str의 Iterable이고 이 값이 True이면 분할 결과와 원문을 함께 반환합니다.
 
 Returns
 -------
@@ -1902,10 +1903,13 @@ Notes
 >>> kiwi.split('했다')
 [SplitToken(form='했', tag='VV+EP', start=0, len=1),
  SplitToken(form='다', tag='EF', start=1, len=1)]
+>>> [part.form for part in kiwi.split('했다')]
+['했', '다']
 >>> kiwi.split('랠프 월도 에머슨')
 [SplitToken(form='랠프 월도 에머슨', tag='NNP', start=0, len=9)]
 ```
         '''
+        # iterable 입력의 각 분석 결과를 원문과 다시 대응시키기 위해 내부 echo를 켭니다.
         result = self._tokenize(
             text, match_options, normalize_coda, z_coda, split_complex,
             compatible_jamo, saisiot, False, None,
