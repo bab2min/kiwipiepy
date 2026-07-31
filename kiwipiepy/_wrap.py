@@ -13,13 +13,27 @@ from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match, Dialect
 from kiwipiepy.template import Template
 
+
+@dataclass
+class SplitToken:
+    '''원문의 표면형을 보존한 분할 결과를 담는 데이터 클래스입니다.
+
+    `form`은 원문에서 잘라낸 표면형이며, `tag`는 해당 구간에 대응하는
+    형태소들의 품사 태그를 분석 결과 순서대로 `+`로 연결한 값입니다.
+    `start`와 `len`은 입력 텍스트 내 위치와 길이를 문자 단위로 나타냅니다.
+    '''
+    form: str
+    tag: str
+    start: int
+    len: int
+
+
 def _split_by_spans(
     text: str,
     tokens: List[Token],
-    return_tags: bool = False,
-) -> Union[List[str], List[Tuple[str, str]]]:
+) -> List[SplitToken]:
     spans = []
-    token_span_indices = [None] * len(tokens) if return_tags else None
+    token_span_indices = [None] * len(tokens)
     sorted_token_indices = sorted(
         range(len(tokens)),
         key=lambda i: (tokens[i].start, tokens[i].end),
@@ -32,12 +46,7 @@ def _split_by_spans(
             spans[-1][1] = max(spans[-1][1], end)
         else:
             spans.append([start, end])
-        if token_span_indices is not None:
-            token_span_indices[token_index] = len(spans) - 1
-
-    surfaces = [text[start:end] for start, end in spans]
-    if token_span_indices is None:
-        return surfaces
+        token_span_indices[token_index] = len(spans) - 1
 
     # 길이가 0인 형태소는 분석 순서상 다음 표면 구간에 결합합니다.
     next_span_index = None
@@ -60,8 +69,8 @@ def _split_by_spans(
         if span_index is not None:
             tags[span_index].append(token.tag)
     return [
-        (surface, '+'.join(tag_group))
-        for surface, tag_group in zip(surfaces, tags)
+        SplitToken(text[start:end], '+'.join(tag_group), start, end - start)
+        for (start, end), tag_group in zip(spans, tags)
     ]
 
 
@@ -1826,14 +1835,10 @@ Notes
         typos:Optional[Union[str, TypoTransformer]] = None,
         typo_cost_threshold:float = 2.5,
         override_config:Optional[KiwiConfig] = None,
-        return_tags:bool = False,
     ) -> Union[
-        List[str],
-        List[Tuple[str, str]],
-        Iterable[List[str]],
-        Iterable[List[Tuple[str, str]]],
-        Iterable[Tuple[List[str], str]],
-        Iterable[Tuple[List[Tuple[str, str]], str]],
+        List[SplitToken],
+        Iterable[List[SplitToken]],
+        Iterable[Tuple[List[SplitToken], str]],
     ]:
         '''Kiwi의 형태소 분석 경계에 맞춰 원문의 표면형을 나눕니다.
 
@@ -1841,7 +1846,8 @@ Notes
 Token 구간은 각각 나누어 반환합니다. Token이 없는 원문 구간은 결과에서
 제외하지만, 하나의 Token 구간 안에 포함된 공백은 원문 그대로 보존합니다.
 길이가 0인 Token은 분석 순서상 다음 표면형의 품사 태그에 결합하며, 다음
-표면형이 없을 때에는 이전 표면형에 결합합니다.
+표면형이 없을 때에는 이전 표면형에 결합합니다. 각 결과는 원문의 표면형,
+결합된 품사 태그, 원문 내 시작 위치와 길이를 담은 `SplitToken`입니다.
 
 Parameters
 ----------
@@ -1879,17 +1885,14 @@ override_config: KiwiConfig
     `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
 echo: bool
     text가 str의 Iterable이고 이 값이 True이면 분할 결과와 원문을 함께 반환합니다.
-return_tags: bool
-    True이면 `(표면형, 품사 태그)` 튜플의 목록을 반환합니다. 하나의 표면형에
-    여러 형태소가 대응하면 분석 결과 순서대로 품사 태그를 `+`로 연결합니다.
 
 Returns
 -------
-result: List[str] or List[Tuple[str, str]]
+result: List[SplitToken]
     text가 단일 str일 때의 분할 결과입니다.
-results: Iterable[List[str]] or Iterable[List[Tuple[str, str]]]
+results: Iterable[List[SplitToken]]
     text가 str의 Iterable일 때의 분할 결과입니다.
-results_with_echo: Iterable[Tuple[List[str], str]] or Iterable[Tuple[List[Tuple[str, str]], str]]
+results_with_echo: Iterable[Tuple[List[SplitToken], str]]
     text가 str의 Iterable이고 `echo=True`일 때의 분할 결과와 원문입니다.
 
 Notes
@@ -1897,11 +1900,10 @@ Notes
 
 ```python
 >>> kiwi.split('했다')
-['했', '다']
->>> kiwi.split('했다', return_tags=True)
-[('했', 'VV+EP'), ('다', 'EF')]
->>> kiwi.split('랠프 월도 에머슨', return_tags=True)
-[('랠프 월도 에머슨', 'NNP')]
+[SplitToken(form='했', tag='VV+EP', start=0, len=1),
+ SplitToken(form='다', tag='EF', start=1, len=1)]
+>>> kiwi.split('랠프 월도 에머슨')
+[SplitToken(form='랠프 월도 에머슨', tag='NNP', start=0, len=9)]
 ```
         '''
         result = self._tokenize(
@@ -1915,11 +1917,11 @@ Notes
             override_config=override_config,
         )
         if isinstance(text, str):
-            return _split_by_spans(text, result, return_tags)
+            return _split_by_spans(text, result)
 
         def _split_result(item):
             tokens, raw_input = item
-            parts = _split_by_spans(raw_input, tokens, return_tags)
+            parts = _split_by_spans(raw_input, tokens)
             return (parts, raw_input) if echo else parts
         return map(_split_result, result)
 

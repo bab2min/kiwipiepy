@@ -4,7 +4,7 @@ import re
 import tempfile
 import itertools
 
-from kiwipiepy import Kiwi, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings, Match
+from kiwipiepy import Kiwi, SplitToken, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings, Match
 from kiwipiepy.utils import Stopwords
 
 curpath = os.path.dirname(os.path.abspath(__file__))
@@ -1086,70 +1086,73 @@ def test_issue_216():
 def test_split():
     kiwi = Kiwi()
     cases = {
-        '했다': ['했', '다'],
-        '하였다': ['하', '였', '다'],
-        '귀여워요': ['귀여워요'],
-        '걸어': ['걸', '어'],
-        '학생입니다': ['학생', '입니다'],
-        '도와': ['도', '와'],
-        '안녕하세요': ['안녕', '하', '세요'],
+        '했다': [SplitToken('했', 'VV+EP', 0, 1), SplitToken('다', 'EF', 1, 1)],
+        '하였다': [
+            SplitToken('하', 'VV', 0, 1),
+            SplitToken('였', 'EP', 1, 1),
+            SplitToken('다', 'EF', 2, 1),
+        ],
+        '귀여워요': [SplitToken('귀여워요', 'VA-I+EF', 0, 4)],
+        '걸어': [SplitToken('걸', 'VV-I', 0, 1), SplitToken('어', 'EF', 1, 1)],
+        '학생입니다': [
+            SplitToken('학생', 'NNG', 0, 2),
+            SplitToken('입니다', 'VCP+EF', 2, 3),
+        ],
+        '도와': [SplitToken('도', 'VV-I', 0, 1), SplitToken('와', 'EF', 1, 1)],
+        '안녕하세요': [
+            SplitToken('안녕', 'NNG', 0, 2),
+            SplitToken('하', 'XSA', 2, 1),
+            SplitToken('세요', 'EF', 3, 2),
+        ],
     }
     for text, expected in cases.items():
-        assert kiwi.split(text) == expected
+        result = kiwi.split(text)
+        assert result == expected
+        assert all(part.form == text[part.start:part.start + part.len] for part in result)
 
-    assert kiwi.split('시곗바늘', saisiot=True) == ['시곗', '바늘']
+    assert kiwi.split('시곗바늘', saisiot=True) == [
+        SplitToken('시곗', 'NNG+Z_SIOT', 0, 2),
+        SplitToken('바늘', 'NNG', 2, 2),
+    ]
+    assert kiwi.split('시곗바늘', saisiot=False) == [
+        SplitToken('시곗바늘', 'NNG', 0, 4),
+    ]
     assert kiwi.split(
         'ABC',
         pretokenized=[(0, 1, [PretokenizedToken('X', 'NNP', 0, 1)])],
-    ) == ['A', 'BC']
+    ) == [SplitToken('A', 'NNP', 0, 1), SplitToken('BC', 'SL', 1, 2)]
 
     text = ' \t😀했다  안녕\n'
     parts = kiwi.split(text)
-    assert parts == ['😀', '했', '다', '안녕']
+    assert parts == [
+        SplitToken('😀', 'W_EMOJI', 2, 1),
+        SplitToken('했', 'XSV+EP', 3, 1),
+        SplitToken('다', 'EF', 4, 1),
+        SplitToken('안녕', 'IC', 7, 2),
+    ]
 
     assert kiwi.split('\u2800') == []
-    assert kiwi.split('A\u2800B') == ['A', 'B']
+    assert kiwi.split('A\u2800B') == [
+        SplitToken('A', 'SL', 0, 1),
+        SplitToken('B', 'SL', 2, 1),
+    ]
 
     assert kiwi.split(
         'A B',
         pretokenized=[(0, 3, 'NNP')],
-    ) == ['A B']
-    assert kiwi.split('랠프 월도 에머슨') == ['랠프 월도 에머슨']
+    ) == [SplitToken('A B', 'NNP', 0, 3)]
+    assert kiwi.split('랠프 월도 에머슨') == [
+        SplitToken('랠프 월도 에머슨', 'NNP', 0, 9),
+    ]
 
     texts = ['했다', '귀여워요', '']
-    expected = [['했', '다'], ['귀여워요'], []]
+    expected = [
+        [SplitToken('했', 'VV+EP', 0, 1), SplitToken('다', 'EF', 1, 1)],
+        [SplitToken('귀여워요', 'VA-I+EF', 0, 4)],
+        [],
+    ]
     assert list(kiwi.split(iter(texts))) == expected
     assert list(kiwi.split(iter(texts), echo=True)) == list(zip(expected, texts))
-
-
-def test_split_with_tags():
-    kiwi = Kiwi()
-    cases = {
-        '했다': [('했', 'VV+EP'), ('다', 'EF')],
-        '시켰어요': [('시켰', 'VV+EP'), ('어요', 'EF')],
-        '학생입니다': [('학생', 'NNG'), ('입니다', 'VCP+EF')],
-        '거야': [('거', 'NNB'), ('야', 'VCP+EF')],
-        '랠프 월도 에머슨': [('랠프 월도 에머슨', 'NNP')],
-    }
-    for text, expected in cases.items():
-        assert kiwi.split(text, return_tags=True) == expected
-
-    assert kiwi.split('시곗바늘', saisiot=True, return_tags=True) == [
-        ('시곗', 'NNG+Z_SIOT'),
-        ('바늘', 'NNG'),
-    ]
-    assert kiwi.split('A\u2800B', return_tags=True) == [('A', 'SL'), ('B', 'SL')]
-
-    assert kiwi.split(
-        'A B',
-        pretokenized=[(0, 3, 'NNP')],
-        return_tags=True,
-    ) == [('A B', 'NNP')]
-
-    texts = ['했다', '']
-    expected = [[('했', 'VV+EP'), ('다', 'EF')], []]
-    assert list(kiwi.split(iter(texts), return_tags=True)) == expected
-    assert list(kiwi.split(iter(texts), return_tags=True, echo=True)) == list(zip(expected, texts))
 
 
 def test_split_by_spans_boundaries():
@@ -1163,26 +1166,48 @@ def test_split_by_spans_boundaries():
     assert _split_by_spans('A\u2800B', [
         token('A', 'SL', 0, 1),
         token('B', 'SL', 2, 3),
-    ]) == ['A', 'B']
-    assert _split_by_spans('A B', [token('A B', 'NNP', 0, 3)]) == ['A B']
+    ]) == [SplitToken('A', 'SL', 0, 1), SplitToken('B', 'SL', 2, 1)]
+    assert _split_by_spans('A B', [token('A B', 'NNP', 0, 3)]) == [
+        SplitToken('A B', 'NNP', 0, 3),
+    ]
+    assert _split_by_spans('A B', [
+        token('B', 'TB', 2, 3),
+        token('A', 'TA', 0, 1),
+    ]) == [SplitToken('A', 'TA', 0, 1), SplitToken('B', 'TB', 2, 1)]
 
     # 태그 순서는 위치 정렬 순서가 아니라 형태소 분석 결과 순서를 따릅니다.
     crossed = [
         token('B', 'EP', 1, 2),
         token('AB', 'VV', 0, 2),
     ]
-    assert _split_by_spans('AB', crossed, return_tags=True) == [('AB', 'EP+VV')]
+    assert _split_by_spans('AB', crossed) == [SplitToken('AB', 'EP+VV', 0, 2)]
+
+    # 연쇄적으로 겹치는 구간은 합치되 맞닿기만 한 구간은 따로 둡니다.
+    assert _split_by_spans('ABCDE', [
+        token('BC', 'EP', 1, 3),
+        token('AB', 'VV', 0, 2),
+        token('D', 'NNG', 3, 4),
+        token('E', 'JX', 4, 5),
+    ]) == [
+        SplitToken('ABC', 'EP+VV', 0, 3),
+        SplitToken('D', 'NNG', 3, 1),
+        SplitToken('E', 'JX', 4, 1),
+    ]
 
     # 길이가 0인 Token은 다음 표면형에, 다음 표면형이 없으면 이전에 결합합니다.
+    assert _split_by_spans('A', [
+        token('만', 'JX', 0, 0),
+        token('A', 'NNG', 0, 1),
+    ]) == [SplitToken('A', 'JX+NNG', 0, 1)]
     assert _split_by_spans('AB', [
         token('A', 'NNG', 0, 1),
         token('이', 'VCP', 1, 1),
         token('B', 'EF', 1, 2),
-    ], return_tags=True) == [('A', 'NNG'), ('B', 'VCP+EF')]
+    ]) == [SplitToken('A', 'NNG', 0, 1), SplitToken('B', 'VCP+EF', 1, 1)]
     assert _split_by_spans('A', [
         token('A', 'NNG', 0, 1),
         token('만', 'JX', 1, 1),
-    ], return_tags=True) == [('A', 'NNG+JX')]
+    ]) == [SplitToken('A', 'NNG+JX', 0, 1)]
     assert _split_by_spans('', [
         token('이', 'VCP', 0, 0),
-    ], return_tags=True) == []
+    ]) == []
