@@ -13,6 +13,67 @@ from kiwipiepy.utils import Stopwords
 from kiwipiepy.const import Match, Dialect
 from kiwipiepy.template import Template
 
+
+@dataclass
+class SplitToken:
+    '''원문의 표면형을 보존한 분할 결과를 담는 데이터 클래스입니다.
+
+    `form`은 원문에서 잘라낸 표면형이며, `tag`는 해당 구간에 대응하는
+    형태소들의 품사 태그를 분석 결과 순서대로 `+`로 연결한 값입니다.
+    `start`와 `len`은 입력 텍스트 내 위치와 길이를 문자 단위로 나타냅니다.
+    '''
+    form: str
+    tag: str
+    start: int
+    len: int
+
+
+def _split_by_spans(
+    text: str,
+    tokens: List[Token],
+) -> List[SplitToken]:
+    spans = []
+    token_span_indices = [None] * len(tokens)
+    sorted_token_indices = sorted(
+        range(len(tokens)),
+        key=lambda i: (tokens[i].start, tokens[i].end),
+    )
+    for token_index in sorted_token_indices:
+        start, end = tokens[token_index].start, tokens[token_index].end
+        if start == end:
+            continue
+        if spans and start < spans[-1][1]:
+            spans[-1][1] = max(spans[-1][1], end)
+        else:
+            spans.append([start, end])
+        token_span_indices[token_index] = len(spans) - 1
+
+    # 길이가 0인 형태소는 분석 순서상 다음 표면 구간에 결합합니다.
+    next_span_index = None
+    for token_index in reversed(range(len(tokens))):
+        if token_span_indices[token_index] is not None:
+            next_span_index = token_span_indices[token_index]
+        elif tokens[token_index].start == tokens[token_index].end:
+            token_span_indices[token_index] = next_span_index
+
+    # 마지막에 놓인 길이 0 형태소는 앞선 표면 구간에 결합합니다.
+    previous_span_index = None
+    for token_index, token in enumerate(tokens):
+        if token_span_indices[token_index] is not None:
+            previous_span_index = token_span_indices[token_index]
+        elif token.start == token.end:
+            token_span_indices[token_index] = previous_span_index
+
+    tags = [[] for _ in spans]
+    for token, span_index in zip(tokens, token_span_indices):
+        if span_index is not None:
+            tags[span_index].append(token.tag)
+    return [
+        SplitToken(text[start:end], '+'.join(tag_group), start, end - start)
+        for (start, end), tag_group in zip(spans, tags)
+    ]
+
+
 class Sentence(NamedTuple):
     '''문장 분할 결과를 담기 위한 `namedtuple`입니다.'''
     text: str
@@ -1742,9 +1803,9 @@ Notes
 [Token(form='시곗바늘', tag='NNG', start=0, len=4)]
 ```
         '''
-        return self._tokenize(text, match_options, normalize_coda, 
+        return self._tokenize(text, match_options, normalize_coda,
                               z_coda, split_complex, compatible_jamo, saisiot,
-                              split_sents, stopwords, echo, 
+                              split_sents, stopwords, echo,
                               blocklist=blocklist, 
                               open_ending=open_ending,
                               allowed_dialects=allowed_dialects,
@@ -1755,6 +1816,114 @@ Notes
                               typo_cost_threshold=typo_cost_threshold,
                               override_config=override_config,
                               )
+
+    def split(self,
+        text:Union[str, Iterable[str]],
+        match_options:int = Match.ALL,
+        normalize_coda:bool = False,
+        z_coda:bool = True,
+        split_complex:bool = False,
+        compatible_jamo:bool = False,
+        saisiot:Optional[bool] = None,
+        echo:bool = False,
+        blocklist:Optional[Union[Iterable[str], MorphemeSet]] = None,
+        open_ending:bool = False,
+        allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
+        dialect_cost:float = 3.,
+        pretokenized:Optional[Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]] = None,
+        oov_handling:Optional[str] = None,
+        typos:Optional[Union[str, TypoTransformer]] = None,
+        typo_cost_threshold:float = 2.5,
+        override_config:Optional[KiwiConfig] = None,
+    ) -> Union[
+        List[SplitToken],
+        Iterable[List[SplitToken]],
+        Iterable[Tuple[List[SplitToken], str]],
+    ]:
+        '''Kiwi의 형태소 분석 경계에 맞춰 원문의 표면형을 나눕니다.
+
+서로 겹치는 Token 구간은 하나의 결과로 합치고, 겹치지 않고 이어지는
+Token 구간은 각각 나누어 반환합니다. Token이 없는 원문 구간은 결과에서
+제외하지만, 하나의 Token 구간 안에 포함된 공백은 원문 그대로 보존합니다.
+길이가 0인 Token은 분석 순서상 다음 표면형의 품사 태그에 결합하며, 다음
+표면형이 없을 때에는 이전 표면형에 결합합니다. 각 결과는 원문의 표면형,
+결합된 품사 태그, 원문 내 시작 위치와 길이를 담은 `SplitToken`입니다.
+
+Parameters
+----------
+text: Union[str, Iterable[str]]
+    분석할 문자열입니다. 단일 str 또는 str의 Iterable을 사용할 수 있습니다.
+match_options: kiwipiepy.const.Match
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+normalize_coda: bool
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+z_coda: bool
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+split_complex: bool
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+compatible_jamo: bool
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+saisiot: bool
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+blocklist: Union[MorphemeSet, Iterable[str]]
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+open_ending: bool
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+allowed_dialects: Union[Dialect, str]
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+dialect_cost: float
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+pretokenized: Union[Callable[[str], PretokenizedTokenList], PretokenizedTokenList]
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+oov_handling: str
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+typos: Union[str, TypoTransformer]
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+typo_cost_threshold: float
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+override_config: KiwiConfig
+    `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+echo: bool
+    text가 str의 Iterable이고 이 값이 True이면 분할 결과와 원문을 함께 반환합니다.
+
+Returns
+-------
+result: List[SplitToken]
+    text가 단일 str일 때의 분할 결과입니다.
+results: Iterable[List[SplitToken]]
+    text가 str의 Iterable일 때의 분할 결과입니다.
+results_with_echo: Iterable[Tuple[List[SplitToken], str]]
+    text가 str의 Iterable이고 `echo=True`일 때의 분할 결과와 원문입니다.
+
+Notes
+-----
+
+```python
+>>> kiwi.split('했다')
+[SplitToken(form='했', tag='VV+EP', start=0, len=1),
+ SplitToken(form='다', tag='EF', start=1, len=1)]
+>>> kiwi.split('랠프 월도 에머슨')
+[SplitToken(form='랠프 월도 에머슨', tag='NNP', start=0, len=9)]
+```
+        '''
+        result = self._tokenize(
+            text, match_options, normalize_coda, z_coda, split_complex,
+            compatible_jamo, saisiot, False, None,
+            not isinstance(text, str), blocklist=blocklist,
+            open_ending=open_ending, allowed_dialects=allowed_dialects,
+            dialect_cost=dialect_cost, pretokenized=pretokenized,
+            oov_handling=oov_handling, typos=typos,
+            typo_cost_threshold=typo_cost_threshold,
+            override_config=override_config,
+        )
+        if isinstance(text, str):
+            return _split_by_spans(text, result)
+
+        def _split_result(item):
+            tokens, raw_input = item
+            parts = _split_by_spans(raw_input, tokens)
+            return (parts, raw_input) if echo else parts
+        return map(_split_result, result)
 
     def split_into_sents(self, 
         text:Union[str, Iterable[str]], 

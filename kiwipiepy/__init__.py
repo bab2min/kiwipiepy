@@ -6,6 +6,7 @@ from kiwipiepy._version import __version__
 from kiwipiepy._wrap import (
     Kiwi, 
     KiwiConfig,
+    SplitToken,
     Sentence, 
     TypoTransformer, 
     TypoDefinition, 
@@ -29,6 +30,7 @@ from kiwipiepy.default_typo_transformer import (
 )
 
 Kiwi.__module__ = 'kiwipiepy'
+SplitToken.__module__ = 'kiwipiepy'
 Sentence.__module__ = 'kiwipiepy'
 TypoTransformer.__module__ = 'kiwipiepy'
 TypoDefinition.__module__ = 'kiwipiepy'
