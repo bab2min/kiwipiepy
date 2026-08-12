@@ -1,9 +1,12 @@
 name: Pull Request Test
 
-on: 
+on:
   pull_request:
-    branches: 
+    branches:
       - main
+
+env:
+  PIP_ONLY_BINARY: numpy
 
 jobs:
   build_manylinux2014:
@@ -22,8 +25,10 @@ jobs:
     - uses: bab2min/run-on-arch-action@multiple-step-v2
       id: runcmd
       with:
-        image: quay.io/pypa/manylinux2014_x86_64
+        image: quay.io/pypa/manylinux_2_28_x86_64
         githubToken: ${{ github.token }}
+        env: |
+          PIP_ONLY_BINARY: numpy
         multipleRun: |
           - name: Build
             run: |
@@ -36,13 +41,13 @@ jobs:
               rm /usr/local/bin/cmake || true
               ln -s /opt/python/${{ matrix.cp }}/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py` tqdm
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install setuptools "numpy>=2.0" tqdm
 
               cd model
               /opt/python/${{ matrix.cp }}/bin/python setup.py build install
               cd ..
               NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python setup.py build install
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1` || true
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install "numpy<2" || true
           - name: Test kiwipiepy
             run: |
               /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
@@ -83,8 +88,10 @@ jobs:
     - uses: bab2min/run-on-arch-action@multiple-step-v2
       id: runcmd
       with:
-        image: quay.io/pypa/manylinux2014_x86_64
+        image: quay.io/pypa/manylinux_2_28_x86_64
         githubToken: ${{ github.token }}
+        env: |
+          PIP_ONLY_BINARY: numpy
         multipleRun: |
           - name: Build
             run: |
@@ -93,16 +100,16 @@ jobs:
               mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
               mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
 
-              /opt/python/cp39-cp39/bin/pip install "cmake<4"
+              /opt/python/cp311-cp311/bin/pip install "cmake<4"
               rm /usr/local/bin/cmake || true
-              ln -s /opt/python/cp39-cp39/bin/cmake /usr/local/bin/cmake
+              ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/cp39-cp39/bin/python -m pip install setuptools wheel numpy tqdm
+              /opt/python/cp311-cp311/bin/python -m pip install setuptools wheel tqdm
 
               cd model
-              /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+              /opt/python/cp311-cp311/bin/python setup.py bdist_wheel
               cd ..
-              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py bdist_wheel
           - name: Test kiwipiepy
             run: |
               /opt/python/${{ matrix.cp }}/bin/python -m pip install model/dist/*.whl 
@@ -151,14 +158,14 @@ jobs:
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
         
-        python -m pip install numpy==`python .github/workflows/numpy_version.py` setuptools tqdm
+        python -m pip install "numpy>=2.0" setuptools tqdm
 
         cd model
         python setup.py build install
         cd ..
         
         MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 python setup.py build install
-        python -m pip install numpy==`python .github/workflows/numpy_version.py v1` || true
+        python -m pip install "numpy<2" || true
     - name: Archive binary
       uses: actions/upload-artifact@v4
       with:
@@ -195,7 +202,7 @@ jobs:
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
         
-        python -m pip install numpy setuptools wheel tqdm
+        python -m pip install setuptools wheel tqdm
 
         cd model
         python setup.py bdist_wheel
@@ -246,14 +253,14 @@ jobs:
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
         
-        python -m pip install numpy==`python .github/workflows/numpy_version.py` setuptools tqdm
+        python -m pip install "numpy>=2.0" setuptools tqdm
 
         cd model
         python setup.py build install
         cd ..
         
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py build install
-        python -m pip install numpy==`python .github/workflows/numpy_version.py v1` || true
+        python -m pip install "numpy<2" || true
     - name: Archive binary
       uses: actions/upload-artifact@v4
       with:
@@ -290,7 +297,7 @@ jobs:
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
         
-        python -m pip install numpy setuptools wheel tqdm
+        python -m pip install setuptools wheel tqdm
 
         cd model
         python setup.py bdist_wheel
@@ -338,7 +345,7 @@ jobs:
     - name: Build
       run: |
         python -m pip install --upgrade pip setuptools tqdm
-        python -m pip install numpy==$(python .github/workflows/numpy_version.py)
+        python -m pip install "numpy>=2.0"
 
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
@@ -349,7 +356,7 @@ jobs:
         python setup.py build install
         cd ..
         $env:USE_MIMALLOC = 1; python setup.py build install
-        Try { python -m pip install numpy==$(python .github/workflows/numpy_version.py v1) } Catch {}
+        Try { python -m pip install "numpy<2" } Catch {}
     - name: Archive binary
       uses: actions/upload-artifact@v4
       with:
@@ -383,7 +390,6 @@ jobs:
     - name: Build
       run: |
         python -m pip install --upgrade pip setuptools wheel tqdm
-        python -m pip install numpy
 
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
@@ -431,12 +437,14 @@ jobs:
     - uses: bab2min/run-on-arch-action@multiple-step-v2
       id: runcmd
       with:
-        image: quay.io/pypa/manylinux2014_${{ matrix.arch }}
+        image: quay.io/pypa/manylinux_2_28_${{ matrix.arch }}
         githubToken: ${{ github.token }}
         setup: |
           mkdir -p "${PWD}/artifacts"
         dockerRunArgs: |
           --volume "${PWD}/artifacts:/artifacts"
+        env: |
+          PIP_ONLY_BINARY: numpy
         multipleRun: |
           - name: Copy Model files
             run: |
@@ -450,7 +458,7 @@ jobs:
               rm /usr/local/bin/cmake || true
               ln -s /opt/python/${{ matrix.cp }}/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel setuptools numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py` tqdm
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel setuptools "numpy>=2.0" tqdm
           - name: Build model
             run: |
               cd model
@@ -459,7 +467,7 @@ jobs:
           - name: Build
             run: |
               NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python setup.py build install bdist_wheel
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install numpy==`/opt/python/${{ matrix.cp }}/bin/python .github/workflows/numpy_version.py v1` || true
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install "numpy<2" || true
               tar -zcvf /artifacts/build.tgz build/*
               cp -r dist /artifacts/
           - name: Test
@@ -495,12 +503,14 @@ jobs:
     - uses: bab2min/run-on-arch-action@multiple-step-v2
       id: runcmd
       with:
-        image: quay.io/pypa/manylinux2014_${{ matrix.arch }}
+        image: quay.io/pypa/manylinux_2_28_${{ matrix.arch }}
         githubToken: ${{ github.token }}
         setup: |
           mkdir -p "${PWD}/artifacts"
         dockerRunArgs: |
           --volume "${PWD}/artifacts:/artifacts"
+        env: |
+          PIP_ONLY_BINARY: numpy
         multipleRun: |
           - name: Copy Model files
             run: |
@@ -510,19 +520,19 @@ jobs:
               mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
           - name: Install dependencies
             run: |
-              /opt/python/cp39-cp39/bin/pip install "cmake<4"
+              /opt/python/cp311-cp311/bin/pip install "cmake<4"
               rm /usr/local/bin/cmake || true
-              ln -s /opt/python/cp39-cp39/bin/cmake /usr/local/bin/cmake
+              ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/cp39-cp39/bin/python -m pip install wheel setuptools numpy tqdm
+              /opt/python/cp311-cp311/bin/python -m pip install wheel setuptools tqdm
           - name: Build model
             run: |
               cd model
-              /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+              /opt/python/cp311-cp311/bin/python setup.py bdist_wheel
               cd ..
           - name: Build
             run: |
-              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp39-cp39/bin/python setup.py bdist_wheel
+              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py bdist_wheel
               tar -zcvf /artifacts/build.tgz build/*
               cp -r dist /artifacts/
           - name: Test
