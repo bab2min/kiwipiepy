@@ -109,7 +109,7 @@ jobs:
               cd model
               /opt/python/cp311-cp311/bin/python setup.py bdist_wheel
               cd ..
-              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py bdist_wheel
+              NUM_AVAILABLE_CPU_CORES=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py bdist_wheel
           - name: Test kiwipiepy
             run: |
               /opt/python/${{ matrix.cp }}/bin/python -m pip install model/dist/*.whl 
