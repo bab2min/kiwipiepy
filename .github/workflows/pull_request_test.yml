@@ -12,56 +12,54 @@ jobs:
   build_manylinux2014:
     name: Build for manylinux2014
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64
     strategy:
       max-parallel: 4
       matrix:
         cp: [cp314-cp314t]
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Prepare container
+      run: |
+        dnf install -y git-lfs
+        git config --global --add safe.directory '*'
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@multiple-step-v2
-      id: runcmd
-      with:
-        image: quay.io/pypa/manylinux_2_28_x86_64
-        githubToken: ${{ github.token }}
-        env: |
-          PIP_ONLY_BINARY: numpy
-        multipleRun: |
-          - name: Build
-            run: |
-              mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
+    - name: Build
+      run: |
+        mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
 
-              /opt/python/${{ matrix.cp }}/bin/pip install "cmake<4"
-              rm /usr/local/bin/cmake || true
-              ln -s /opt/python/${{ matrix.cp }}/bin/cmake /usr/local/bin/cmake
+        /opt/python/${{ matrix.cp }}/bin/pip install "cmake<4"
+        rm /usr/local/bin/cmake || true
+        ln -s /opt/python/${{ matrix.cp }}/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install "numpy>=2.0" tqdm
+        /opt/python/${{ matrix.cp }}/bin/python -m pip install "numpy>=2.0" tqdm
 
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install ./model
-              NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python -m pip install .
-          - name: Test kiwipiepy
-            run: |
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
-              /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
-          - name: Test transformers_addon
-            run: |
-              if [[ "${{ matrix.cp }}" != *t ]]; then
-                for v in {12..46}
-                do
-                  echo "Test with transformers 4.$v ..."
-                  if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
-                    /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
-                  fi
-                done
-              else
-                echo "Skipping transformers test for free-threaded Python"
-              fi
+        /opt/python/${{ matrix.cp }}/bin/python -m pip install ./model
+        NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python -m pip install .
+    - name: Test kiwipiepy
+      run: |
+        /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
+        /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
+    - name: Test transformers_addon
+      run: |
+        if [[ "${{ matrix.cp }}" != *t ]]; then
+          for v in {12..46}
+          do
+            echo "Test with transformers 4.$v ..."
+            if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
+              /opt/python/${{ matrix.cp }}/bin/python -m pytest --verbose test/test_transformers_addon.py
+            fi
+          done
+        else
+          echo "Skipping transformers test for free-threaded Python"
+        fi
     - run: tar -zcvf build.tgz build
     - name: Archive binary
       uses: actions/upload-artifact@v4
@@ -72,33 +70,33 @@ jobs:
   build_manylinux_limited_api:
     name: Build for manylinux (with Limited API)
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Prepare container
+      run: |
+        dnf install -y git-lfs
+        git config --global --add safe.directory '*'
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@multiple-step-v2
-      id: runcmd
-      with:
-        image: quay.io/pypa/manylinux_2_28_x86_64
-        githubToken: ${{ github.token }}
-        multipleRun: |
-          - name: Build
-            run: |
-              mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
+    - name: Build
+      run: |
+        mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
 
-              /opt/python/cp311-cp311/bin/pip install "cmake<4"
-              rm /usr/local/bin/cmake || true
-              ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
+        /opt/python/cp311-cp311/bin/pip install "cmake<4"
+        rm /usr/local/bin/cmake || true
+        ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/cp311-cp311/bin/python -m pip install build
+        /opt/python/cp311-cp311/bin/python -m pip install build
 
-              /opt/python/cp311-cp311/bin/python -m build --wheel model
-              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
+        /opt/python/cp311-cp311/bin/python -m build --wheel model
+        NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
     - run: tar -zcvf build.tgz build
     - name: Archive binary
       uses: actions/upload-artifact@v4
@@ -490,6 +488,8 @@ jobs:
   build_other_arch:
     name: Build for manylinux (other arch)
     runs-on: ubuntu-24.04-arm
+    container:
+      image: quay.io/pypa/manylinux_2_28_aarch64
     strategy:
       max-parallel: 8
       matrix:
@@ -497,115 +497,100 @@ jobs:
         arch: [aarch64]
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Prepare container
+      run: |
+        dnf install -y git-lfs
+        git config --global --add safe.directory '*'
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@multiple-step-v2
-      id: runcmd
-      with:
-        image: quay.io/pypa/manylinux_2_28_${{ matrix.arch }}
-        githubToken: ${{ github.token }}
-        setup: |
-          mkdir -p "${PWD}/artifacts"
-        dockerRunArgs: |
-          --volume "${PWD}/artifacts:/artifacts"
-        env: |
-          PIP_ONLY_BINARY: numpy
-        multipleRun: |
-          - name: Copy Model files
-            run: |
-              mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
-          - name: Install dependencies
-            run: |
-              /opt/python/${{ matrix.cp }}/bin/pip install "cmake<4"
-              rm /usr/local/bin/cmake || true
-              ln -s /opt/python/${{ matrix.cp }}/bin/cmake /usr/local/bin/cmake
+    - name: Copy Model files
+      run: |
+        mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
+    - name: Install dependencies
+      run: |
+        /opt/python/${{ matrix.cp }}/bin/pip install "cmake<4"
+        rm /usr/local/bin/cmake || true
+        ln -s /opt/python/${{ matrix.cp }}/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install build "numpy>=2.0" tqdm
-          - name: Build model
-            run: |
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install ./model
-          - name: Build
-            run: |
-              NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python -m build --wheel
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install dist/*.whl
-              tar -zcvf /artifacts/build.tgz build/*
-              cp -r dist /artifacts/
-          - name: Test
-            run: |
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
-              /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
-
+        /opt/python/${{ matrix.cp }}/bin/python -m pip install build "numpy>=2.0" tqdm
+    - name: Build model
+      run: |
+        /opt/python/${{ matrix.cp }}/bin/python -m pip install ./model
+    - name: Build
+      run: |
+        NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python -m build --wheel
+        /opt/python/${{ matrix.cp }}/bin/python -m pip install dist/*.whl
+        tar -zcvf build.tgz build/*
+    - name: Test
+      run: |
+        /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
+        /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
     - name: Archive binary
       uses: actions/upload-artifact@v4
       with:
         name: Linux ${{ matrix.arch }} Binary ${{ matrix.cp }}
-        path: artifacts/build.tgz
-    - name: Archive binary
+        path: build.tgz
+    - name: Archive wheels
       uses: actions/upload-artifact@v4
       with:
         name: Linux ${{ matrix.arch }} Wheel ${{ matrix.cp }}
-        path: artifacts/dist/*.whl
+        path: dist/*.whl
 
   build_other_arch_limited_api:
     name: Build for manylinux (other arch) (with Limited API)
     runs-on: ubuntu-24.04-arm
+    container:
+      image: quay.io/pypa/manylinux_2_28_aarch64
     strategy:
       matrix:
         arch: [aarch64]
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Prepare container
+      run: |
+        dnf install -y git-lfs
+        git config --global --add safe.directory '*'
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
         lfs: true
-    - uses: bab2min/run-on-arch-action@multiple-step-v2
-      id: runcmd
-      with:
-        image: quay.io/pypa/manylinux_2_28_${{ matrix.arch }}
-        githubToken: ${{ github.token }}
-        setup: |
-          mkdir -p "${PWD}/artifacts"
-        dockerRunArgs: |
-          --volume "${PWD}/artifacts:/artifacts"
-        multipleRun: |
-          - name: Copy Model files
-            run: |
-              mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
-              mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
-          - name: Install dependencies
-            run: |
-              /opt/python/cp311-cp311/bin/pip install "cmake<4"
-              rm /usr/local/bin/cmake || true
-              ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
+    - name: Copy Model files
+      run: |
+        mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
+        mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
+    - name: Install dependencies
+      run: |
+        /opt/python/cp311-cp311/bin/pip install "cmake<4"
+        rm /usr/local/bin/cmake || true
+        ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/cp311-cp311/bin/python -m pip install build
-          - name: Build model
-            run: |
-              /opt/python/cp311-cp311/bin/python -m build --wheel model
-          - name: Build
-            run: |
-              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
-              tar -zcvf /artifacts/build.tgz build/*
-              cp -r dist /artifacts/
-              cp model/dist/*.whl /artifacts/dist/
-
+        /opt/python/cp311-cp311/bin/python -m pip install build
+    - name: Build model
+      run: |
+        /opt/python/cp311-cp311/bin/python -m build --wheel model
+    - name: Build
+      run: |
+        NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
+        tar -zcvf build.tgz build/*
     - name: Archive binary
       uses: actions/upload-artifact@v4
       with:
         name: Linux ${{ matrix.arch }} Binary cp39 abi3
-        path: artifacts/build.tgz
+        path: build.tgz
+    - name: Collect wheels
+      run: mkdir -p wheelhouse && cp dist/*.whl model/dist/*.whl wheelhouse/
     - name: Archive wheels
       uses: actions/upload-artifact@v4
       with:
         name: Linux ${{ matrix.arch }} Wheel cp39 abi3
-        path: artifacts/dist/*.whl
+        path: wheelhouse/*.whl
 
   test_other_arch_limited_api:
     name: Test for manylinux (other arch) (with Limited API)
