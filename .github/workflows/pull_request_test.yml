@@ -69,13 +69,9 @@ jobs:
         name: Linux Binary ${{ matrix.cp }}
         path: build.tgz
 
-  build_manylinux2014_limited_api:
-    name: Build for manylinux2014 (with Limited API)
+  build_manylinux_limited_api:
+    name: Build for manylinux (with Limited API)
     runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 4
-      matrix:
-        cp: [cp312-cp312, cp313-cp313, cp314-cp314]
 
     steps:
     - uses: actions/checkout@v3
@@ -87,8 +83,6 @@ jobs:
       with:
         image: quay.io/pypa/manylinux_2_28_x86_64
         githubToken: ${{ github.token }}
-        env: |
-          PIP_ONLY_BINARY: numpy
         multipleRun: |
           - name: Build
             run: |
@@ -104,29 +98,57 @@ jobs:
               /opt/python/cp311-cp311/bin/python -m pip install build
 
               /opt/python/cp311-cp311/bin/python -m build --wheel model
-              NUM_AVAILABLE_CPU_CORES=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
-          - name: Test kiwipiepy
-            run: |
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install model/dist/*.whl 
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install dist/kiwipiepy-*.whl 
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest 
-              /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
-          - name: Test transformers_addon
-            run: |
-              for v in {12..46}
-              do
-                echo "Test with transformers 4.$v ..."
-                if /opt/python/${{ matrix.cp }}/bin/python -m pip install -U "transformers<4.$(($v+1))"; then
-                  /opt/python/${{ matrix.cp }}/bin/python -m pytest -v test/test_transformers_addon.py
-                fi
-              done
+              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
     - run: tar -zcvf build.tgz build
     - name: Archive binary
       uses: actions/upload-artifact@v4
-      if: matrix.cp == 'cp312-cp312'
       with:
         name: Linux Binary cp39 abi3
         path: build.tgz
+    - name: Collect wheels
+      run: mkdir -p wheelhouse && cp dist/*.whl model/dist/*.whl wheelhouse/
+    - name: Archive wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: abi3 wheels linux x86_64
+        path: wheelhouse/*.whl
+
+  test_manylinux_limited_api:
+    name: Test for manylinux (with Limited API)
+    needs: build_manylinux_limited_api
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: ['3.12', '3.13', '3.14']
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Download wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: abi3 wheels linux x86_64
+        path: wheelhouse
+    - name: Test kiwipiepy
+      run: |
+        python -m pip install wheelhouse/*.whl
+        python -m pip install pytest
+        python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
+    - name: Test transformers_addon
+      run: |
+        for v in {12..46}
+        do
+          echo "Test with transformers 4.$v ..."
+          if python -m pip install -U "transformers<4.$(($v+1))"; then
+            python -m pytest -v test/test_transformers_addon.py
+          fi
+        done
 
   build_macos:
     name: Build for macOS
@@ -172,10 +194,6 @@ jobs:
   build_macos_limited_api:
     name: Build for macOS (with Limited API)
     runs-on: macOS-15
-    strategy:
-      max-parallel: 4
-      matrix:
-        python-version: [3.12, 3.13, 3.14]
 
     steps:
     - uses: actions/checkout@v2
@@ -193,7 +211,7 @@ jobs:
         mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
-        
+
         python -m pip install build
 
         python -m build --wheel model
@@ -201,20 +219,44 @@ jobs:
         MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 Py_LIMITED_API=1 python -m build --wheel
     - name: Archive binary
       uses: actions/upload-artifact@v4
-      if: matrix.python-version == '3.12'
       with:
         name: macOS Binary cp39 abi3
         path: |
           build/*
+    - name: Collect wheels
+      run: mkdir -p wheelhouse && cp dist/*.whl model/dist/*.whl wheelhouse/
+    - name: Archive wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: abi3 wheels macos arm64
+        path: wheelhouse/*.whl
+
+  test_macos_limited_api:
+    name: Test for macOS (with Limited API)
+    needs: build_macos_limited_api
+    runs-on: macOS-15
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: ['3.12', '3.13', '3.14']
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         architecture: arm64
+    - name: Download wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: abi3 wheels macos arm64
+        path: wheelhouse
     - name: Test kiwipiepy
       run: |
-        python -m pip install model/dist/*.whl
-        python -m pip install dist/kiwipiepy-*.whl
+        python -m pip install wheelhouse/*.whl
         python -m pip install pytest
         python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
 
@@ -262,10 +304,6 @@ jobs:
   build_macos_intel_limited_api:
     name: Build for macOS Intel (with Limited API)
     runs-on: macOS-15-intel
-    strategy:
-      max-parallel: 4
-      matrix:
-        python-version: [3.12, 3.13]
 
     steps:
     - uses: actions/checkout@v2
@@ -283,7 +321,7 @@ jobs:
         mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
-        
+
         python -m pip install build
 
         python -m build --wheel model
@@ -291,20 +329,44 @@ jobs:
         MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 Py_LIMITED_API=1 python -m build --wheel
     - name: Archive binary
       uses: actions/upload-artifact@v4
-      if: matrix.python-version == '3.12'
       with:
         name: macOS Intel Binary cp39 abi3
         path: |
           build/*
+    - name: Collect wheels
+      run: mkdir -p wheelhouse && cp dist/*.whl model/dist/*.whl wheelhouse/
+    - name: Archive wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: abi3 wheels macos x86_64
+        path: wheelhouse/*.whl
+
+  test_macos_intel_limited_api:
+    name: Test for macOS Intel (with Limited API)
+    needs: build_macos_intel_limited_api
+    runs-on: macOS-15-intel
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: ['3.12', '3.13']
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         architecture: x64
+    - name: Download wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: abi3 wheels macos x86_64
+        path: wheelhouse
     - name: Test kiwipiepy
       run: |
-        python -m pip install model/dist/*.whl
-        python -m pip install dist/kiwipiepy-*.whl
+        python -m pip install wheelhouse/*.whl
         python -m pip install pytest
         python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
 
@@ -354,9 +416,7 @@ jobs:
     name: Build for Windows (with Limited API)
     runs-on: windows-2022
     strategy:
-      max-parallel: 5
       matrix:
-        python-version: [3.12, 3.13, 3.14]
         architecture: [x64]
 
     steps:
@@ -382,20 +442,47 @@ jobs:
         $env:USE_MIMALLOC = 1; $env:Py_LIMITED_API=1; python -m build --wheel
     - name: Archive binary
       uses: actions/upload-artifact@v4
-      if: matrix.python-version == '3.12'
       with:
-        name: Windows Binary ${{ matrix.python-version }} ${{ matrix.architecture }}
+        name: Windows Binary cp39 abi3 ${{ matrix.architecture }}
         path: |
           build/*
+    - name: Collect wheels
+      run: |
+        New-Item -ItemType Directory -Force wheelhouse
+        Copy-Item -Path dist/*.whl, model/dist/*.whl -Destination wheelhouse/
+    - name: Archive wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: abi3 wheels windows ${{ matrix.architecture }}
+        path: wheelhouse/*.whl
+
+  test_windows_limited_api:
+    name: Test for Windows (with Limited API)
+    needs: build_windows_limited_api
+    runs-on: windows-2022
+    strategy:
+      max-parallel: 5
+      matrix:
+        python-version: ['3.12', '3.13', '3.14']
+        architecture: [x64]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
     - name: Set up Python ${{ matrix.python-version }} ${{ matrix.architecture }}
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         architecture: ${{ matrix.architecture }}
+    - name: Download wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: abi3 wheels windows ${{ matrix.architecture }}
+        path: wheelhouse
     - name: Test kiwipiepy
       run: |
-        python -m pip install (Get-ChildItem model/dist/*.whl | Select-Object -Expand FullName)
-        python -m pip install (Get-ChildItem dist/kiwipiepy-*.whl | Select-Object -Expand FullName)
+        python -m pip install (Get-ChildItem wheelhouse/*.whl | Select-Object -Expand FullName)
         python -m pip install pytest
         python -m pytest -vv test/test_kiwipiepy.py test/test_nogil_safety.py
 
@@ -468,9 +555,7 @@ jobs:
     name: Build for manylinux (other arch) (with Limited API)
     runs-on: ubuntu-24.04-arm
     strategy:
-      max-parallel: 8
       matrix:
-        cp: [cp312-cp312, cp313-cp313, cp314-cp314]
         arch: [aarch64]
 
     steps:
@@ -487,8 +572,6 @@ jobs:
           mkdir -p "${PWD}/artifacts"
         dockerRunArgs: |
           --volume "${PWD}/artifacts:/artifacts"
-        env: |
-          PIP_ONLY_BINARY: numpy
         multipleRun: |
           - name: Copy Model files
             run: |
@@ -511,22 +594,44 @@ jobs:
               NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
               tar -zcvf /artifacts/build.tgz build/*
               cp -r dist /artifacts/
-          - name: Test
-            run: |
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install model/dist/*.whl
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install dist/kiwipiepy-*.whl
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
-              /opt/python/${{ matrix.cp }}/bin/python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
+              cp model/dist/*.whl /artifacts/dist/
 
     - name: Archive binary
       uses: actions/upload-artifact@v4
-      if: matrix.cp == 'cp312-cp312'
       with:
         name: Linux ${{ matrix.arch }} Binary cp39 abi3
         path: artifacts/build.tgz
-    - name: Archive binary
+    - name: Archive wheels
       uses: actions/upload-artifact@v4
-      if: matrix.cp == 'cp312-cp312'
       with:
         name: Linux ${{ matrix.arch }} Wheel cp39 abi3
         path: artifacts/dist/*.whl
+
+  test_other_arch_limited_api:
+    name: Test for manylinux (other arch) (with Limited API)
+    needs: build_other_arch_limited_api
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      max-parallel: 8
+      matrix:
+        python-version: ['3.12', '3.13', '3.14']
+        arch: [aarch64]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Download wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: Linux ${{ matrix.arch }} Wheel cp39 abi3
+        path: wheelhouse
+    - name: Test kiwipiepy
+      run: |
+        python -m pip install wheelhouse/*.whl
+        python -m pip install pytest
+        python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
