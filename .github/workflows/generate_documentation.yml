@@ -30,18 +30,16 @@ jobs:
         python3 -m pip install --upgrade pip
     - name: build
       run: |
-        python3 -m pip install pdoc3==0.10.0 wheel setuptools transformers
+        python3 -m pip install pdoc3==0.10.0 transformers
 
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
         
-        cd model
-        python3 setup.py install
-        cd ..
-        
-        NUM_AVAILABLE_CPU_CORES=2 python3 setup.py install
+        python3 -m pip install ./model
+
+        NUM_AVAILABLE_CPU_CORES=2 python3 -m pip install .
     - name: gen doc
       run: |
         export KIWIPIEPY_VER="`python3 -m pip show kiwipiepy | grep Version | cut -d' ' -f2`"

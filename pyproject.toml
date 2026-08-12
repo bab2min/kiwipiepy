@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kiwipiepy"
+description = "Kiwi, the Korean Tokenizer for Python"
+authors = [{ name = "bab2min", email = "bab2min@gmail.com" }]
+license = "LGPL-3.0-or-later"
+license-files = ["LICENSE.txt"]
+keywords = ["Korean morphological analysis"]
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Text Processing :: Linguistic",
+
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+]
+dependencies = [
+    "kiwipiepy_model>=0.23,<0.24",
+    "numpy",
+    "tqdm",
+]
+dynamic = ["version"]
+
+[project.readme]
+content-type = "text/x-rst"
+text = """kiwipiepy
+----------
+kiwipiepy is a python version package of Kiwi(Korean Intelligent Word Identifier) which is a morphological analyzer for Korean.
+
+https://github.com/bab2min/kiwipiepy """
+
+[project.urls]
+Homepage = "https://github.com/bab2min/kiwipiepy"
+
+[tool.setuptools]
+packages = ["kiwipiepy"]
+include-package-data = true
+
+# 확장 모듈 빌드(CMake 호출)와 abi3 휠 태깅은 정적으로 표현할 수 없어 setup.py에 남아 있다.
+[tool.setuptools.dynamic]
+version = { attr = "kiwipiepy._version.__version__" }

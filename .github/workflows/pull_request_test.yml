@@ -41,13 +41,10 @@ jobs:
               rm /usr/local/bin/cmake || true
               ln -s /opt/python/${{ matrix.cp }}/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install setuptools "numpy>=2.0" tqdm
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install "numpy>=2.0" tqdm
 
-              cd model
-              /opt/python/${{ matrix.cp }}/bin/python setup.py build install
-              cd ..
-              NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python setup.py build install
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install "numpy<2" || true
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install ./model
+              NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python -m pip install .
           - name: Test kiwipiepy
             run: |
               /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
@@ -104,12 +101,10 @@ jobs:
               rm /usr/local/bin/cmake || true
               ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/cp311-cp311/bin/python -m pip install setuptools wheel tqdm
+              /opt/python/cp311-cp311/bin/python -m pip install build
 
-              cd model
-              /opt/python/cp311-cp311/bin/python setup.py bdist_wheel
-              cd ..
-              NUM_AVAILABLE_CPU_CORES=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py bdist_wheel
+              /opt/python/cp311-cp311/bin/python -m build --wheel model
+              NUM_AVAILABLE_CPU_CORES=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
           - name: Test kiwipiepy
             run: |
               /opt/python/${{ matrix.cp }}/bin/python -m pip install model/dist/*.whl 
@@ -158,14 +153,11 @@ jobs:
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
         
-        python -m pip install "numpy>=2.0" setuptools tqdm
+        python -m pip install "numpy>=2.0" tqdm
 
-        cd model
-        python setup.py build install
-        cd ..
-        
-        MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 python setup.py build install
-        python -m pip install "numpy<2" || true
+        python -m pip install ./model
+
+        MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 python -m pip install .
     - name: Archive binary
       uses: actions/upload-artifact@v4
       with:
@@ -202,13 +194,11 @@ jobs:
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
         
-        python -m pip install setuptools wheel tqdm
+        python -m pip install build
 
-        cd model
-        python setup.py bdist_wheel
-        cd ..
-        
-        MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 Py_LIMITED_API=1 python setup.py bdist_wheel
+        python -m build --wheel model
+
+        MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 Py_LIMITED_API=1 python -m build --wheel
     - name: Archive binary
       uses: actions/upload-artifact@v4
       if: matrix.python-version == '3.12'
@@ -253,14 +243,11 @@ jobs:
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
         
-        python -m pip install "numpy>=2.0" setuptools tqdm
+        python -m pip install "numpy>=2.0" tqdm
 
-        cd model
-        python setup.py build install
-        cd ..
-        
-        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py build install
-        python -m pip install "numpy<2" || true
+        python -m pip install ./model
+
+        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python -m pip install .
     - name: Archive binary
       uses: actions/upload-artifact@v4
       with:
@@ -297,13 +284,11 @@ jobs:
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
         
-        python -m pip install setuptools wheel tqdm
+        python -m pip install build
 
-        cd model
-        python setup.py bdist_wheel
-        cd ..
-        
-        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 Py_LIMITED_API=1 python setup.py bdist_wheel
+        python -m build --wheel model
+
+        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 Py_LIMITED_API=1 python -m build --wheel
     - name: Archive binary
       uses: actions/upload-artifact@v4
       if: matrix.python-version == '3.12'
@@ -344,19 +329,16 @@ jobs:
         architecture: ${{ matrix.architecture }}
     - name: Build
       run: |
-        python -m pip install --upgrade pip setuptools tqdm
-        python -m pip install "numpy>=2.0"
+        python -m pip install --upgrade pip
+        python -m pip install "numpy>=2.0" tqdm
 
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
 
-        cd model
-        python setup.py build install
-        cd ..
-        $env:USE_MIMALLOC = 1; python setup.py build install
-        Try { python -m pip install "numpy<2" } Catch {}
+        python -m pip install ./model
+        $env:USE_MIMALLOC = 1; python -m pip install .
     - name: Archive binary
       uses: actions/upload-artifact@v4
       with:
@@ -389,17 +371,15 @@ jobs:
         architecture: ${{ matrix.architecture }}
     - name: Build
       run: |
-        python -m pip install --upgrade pip setuptools wheel tqdm
+        python -m pip install --upgrade pip build
 
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.dict model/kiwipiepy_model/
         mv Kiwi/models/cong/base/combiningRule.txt model/kiwipiepy_model/
 
-        cd model
-        python setup.py bdist_wheel
-        cd ..
-        $env:USE_MIMALLOC = 1; $env:Py_LIMITED_API=1; python setup.py bdist_wheel
+        python -m build --wheel model
+        $env:USE_MIMALLOC = 1; $env:Py_LIMITED_API=1; python -m build --wheel
     - name: Archive binary
       uses: actions/upload-artifact@v4
       if: matrix.python-version == '3.12'
@@ -458,16 +438,14 @@ jobs:
               rm /usr/local/bin/cmake || true
               ln -s /opt/python/${{ matrix.cp }}/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install wheel setuptools "numpy>=2.0" tqdm
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install build "numpy>=2.0" tqdm
           - name: Build model
             run: |
-              cd model
-              /opt/python/${{ matrix.cp }}/bin/python setup.py build install
-              cd ..
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install ./model
           - name: Build
             run: |
-              NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python setup.py build install bdist_wheel
-              /opt/python/${{ matrix.cp }}/bin/python -m pip install "numpy<2" || true
+              NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python -m build --wheel
+              /opt/python/${{ matrix.cp }}/bin/python -m pip install dist/*.whl
               tar -zcvf /artifacts/build.tgz build/*
               cp -r dist /artifacts/
           - name: Test
@@ -524,15 +502,13 @@ jobs:
               rm /usr/local/bin/cmake || true
               ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
 
-              /opt/python/cp311-cp311/bin/python -m pip install wheel setuptools tqdm
+              /opt/python/cp311-cp311/bin/python -m pip install build
           - name: Build model
             run: |
-              cd model
-              /opt/python/cp311-cp311/bin/python setup.py bdist_wheel
-              cd ..
+              /opt/python/cp311-cp311/bin/python -m build --wheel model
           - name: Build
             run: |
-              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py bdist_wheel
+              NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
               tar -zcvf /artifacts/build.tgz build/*
               cp -r dist /artifacts/
           - name: Test
