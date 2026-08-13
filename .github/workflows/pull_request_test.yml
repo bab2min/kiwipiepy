@@ -28,6 +28,15 @@ jobs:
       with:
         submodules: recursive
         lfs: true
+    - name: Fetch LFS objects of submodule
+      run: |
+        git lfs install
+        git -C Kiwi lfs pull
+        ls -l Kiwi/models/cong/base/
+        if head -c 40 Kiwi/models/cong/base/cong.mdl | grep -q "git-lfs"; then
+          echo "::error:: LFS files were not pulled correctly."
+          exit 1
+        fi
     - name: Build
       run: |
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
@@ -82,6 +91,15 @@ jobs:
       with:
         submodules: recursive
         lfs: true
+    - name: Fetch LFS objects of submodule
+      run: |
+        git lfs install
+        git -C Kiwi lfs pull
+        ls -l Kiwi/models/cong/base/
+        if head -c 40 Kiwi/models/cong/base/cong.mdl | grep -q "git-lfs"; then
+          echo "::error:: LFS files were not pulled correctly."
+          exit 1
+        fi
     - name: Build
       run: |
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
@@ -135,7 +153,8 @@ jobs:
         path: wheelhouse
     - name: Test kiwipiepy
       run: |
-        python -m pip install wheelhouse/*.whl
+        python -m pip install --no-index --find-links wheelhouse kiwipiepy_model
+        python -m pip install wheelhouse/kiwipiepy-*.whl
         python -m pip install pytest
         python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
     - name: Test transformers_addon
@@ -254,7 +273,8 @@ jobs:
         path: wheelhouse
     - name: Test kiwipiepy
       run: |
-        python -m pip install wheelhouse/*.whl
+        python -m pip install --no-index --find-links wheelhouse kiwipiepy_model
+        python -m pip install wheelhouse/kiwipiepy-*.whl
         python -m pip install pytest
         python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
 
@@ -364,7 +384,8 @@ jobs:
         path: wheelhouse
     - name: Test kiwipiepy
       run: |
-        python -m pip install wheelhouse/*.whl
+        python -m pip install --no-index --find-links wheelhouse kiwipiepy_model
+        python -m pip install wheelhouse/kiwipiepy-*.whl
         python -m pip install pytest
         python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
 
@@ -480,10 +501,10 @@ jobs:
         path: wheelhouse
     - name: Test kiwipiepy
       run: |
-        python -m pip install (Get-ChildItem wheelhouse/*.whl | Select-Object -Expand FullName)
+        python -m pip install --no-index --find-links wheelhouse kiwipiepy_model
+        python -m pip install (Get-ChildItem wheelhouse/kiwipiepy-*.whl | Select-Object -Expand FullName)
         python -m pip install pytest
         python -m pytest -vv test/test_kiwipiepy.py test/test_nogil_safety.py
-
 
   build_other_arch:
     name: Build for manylinux (other arch)
@@ -505,6 +526,15 @@ jobs:
       with:
         submodules: recursive
         lfs: true
+    - name: Fetch LFS objects of submodule
+      run: |
+        git lfs install
+        git -C Kiwi lfs pull
+        ls -l Kiwi/models/cong/base/
+        if head -c 40 Kiwi/models/cong/base/cong.mdl | grep -q "git-lfs"; then
+          echo "::error:: LFS files were not pulled correctly."
+          exit 1
+        fi
     - name: Copy Model files
       run: |
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
@@ -559,6 +589,15 @@ jobs:
       with:
         submodules: recursive
         lfs: true
+    - name: Fetch LFS objects of submodule
+      run: |
+        git lfs install
+        git -C Kiwi lfs pull
+        ls -l Kiwi/models/cong/base/
+        if head -c 40 Kiwi/models/cong/base/cong.mdl | grep -q "git-lfs"; then
+          echo "::error:: LFS files were not pulled correctly."
+          exit 1
+        fi
     - name: Copy Model files
       run: |
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
@@ -617,6 +656,7 @@ jobs:
         path: wheelhouse
     - name: Test kiwipiepy
       run: |
-        python -m pip install wheelhouse/*.whl
+        python -m pip install --no-index --find-links wheelhouse kiwipiepy_model
+        python -m pip install wheelhouse/kiwipiepy-*.whl
         python -m pip install pytest
         python -m pytest -svv test/test_kiwipiepy.py test/test_nogil_safety.py
