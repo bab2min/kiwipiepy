@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kiwipiepy_model"
+description = "Model for kiwipiepy"
+authors = [{ name = "bab2min", email = "bab2min@gmail.com" }]
+license = "LGPL-3.0-or-later"
+keywords = ["Korean morphological analysis"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Text Processing :: Linguistic",
+
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+]
+dynamic = ["version"]
+
+[project.readme]
+content-type = "text/x-rst"
+text = """Model for kiwipiepy
+-------------------
+kiwipiepy is a python version package of Kiwi(Korean Intelligent Word Identifier) which is a morphological analyzer for Korean.
+
+https://github.com/bab2min/kiwipiepy """
+
+[project.urls]
+Homepage = "https://github.com/bab2min/kiwipiepy"
+
+[tool.setuptools]
+packages = ["kiwipiepy_model"]
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools.dynamic]
+version = { attr = "kiwipiepy_model._version.__version__" }

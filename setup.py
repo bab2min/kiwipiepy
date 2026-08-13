@@ -7,11 +7,8 @@ import subprocess
 import re
 import sysconfig
 
-from distutils import log
-from setuptools.command.install import install
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
-from distutils.version import LooseVersion
 
 if os.environ.get('KIWI_CPU_ARCH'):
     from sysconfig import get_platform
@@ -111,7 +108,7 @@ class CMakeBuild(build_ext):
     def run(self):
         cmake_version = self.get_cmake_version()
         if platform.system() == "Windows":
-            if LooseVersion(cmake_version) < '3.1.0':
+            if tuple(int(p) for p in cmake_version.split('.')[:3]) < (3, 1, 0):
                 sys.stderr.write("\nERROR: CMake >= 3.1.0 is required on Windows\n\n")
                 sys.exit(1)
 
@@ -178,16 +175,6 @@ class CMakeBuild(build_ext):
         #print()
 
 
-here = os.path.abspath(os.path.dirname(__file__))
-exec(open('kiwipiepy/_version.py').read())
-
-long_description = '''kiwipiepy
-----------
-kiwipiepy is a python version package of Kiwi(Korean Intelligent Word Identifier) which is a morphological analyzer for Korean.
-
-https://github.com/bab2min/kiwipiepy '''
-
-
 libraries = []
 
 if platform.system() == 'Windows': 
@@ -196,43 +183,6 @@ else:
     pass
 
 setup(
-    name='kiwipiepy',
-    version=__version__,
-
-    description='Kiwi, the Korean Tokenizer for Python',
-    long_description=long_description,
-
-    url='https://github.com/bab2min/kiwipiepy',
-
-    author='bab2min',
-    author_email='bab2min@gmail.com',
-
-    license='LGPL v3 License',
-
-    classifiers=[
-        'Development Status :: 3 - Alpha',
-
-        "Intended Audience :: Developers",
-        "Intended Audience :: Science/Research",
-        "Topic :: Software Development :: Libraries",
-        "Topic :: Text Processing :: Linguistic",
-
-        "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
-
-        'Programming Language :: Python :: 3',
-        'Programming Language :: C++'
-    ],
-
-    keywords='Korean morphological analysis',
-    install_requires=[
-        'dataclasses; python_version < "3.7"',
-        'kiwipiepy_model>=0.23,<0.24',
-        'numpy<2; python_version < "3.9"',
-        'numpy; python_version >= "3.9"',
-        'tqdm',
-    ],
-    packages=['kiwipiepy'],
-    include_package_data=True,
     ext_modules=[CMakeExtension('_kiwipiepy',
         libraries=libraries,
         py_limited_api=is_limited_api,

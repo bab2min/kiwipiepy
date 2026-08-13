@@ -40,22 +40,22 @@ jobs:
         ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
 
         yum install libffi-devel -y
-        /opt/python/cp311-cp311/bin/python -m pip install --upgrade pip setuptools
-        /opt/python/cp311-cp311/bin/python -m pip install twine wheel numpy
-        /opt/python/cp311-cp311/bin/python setup.py sdist
+        /opt/python/cp311-cp311/bin/python -m pip install --upgrade pip
+        /opt/python/cp311-cp311/bin/python -m pip install twine build
+        /opt/python/cp311-cp311/bin/python -m build --sdist
         /opt/python/cp311-cp311/bin/python -m twine upload --repository testpypi dist/*.tar.gz
-        NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py build bdist_wheel
+        NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
         auditwheel repair dist/*-linux_x86_64.whl
         for cp in cp314-cp314t
         do
-          /opt/python/${cp}/bin/python -m pip install wheel setuptools numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
-          NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
+          /opt/python/${cp}/bin/python -m pip install build
+          NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 /opt/python/${cp}/bin/python -m build --wheel
           auditwheel repair dist/*-${cp}-linux_x86_64.whl
         done
         /opt/python/cp311-cp311/bin/python -m twine upload --repository testpypi wheelhouse/*.whl
 
         cd model
-        /opt/python/cp311-cp311/bin/python setup.py sdist
+        /opt/python/cp311-cp311/bin/python -m build --sdist
         /opt/python/cp311-cp311/bin/python -m twine upload --repository testpypi dist/*.tar.gz
 
   build_macos:
@@ -81,8 +81,8 @@ jobs:
         TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
       run: |
-        python -m pip install twine wheel numpy==`python .github/workflows/numpy_version.py` setuptools
-        MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 python setup.py bdist_wheel
+        python -m pip install twine build
+        MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 python -m build --wheel
         twine upload --repository testpypi dist/*
 
   build_macos_limited_api:
@@ -103,8 +103,8 @@ jobs:
         TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
       run: |
-        python -m pip install twine wheel numpy setuptools
-        MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 Py_LIMITED_API=1 python setup.py bdist_wheel
+        python -m pip install twine build
+        MACOSX_DEPLOYMENT_TARGET=11.0 KIWI_CPU_ARCH=arm64 USE_MIMALLOC=1 Py_LIMITED_API=1 python -m build --wheel
         twine upload --repository testpypi dist/*
 
   build_macos_intel:
@@ -130,8 +130,8 @@ jobs:
         TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
       run: |
-        python -m pip install twine wheel numpy==`python .github/workflows/numpy_version.py` setuptools
-        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python setup.py bdist_wheel
+        python -m pip install twine build
+        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 python -m build --wheel
         twine upload --repository testpypi dist/*
 
   build_macos_intel_limited_api:
@@ -152,8 +152,8 @@ jobs:
         TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
       run: |
-        python -m pip install twine wheel numpy setuptools
-        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 Py_LIMITED_API=1 python setup.py bdist_wheel
+        python -m pip install twine build
+        MACOSX_DEPLOYMENT_TARGET=10.14 KIWI_CPU_ARCH=x86_64 USE_MIMALLOC=1 Py_LIMITED_API=1 python -m build --wheel
         twine upload --repository testpypi dist/*
 
   build_windows:
@@ -181,8 +181,8 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
       run: |
         python -m pip install --upgrade pip setuptools
-        python -m pip install twine wheel numpy==$(python .github/workflows/numpy_version.py)
-        $env:USE_MIMALLOC = 1; python setup.py bdist_wheel
+        python -m pip install twine build
+        $env:USE_MIMALLOC = 1; python -m build --wheel
         twine upload --repository testpypi dist/*
 
   build_windows_limited_api:
@@ -204,8 +204,8 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
       run: |
         python -m pip install --upgrade pip setuptools
-        python -m pip install twine wheel numpy
-        $env:USE_MIMALLOC = 1; $env:Py_LIMITED_API=1; python setup.py bdist_wheel
+        python -m pip install twine build
+        $env:USE_MIMALLOC = 1; $env:Py_LIMITED_API=1; python -m build --wheel
         twine upload --repository testpypi dist/*
 
   build_other_arch:
@@ -238,13 +238,13 @@ jobs:
               /opt/python/cp311-cp311/bin/pip install "cmake<4"
               rm /usr/local/bin/cmake || true
               ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
-              /opt/python/cp311-cp311/bin/pip install -U wheel setuptools numpy twine
-              NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python setup.py build bdist_wheel
+              /opt/python/cp311-cp311/bin/pip install -U build twine
+              NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
               auditwheel repair dist/*.whl
               for cp in cp314-cp314t
               do
-                /opt/python/${cp}/bin/pip install -U wheel setuptools numpy==`/opt/python/${cp}/bin/python .github/workflows/numpy_version.py`
-                NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 /opt/python/${cp}/bin/python setup.py build bdist_wheel
+                /opt/python/${cp}/bin/pip install -U build
+                NUM_AVAILABLE_CPU_CORES=2 USE_MIMALLOC=1 /opt/python/${cp}/bin/python -m build --wheel
                 auditwheel repair dist/*-${cp}-*.whl
               done
               /opt/python/cp311-cp311/bin/twine upload --repository testpypi wheelhouse/*.whl
