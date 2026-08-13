@@ -61,7 +61,7 @@ $ python -m build --wheel
 | `USE_MIMALLOC=1` | mimalloc 할당자를 사용해 빌드합니다. |
 | `Py_LIMITED_API=1` | Stable ABI(abi3) 휠로 빌드합니다. 하나의 휠을 Python 3.9 이상에서 공용으로 사용할 수 있습니다. |
 | `KIWI_CPU_ARCH` | 대상 CPU 아키텍처를 지정합니다. (macOS 크로스 빌드시 `arm64`, `x86_64` 등) |
-| `NUM_AVAILABLE_CPU_CORES` | 빌드 병렬도를 제한합니다. 메모리가 부족한 환경에서 유용합니다. |
+| `NUM_AVAILABLE_CPU_CORES` | 빌드시 사용할 CPU 코어 개수를 제한합니다. 메모리가 부족한 환경에서 유용합니다. |
 | `MACOSX_DEPLOYMENT_TARGET` | macOS 최소 지원 버전을 지정합니다. |
 
 ```console
