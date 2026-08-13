@@ -42,7 +42,7 @@ jobs:
         /opt/python/${{ matrix.cp }}/bin/python -m pip install "numpy>=2.0" tqdm
 
         /opt/python/${{ matrix.cp }}/bin/python -m pip install ./model
-        NUM_AVAILABLE_CPU_CORES=2 /opt/python/${{ matrix.cp }}/bin/python -m pip install .
+        NUM_AVAILABLE_CPU_CORES=1 /opt/python/${{ matrix.cp }}/bin/python -m pip install .
     - name: Test kiwipiepy
       run: |
         /opt/python/${{ matrix.cp }}/bin/python -m pip install pytest
@@ -96,7 +96,7 @@ jobs:
         /opt/python/cp311-cp311/bin/python -m pip install build
 
         /opt/python/cp311-cp311/bin/python -m build --wheel model
-        NUM_AVAILABLE_CPU_CORES=2 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
+        NUM_AVAILABLE_CPU_CORES=1 Py_LIMITED_API=1 /opt/python/cp311-cp311/bin/python -m build --wheel
     - run: tar -zcvf build.tgz build
     - name: Archive binary
       uses: actions/upload-artifact@v4
