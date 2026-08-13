@@ -14,10 +14,19 @@ $ pip install kiwipiepy
 ```
 지원하는 OS와 Python 버전은 다음과 같습니다:
 
-* Python 3.7 이상이 설치된 Linux (x86-64) 
-* Python 3.7 이상이 설치된 macOS 10.13이나 그 이후 버전
-* Python 3.7 이상이 설치된 Windows 7 이나 그 이후 버전 (x86, x86-64)
-* Python 3.7 이상이 설치된 다른 OS: 이 경우 소스 코드 컴파일을 위해 C++11이 지원되는 컴파일러가 필요합니다.
+* Python 3.9 이상이 설치된 Linux (x86-64) 
+* Python 3.9 이상이 설치된 macOS 10.13이나 그 이후 버전
+* Python 3.9 이상이 설치된 Windows 7 이나 그 이후 버전 (x86, x86-64)
+* Python 3.9 이상이 설치된 다른 OS: 이 경우 소스 코드 컴파일을 위해 C++17이 지원되는 컴파일러와 CMake 3.12 이상이 필요합니다.
+
+저장소의 소스코드에서 직접 빌드하려면 서브모듈을 포함해 클론한 뒤 설치합니다.
+
+```bash
+$ git clone --recursive https://github.com/bab2min/kiwipiepy.git
+$ cd kiwipiepy
+$ pip install .
+```
+빌드 옵션 등 자세한 내용은 [README](https://github.com/bab2min/kiwipiepy#소스코드에서-빌드하기)를 참조하십시오.
 
 Kiwipiepy가 제대로 설치되었는지 확인하기 위해서는 다음 명령어를 실행해보십시오.
 

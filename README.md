@@ -27,6 +27,61 @@ $ pip install --upgrade pip
 $ pip install kiwipiepy
 ```
 
+## 소스코드에서 빌드하기
+
+미리 빌드된 휠 대신 저장소의 소스코드에서 직접 빌드하려면 다음이 필요합니다.
+
+* C++17을 지원하는 컴파일러
+* CMake 3.12 이상 (CMake 4.x에서는 아직 검증되지 않았으므로 `pip install "cmake<4"`를 권장합니다)
+* Python 3.9 이상
+
+Kiwi 본체가 git 서브모듈로 포함되어 있으므로 반드시 `--recursive`로 클론해야 합니다.
+
+```console
+$ git clone --recursive https://github.com/bab2min/kiwipiepy.git
+$ cd kiwipiepy
+$ pip install .
+```
+
+모델 데이터 패키지인 `kiwipiepy_model`은 의존성으로 선언되어 있어 PyPI에서 자동으로 설치되므로 따로 준비하지 않아도 됩니다.
+
+설치하지 않고 휠 파일만 만들려면 다음과 같이 합니다. 결과물은 `dist/`에 생성됩니다.
+
+```console
+$ pip install build
+$ python -m build --wheel
+```
+
+### 빌드 옵션
+
+빌드 옵션은 환경 변수로 지정합니다.
+
+| 환경 변수 | 설명 |
+| --- | --- |
+| `USE_MIMALLOC=1` | mimalloc 할당자를 사용해 빌드합니다. |
+| `Py_LIMITED_API=1` | Stable ABI(abi3) 휠로 빌드합니다. 하나의 휠을 Python 3.9 이상에서 공용으로 사용할 수 있습니다. |
+| `KIWI_CPU_ARCH` | 대상 CPU 아키텍처를 지정합니다. (macOS 크로스 빌드시 `arm64`, `x86_64` 등) |
+| `NUM_AVAILABLE_CPU_CORES` | 빌드 병렬도를 제한합니다. 메모리가 부족한 환경에서 유용합니다. |
+| `MACOSX_DEPLOYMENT_TARGET` | macOS 최소 지원 버전을 지정합니다. |
+
+```console
+$ USE_MIMALLOC=1 NUM_AVAILABLE_CPU_CORES=4 pip install .
+```
+
+### 모델 패키지까지 함께 빌드하기
+
+`kiwipiepy_model`을 PyPI 배포판 대신 저장소의 모델 파일로 직접 빌드하려면 [Git LFS](https://git-lfs.com)가 추가로 필요합니다. 모델 파일이 Kiwi 서브모듈에 LFS로 저장되어 있기 때문입니다.
+
+```console
+$ git lfs install
+$ git -C Kiwi lfs pull
+$ mv Kiwi/models/cong/base/sj.* Kiwi/models/cong/base/*.mdl \
+     Kiwi/models/cong/base/*.dict Kiwi/models/cong/base/combiningRule.txt \
+     model/kiwipiepy_model/
+$ pip install ./model
+$ pip install .
+```
+
 ## 테스트해보기
 
 Kiwi 0.6.3 버전부터는 설치 후 바로 테스트할 수 있도록 대화형 인터페이스를 지원합니다. pip를 통해 설치가 완료된 후 다음과 같이 실행하여 형태소 분석기를 시험해볼 수 있습니다.
