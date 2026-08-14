@@ -15,6 +15,7 @@
 #include <kiwi/Kiwi.h>
 #include <kiwi/Dataset.h>
 #include <kiwi/SwTokenizer.h>
+#include <kiwi/BpeTokenizer.h>
 #include <kiwi/SubstringExtractor.h>
 
 using namespace std;
@@ -3190,6 +3191,123 @@ struct ChrDatasetIterObject : py::CObject<ChrDatasetIterObject>
 	}
 };
 
+
+void pyTrainBpeTokenizer(
+	const string& savePath,
+	PyObject* texts,
+	size_t vocabSize,
+	size_t minPairFrequency,
+	size_t maxTokenLength,
+	bool addPrefixSpace,
+	bool pretokenizeJClass,
+	bool pretokenizeEClass,
+	bool pretokenizeVcp,
+	bool pretokenizeXsv,
+	PyObject* kiwiObj,
+	bool useJamoAlphabet,
+	size_t maxDigitLength,
+	size_t maxRepeatLength,
+	size_t maxWhitespaceRepeatLength,
+	size_t numThreads,
+	PyObject* callback
+)
+{
+	BpeTrainerConfig config;
+	config.vocabSize = vocabSize;
+	config.minPairFrequency = minPairFrequency;
+	config.maxTokenLength = maxTokenLength;
+	config.addPrefixSpace = addPrefixSpace;
+	config.useJamoAlphabet = useJamoAlphabet;
+	config.maxDigitLength = maxDigitLength;
+	config.maxRepeatLength = maxRepeatLength;
+	config.maxWhitespaceRepeatLength = maxWhitespaceRepeatLength;
+	config.numThreads = numThreads;
+
+	PretokenizeOption pretokenizeOption = PretokenizeOption::none;
+	if (pretokenizeJClass) pretokenizeOption |= PretokenizeOption::jClass;
+	if (pretokenizeEClass) pretokenizeOption |= PretokenizeOption::eClass;
+	if (pretokenizeVcp) pretokenizeOption |= PretokenizeOption::vcp;
+	if (pretokenizeXsv) pretokenizeOption |= PretokenizeOption::xsv;
+	config.pretokenizeOption = pretokenizeOption;
+
+	KiwiObject* kiwi = nullptr;
+	shared_ptr<Kiwi> kiwiInst;
+	if (pretokenizeOption != PretokenizeOption::none)
+	{
+		if (!kiwiObj || kiwiObj == Py_None)
+		{
+			throw py::ValueError{ "`kiwi` must be provided when pretokenization is enabled." };
+		}
+		if (!PyObject_IsInstance(kiwiObj, (PyObject*)py::Type<KiwiObject>))
+		{
+			throw py::ValueError{ "`kiwi` must be an instance of `Kiwi`." };
+		}
+		kiwi = (KiwiObject*)kiwiObj;
+		kiwiInst = kiwi->doPrepare();
+	}
+
+	BpeTokenizerTrainerEventCallback cb;
+	if (callback && callback != Py_None)
+	{
+		if (!PyCallable_Check(callback))
+		{
+			throw py::ValueError{ "`callback` must be a callable." };
+		}
+
+		cb = [callback](BpeTokenizerTrainerEvent event, size_t current, size_t total)
+		{
+			const char* msg = nullptr;
+			switch (event)
+			{
+			case BpeTokenizerTrainerEvent::pretokenizeBegin: msg = "pretokenizeBegin"; break;
+			case BpeTokenizerTrainerEvent::pretokenizeProgress: msg = "pretokenizeProgress"; break;
+			case BpeTokenizerTrainerEvent::pretokenizeEnd: msg = "pretokenizeEnd"; break;
+			case BpeTokenizerTrainerEvent::mergeBegin: msg = "mergeBegin"; break;
+			case BpeTokenizerTrainerEvent::mergeProgress: msg = "mergeProgress"; break;
+			case BpeTokenizerTrainerEvent::mergeEnd: msg = "mergeEnd"; break;
+			}
+			py::UniqueObj ret{ PyObject_CallObject(callback, py::buildPyTuple(msg, current, total).get()) };
+			if (!ret)
+			{
+				throw py::ExcPropagation{};
+			}
+		};
+	}
+
+	BpeTokenizerTrainer trainer{ config, kiwiInst.get(), cb};
+
+	py::UniqueObj iter{ PyObject_GetIter(texts) };
+	if (!iter)
+	{
+		throw py::ValueError{ "`texts` must be an iterable of strings." };
+	}
+
+	trainer.addSentences([&]()
+	{
+		while (1)
+		{
+			py::UniqueObj item{ PyIter_Next(iter.get()) };
+			if (!item)
+			{
+				// 반복자가 도중에 예외를 던진 경우를 입력 소진으로 오인하면
+				// 잘린 데이터로 학습이 완료되어버리므로 구분해서 전파한다.
+				if (PyErr_Occurred()) throw py::ExcPropagation{};
+				else return string{};
+			}
+
+			auto ret = py::toCpp<string>(item.get());
+			if (ret.empty()) continue;
+			return ret;
+		}
+	});
+
+	BpeTokenizer tokenizer = trainer.build();
+	std::ofstream ofs;
+	kiwi::openFile(ofs, savePath);
+	tokenizer.save(ofs);
+}
+
+
 PyMODINIT_FUNC PyInit__kiwipiepy()
 {
 	py::CustomExcHandler::add<kiwi::IOException, py::OSError>();
@@ -3308,6 +3426,7 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 		.template method<&SwTokenizerObject::tokenizeAndEncode>("tokenize_encode")
 		.template method<&SwTokenizerObject::decode>("decode")
 		.template staticMethod<&SwTokenizerObject::train>("_train")
+		.template staticMethod<&pyTrainBpeTokenizer>("_train_bpe_tokenizer")
 		.template method<&SwTokenizerObject::save>("save")
 		.template property<&SwTokenizerObject::config>("_config")
 		.template property<&SwTokenizerObject::vocab>("_vocab")
