@@ -5,7 +5,7 @@ import tempfile
 import itertools
 import pickle
 
-from kiwipiepy import Kiwi, SplitToken, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings, Match
+from kiwipiepy import Kiwi, SplitForm, Sentence, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings, Match
 from kiwipiepy.utils import Stopwords
 
 curpath = os.path.dirname(os.path.abspath(__file__))
@@ -1084,76 +1084,76 @@ def test_issue_216():
         assert token.form
 
 
-def test_split():
+def test_split_into_forms():
     kiwi = Kiwi()
     cases = {
-        '했다': [SplitToken('했', 'VV+EP', 0, 1), SplitToken('다', 'EF', 1, 1)],
+        '했다': [SplitForm('했', 'VV+EP', 0, 1), SplitForm('다', 'EF', 1, 2)],
         '하였다': [
-            SplitToken('하', 'VV', 0, 1),
-            SplitToken('였', 'EP', 1, 1),
-            SplitToken('다', 'EF', 2, 1),
+            SplitForm('하', 'VV', 0, 1),
+            SplitForm('였', 'EP', 1, 2),
+            SplitForm('다', 'EF', 2, 3),
         ],
-        '귀여워요': [SplitToken('귀여워요', 'VA-I+EF', 0, 4)],
-        '걸어': [SplitToken('걸', 'VV-I', 0, 1), SplitToken('어', 'EF', 1, 1)],
+        '귀여워요': [SplitForm('귀여워요', 'VA-I+EF', 0, 4)],
+        '걸어': [SplitForm('걸', 'VV-I', 0, 1), SplitForm('어', 'EF', 1, 2)],
         '학생입니다': [
-            SplitToken('학생', 'NNG', 0, 2),
-            SplitToken('입니다', 'VCP+EF', 2, 3),
+            SplitForm('학생', 'NNG', 0, 2),
+            SplitForm('입니다', 'VCP+EF', 2, 5),
         ],
-        '도와': [SplitToken('도', 'VV-I', 0, 1), SplitToken('와', 'EF', 1, 1)],
+        '도와': [SplitForm('도', 'VV-I', 0, 1), SplitForm('와', 'EF', 1, 2)],
         '안녕하세요': [
-            SplitToken('안녕', 'NNG', 0, 2),
-            SplitToken('하', 'XSA', 2, 1),
-            SplitToken('세요', 'EF', 3, 2),
+            SplitForm('안녕', 'NNG', 0, 2),
+            SplitForm('하', 'XSA', 2, 3),
+            SplitForm('세요', 'EF', 3, 5),
         ],
     }
     for text, expected in cases.items():
-        result = kiwi.split(text)
+        result = kiwi.split_into_forms(text)
         assert result == expected
-        assert all(part.form == text[part.start:part.start + part.len] for part in result)
+        assert all(part.form == text[part.start:part.end] for part in result)
 
-    assert kiwi.split('시곗바늘', saisiot=True) == [
-        SplitToken('시곗', 'NNG+Z_SIOT', 0, 2),
-        SplitToken('바늘', 'NNG', 2, 2),
+    assert kiwi.split_into_forms('시곗바늘', saisiot=True) == [
+        SplitForm('시곗', 'NNG+Z_SIOT', 0, 2),
+        SplitForm('바늘', 'NNG', 2, 4),
     ]
-    assert kiwi.split('시곗바늘', saisiot=False) == [
-        SplitToken('시곗바늘', 'NNG', 0, 4),
+    assert kiwi.split_into_forms('시곗바늘', saisiot=False) == [
+        SplitForm('시곗바늘', 'NNG', 0, 4),
     ]
-    assert kiwi.split(
+    assert kiwi.split_into_forms(
         'ABC',
         pretokenized=[(0, 1, [PretokenizedToken('X', 'NNP', 0, 1)])],
-    ) == [SplitToken('A', 'NNP', 0, 1), SplitToken('BC', 'SL', 1, 2)]
+    ) == [SplitForm('A', 'NNP', 0, 1), SplitForm('BC', 'SL', 1, 3)]
 
     text = ' \t😀했다  안녕\n'
-    parts = kiwi.split(text)
+    parts = kiwi.split_into_forms(text)
     assert parts == [
-        SplitToken('😀', 'W_EMOJI', 2, 1),
-        SplitToken('했', 'XSV+EP', 3, 1),
-        SplitToken('다', 'EF', 4, 1),
-        SplitToken('안녕', 'IC', 7, 2),
+        SplitForm('😀', 'W_EMOJI', 2, 3),
+        SplitForm('했', 'XSV+EP', 3, 4),
+        SplitForm('다', 'EF', 4, 5),
+        SplitForm('안녕', 'IC', 7, 9),
     ]
 
-    assert kiwi.split('\u2800') == []
-    assert kiwi.split('A\u2800B') == [
-        SplitToken('A', 'SL', 0, 1),
-        SplitToken('B', 'SL', 2, 1),
+    assert kiwi.split_into_forms('\u2800') == []
+    assert kiwi.split_into_forms('A\u2800B') == [
+        SplitForm('A', 'SL', 0, 1),
+        SplitForm('B', 'SL', 2, 3),
     ]
 
-    assert kiwi.split(
+    assert kiwi.split_into_forms(
         'A B',
         pretokenized=[(0, 3, 'NNP')],
-    ) == [SplitToken('A B', 'NNP', 0, 3)]
-    assert kiwi.split('랠프 월도 에머슨') == [
-        SplitToken('랠프 월도 에머슨', 'NNP', 0, 9),
+    ) == [SplitForm('A B', 'NNP', 0, 3)]
+    assert kiwi.split_into_forms('랠프 월도 에머슨') == [
+        SplitForm('랠프 월도 에머슨', 'NNP', 0, 9),
     ]
 
     texts = ['했다', '귀여워요', '']
     expected = [
-        [SplitToken('했', 'VV+EP', 0, 1), SplitToken('다', 'EF', 1, 1)],
-        [SplitToken('귀여워요', 'VA-I+EF', 0, 4)],
+        [SplitForm('했', 'VV+EP', 0, 1), SplitForm('다', 'EF', 1, 2)],
+        [SplitForm('귀여워요', 'VA-I+EF', 0, 4)],
         [],
     ]
-    assert list(kiwi.split(iter(texts))) == expected
-    assert list(kiwi.split(iter(texts), echo=True)) == list(zip(expected, texts))
+    assert list(kiwi.split_into_forms(iter(texts))) == expected
+    assert list(kiwi.split_into_forms(iter(texts), echo=True)) == list(zip(expected, texts))
 
     pretokenized_inputs = []
 
@@ -1163,29 +1163,58 @@ def test_split():
 
     texts = ['A B', 'CD']
     expected = [
-        [SplitToken('A B', 'NNP', 0, 3)],
-        [SplitToken('CD', 'NNP', 0, 2)],
+        [SplitForm('A B', 'NNP', 0, 3)],
+        [SplitForm('CD', 'NNP', 0, 2)],
     ]
-    assert list(kiwi.split(iter(texts), pretokenized=pretokenize)) == expected
+    assert list(kiwi.split_into_forms(iter(texts), pretokenized=pretokenize)) == expected
     assert pretokenized_inputs == texts
 
     pretokenized_inputs.clear()
-    assert list(kiwi.split(
+    assert list(kiwi.split_into_forms(
         iter(texts), pretokenized=pretokenize, echo=True,
     )) == list(zip(expected, texts))
     assert pretokenized_inputs == texts
 
 
-def test_split_token():
-    token = SplitToken('했', 'VV+EP', 0, 1)
+def test_split_form():
+    token = SplitForm('했', 'VV+EP', 0, 1)
 
     assert token.form == '했'
     assert token.tag == 'VV+EP'
     assert token.start == 0
-    assert token.len == 1
-    assert token == SplitToken('했', 'VV+EP', 0, 1)
-    assert SplitToken.__module__ == 'kiwipiepy'
+    assert token.end == 1
+    assert token == SplitForm('했', 'VV+EP', 0, 1)
+    assert SplitForm.__module__ == 'kiwipiepy'
     assert pickle.loads(pickle.dumps(token)) == token
+
+    assert token.len == 1   # len은 end - start를 돌려주는 프로퍼티입니다.
+    assert token.tokens == []
+    assert repr(token) == "SplitForm(form='했', tag='VV+EP', start=0, end=1)"
+
+
+def test_split_form_tokens():
+    kiwi = Kiwi()
+    text = '했다 학생입니다'
+    parts = kiwi.split_into_forms(text)
+    tokens = kiwi.tokenize(text)
+
+    # 각 SplitForm의 tokens를 이어붙이면 원래 분석 결과와 같아야 합니다.
+    # Token은 값 비교를 지원하지 않으므로 속성으로 비교합니다.
+    def key(token):
+        return (token.form, token.tag, token.start, token.len)
+
+    assert [key(token) for part in parts for token in part.tokens] == [key(token) for token in tokens]
+    for part in parts:
+        assert part.tag == '+'.join(token.tag for token in part.tokens)
+        assert all(
+            part.start <= token.start and token.end <= part.end
+            for token in part.tokens
+        )
+
+    # tokens는 repr과 동등성 비교에서 제외됩니다.
+    assert parts[0].tokens
+    assert repr(parts[0]) == "SplitForm(form='했', tag='VV+EP', start=0, end=1)"
+    assert parts[0] == SplitForm('했', 'VV+EP', 0, 1)
 
 
 def test_split_by_spans_boundaries():
@@ -1199,21 +1228,21 @@ def test_split_by_spans_boundaries():
     assert _split_by_spans('A\u2800B', [
         token('A', 'SL', 0, 1),
         token('B', 'SL', 2, 3),
-    ]) == [SplitToken('A', 'SL', 0, 1), SplitToken('B', 'SL', 2, 1)]
+    ]) == [SplitForm('A', 'SL', 0, 1), SplitForm('B', 'SL', 2, 3)]
     assert _split_by_spans('A B', [token('A B', 'NNP', 0, 3)]) == [
-        SplitToken('A B', 'NNP', 0, 3),
+        SplitForm('A B', 'NNP', 0, 3),
     ]
     assert _split_by_spans('A B', [
         token('B', 'TB', 2, 3),
         token('A', 'TA', 0, 1),
-    ]) == [SplitToken('A', 'TA', 0, 1), SplitToken('B', 'TB', 2, 1)]
+    ]) == [SplitForm('A', 'TA', 0, 1), SplitForm('B', 'TB', 2, 3)]
 
     # 태그 순서는 위치 정렬 순서가 아니라 형태소 분석 결과 순서를 따릅니다.
     crossed = [
         token('B', 'EP', 1, 2),
         token('AB', 'VV', 0, 2),
     ]
-    assert _split_by_spans('AB', crossed) == [SplitToken('AB', 'EP+VV', 0, 2)]
+    assert _split_by_spans('AB', crossed) == [SplitForm('AB', 'EP+VV', 0, 2)]
 
     # 연쇄적으로 겹치는 구간은 합치되 맞닿기만 한 구간은 따로 둡니다.
     assert _split_by_spans('ABCDE', [
@@ -1222,25 +1251,25 @@ def test_split_by_spans_boundaries():
         token('D', 'NNG', 3, 4),
         token('E', 'JX', 4, 5),
     ]) == [
-        SplitToken('ABC', 'EP+VV', 0, 3),
-        SplitToken('D', 'NNG', 3, 1),
-        SplitToken('E', 'JX', 4, 1),
+        SplitForm('ABC', 'EP+VV', 0, 3),
+        SplitForm('D', 'NNG', 3, 4),
+        SplitForm('E', 'JX', 4, 5),
     ]
 
     # 길이가 0인 Token은 다음 표면형에, 다음 표면형이 없으면 이전에 결합합니다.
     assert _split_by_spans('A', [
         token('만', 'JX', 0, 0),
         token('A', 'NNG', 0, 1),
-    ]) == [SplitToken('A', 'JX+NNG', 0, 1)]
+    ]) == [SplitForm('A', 'JX+NNG', 0, 1)]
     assert _split_by_spans('AB', [
         token('A', 'NNG', 0, 1),
         token('이', 'VCP', 1, 1),
         token('B', 'EF', 1, 2),
-    ]) == [SplitToken('A', 'NNG', 0, 1), SplitToken('B', 'VCP+EF', 1, 1)]
+    ]) == [SplitForm('A', 'NNG', 0, 1), SplitForm('B', 'VCP+EF', 1, 2)]
     assert _split_by_spans('A', [
         token('A', 'NNG', 0, 1),
         token('만', 'JX', 1, 1),
-    ]) == [SplitToken('A', 'NNG+JX', 0, 1)]
+    ]) == [SplitForm('A', 'NNG+JX', 0, 1)]
     assert _split_by_spans('', [
         token('이', 'VCP', 0, 0),
     ]) == []

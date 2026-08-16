@@ -3289,8 +3289,6 @@ void pyTrainBpeTokenizer(
 			py::UniqueObj item{ PyIter_Next(iter.get()) };
 			if (!item)
 			{
-				// 반복자가 도중에 예외를 던진 경우를 입력 소진으로 오인하면
-				// 잘린 데이터로 학습이 완료되어버리므로 구분해서 전파한다.
 				if (PyErr_Occurred()) throw py::ExcPropagation{};
 				else return string{};
 			}

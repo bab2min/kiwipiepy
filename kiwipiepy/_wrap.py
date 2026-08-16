@@ -1,7 +1,7 @@
 import re
 from functools import partial
 from typing import Callable, List, Dict, Optional, Tuple, Union, Iterable, NamedTuple, NewType, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import itertools
 import warnings
 
@@ -15,23 +15,32 @@ from kiwipiepy.template import Template
 
 
 @dataclass
-class SplitToken:
-    '''원문의 표면형을 보존한 분할 결과를 담는 데이터 클래스입니다.
+class SplitForm:
+    '''.. versionadded:: 0.24.0
 
-    `form`은 원문에서 잘라낸 표면형이며, `tag`는 해당 구간에 대응하는
-    형태소들의 품사 태그를 분석 결과 순서대로 `+`로 연결한 값입니다.
-    `start`와 `len`은 입력 텍스트 내 위치와 길이를 문자 단위로 나타냅니다.
+`Kiwi.split_into_forms`의 결과로, 원문의 표면형을 보존한 분할 단위를 담는 데이터 클래스입니다.
     '''
     form: str
+    '''원문에서 잘라낸 표면형'''
     tag: str
+    '''이 구간에 대응하는 형태소들의 품사 태그를 분석 결과 순서대로 `+`로 연결한 값'''
     start: int
-    len: int
+    '''전체 텍스트 내에서 이 구간이 시작하는 위치 (문자 단위)'''
+    end: int
+    '''전체 텍스트 내에서 이 구간이 끝나는 위치 (문자 단위)'''
+    tokens: List[Token] = field(default_factory=list, repr=False, compare=False)
+    '''이 구간에 대응하는 형태소 `Token`의 목록'''
+
+    @property
+    def len(self) -> int:
+        '''이 구간의 길이 (문자 단위)'''
+        return self.end - self.start
 
 
 def _split_by_spans(
     text: str,
     tokens: List[Token],
-) -> List[SplitToken]:
+) -> List[SplitForm]:
     spans = []
     token_span_indices = [None] * len(tokens)
     sorted_token_indices = sorted(
@@ -65,32 +74,117 @@ def _split_by_spans(
         elif token.start == token.end:
             token_span_indices[token_index] = previous_span_index
 
-    tags = [[] for _ in spans]
+    span_tokens = [[] for _ in spans]
     for token, span_index in zip(tokens, token_span_indices):
         if span_index is not None:
-            tags[span_index].append(token.tag)
+            span_tokens[span_index].append(token)
     return [
-        SplitToken(text[start:end], '+'.join(tag_group), start, end - start)
-        for (start, end), tag_group in zip(spans, tags)
+        SplitForm(
+            text[start:end],
+            '+'.join(token.tag for token in token_group),
+            start,
+            end,
+            token_group,
+        )
+        for (start, end), token_group in zip(spans, span_tokens)
     ]
 
 
-class Sentence(NamedTuple):
-    '''문장 분할 결과를 담기 위한 `namedtuple`입니다.'''
-    text: str
-    start: int
-    end: int
-    tokens: Optional[List[Token]]
-    subs: Optional[List['Sentence']]
+_SENTENCE_FIELDS = ('text', 'start', 'end', 'tokens', 'subs')
 
-Sentence.text.__doc__ = '분할된 문장의 텍스트'
-Sentence.start.__doc__ = '전체 텍스트 내에서 분할된 문장이 시작하는 위치 (문자 단위)'
-Sentence.end.__doc__ = '전체 텍스트 내에서 분할된 문장이 끝나는 위치 (문자 단위)'
-Sentence.tokens.__doc__ = '분할된 문장의 형태소 분석 결과'
-Sentence.subs.__doc__ = '''.. versionadded:: 0.14.0
+def _warn_sentence_as_tuple(usage: str):
+    warnings.warn(
+        f"Using `Sentence` as a tuple ({usage}) is deprecated since 0.24.0. "
+        f"Please access its fields by name (`{'`, `'.join(_SENTENCE_FIELDS)}`) instead. "
+        "Tuple compatibility will be removed in a future version.",
+        FutureWarning,
+        stacklevel=3,
+    )
+
+class _DeprecatedFields:
+    def __get__(self, obj, objtype=None):
+        _warn_sentence_as_tuple('_fields')
+        return _SENTENCE_FIELDS
+
+@dataclass(frozen=True, eq=False)
+class Sentence:
+    '''문장 분할 결과를 담기 위한 데이터 클래스입니다.
+
+    .. versionchanged:: 0.24.0
+
+        `namedtuple`에서 데이터 클래스로 변경되었습니다. 언패킹, 인덱싱 등
+        튜플처럼 다루는 사용법은 당분간 `FutureWarning`과 함께 계속
+        동작하지만, 향후 버전에서 제거될 예정이므로 속성 이름으로 접근하는
+        방식으로 옮겨주세요.
+    '''
+    text: str
+    '''분할된 문장의 텍스트'''
+    start: int
+    '''전체 텍스트 내에서 분할된 문장이 시작하는 위치 (문자 단위)'''
+    end: int
+    '''전체 텍스트 내에서 분할된 문장이 끝나는 위치 (문자 단위)'''
+    tokens: Optional[List[Token]]
+    '''분할된 문장의 형태소 분석 결과'''
+    subs: Optional[List['Sentence']]
+    '''.. versionadded:: 0.14.0
 
 현 문장 내에 포함된 안긴 문장의 목록
 '''
+
+    @property
+    def len(self) -> int:
+        '''.. versionadded:: 0.24.0
+
+분할된 문장의 길이 (문자 단위). 튜플 호환을 위해 남아있는 `len(sentence)`와는
+다른 값이므로 주의해주세요. `len(sentence)`는 필드의 개수를 돌려줍니다.
+'''
+        return self.end - self.start
+
+    # 이하는 `namedtuple`이던 시절과의 하위호환을 위한 것으로, 향후 제거됩니다.
+    _fields = _DeprecatedFields()
+
+    def _astuple(self) -> tuple:
+        return (self.text, self.start, self.end, self.tokens, self.subs)
+
+    def __iter__(self):
+        _warn_sentence_as_tuple('unpacking or iteration')
+        return iter(self._astuple())
+
+    def __getitem__(self, index):
+        _warn_sentence_as_tuple('indexing')
+        return self._astuple()[index]
+
+    def __len__(self) -> int:
+        _warn_sentence_as_tuple('len()')
+        return len(_SENTENCE_FIELDS)
+
+    def __bool__(self) -> bool:
+        # __len__이 있으면 truth 판정에까지 경고가 새어나오므로 따로 정의.
+        return True
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Sentence):
+            return self._astuple() == other._astuple()
+        if isinstance(other, tuple):
+            _warn_sentence_as_tuple('comparison with a tuple')
+            return self._astuple() == other
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self._astuple())
+
+    def _asdict(self) -> Dict[str, Any]:
+        _warn_sentence_as_tuple('_asdict()')
+        return dict(zip(_SENTENCE_FIELDS, self._astuple()))
+
+    def _replace(self, **kwargs) -> 'Sentence':
+        _warn_sentence_as_tuple('_replace()')
+        unknown = set(kwargs) - set(_SENTENCE_FIELDS)
+        if unknown:
+            raise ValueError(f'Got unexpected field names: {sorted(unknown)!r}')
+        values = dict(zip(_SENTENCE_FIELDS, self._astuple()))
+        values.update(kwargs)
+        return Sentence(**values)
 
 POSTag = NewType('POSTag', str)
 SenseId = NewType('SenseId', int)
@@ -283,7 +377,7 @@ def _convert_oov_handling(oov_handling: Union[str, int]) -> Match:
     elif oov_handling in (Match.OOV_RULE_ONLY, Match.OOV_CHR_MODEL, Match.OOV_CHR_FREQ_MODEL, Match.OOV_CHR_FREQ_BRANCH_MODEL, Match.OOV_TOTAL_CONSISTENCY, Match.OOV_CHR_FREQ_MODEL | Match.OOV_TOTAL_CONSISTENCY):
         return oov_handling
     else:
-        raise ValueError(f"Unknown oov_handling option: {oov_handling}. Should be one of (None, 'rule', 'chr', 'chr_freq', 'chr_freq_branch').")
+        raise ValueError(f"Unknown oov_handling option: {oov_handling}. Should be one of (None, 'rule', 'chr', 'chr_freq', 'chr_freq_branch', 'chr_freq_consistency').")
 
 class TypoTransformer(_TypoTransformer):
     '''.. versionadded:: 0.13.0
@@ -1818,7 +1912,7 @@ Notes
                               override_config=override_config,
                               )
 
-    def split(self,
+    def split_into_forms(self,
         text:Union[str, Iterable[str]],
         match_options:int = Match.ALL,
         normalize_coda:bool = False,
@@ -1837,9 +1931,9 @@ Notes
         typo_cost_threshold:float = 2.5,
         override_config:Optional[KiwiConfig] = None,
     ) -> Union[
-        List[SplitToken],
-        Iterable[List[SplitToken]],
-        Iterable[Tuple[List[SplitToken], str]],
+        List[SplitForm],
+        Iterable[List[SplitForm]],
+        Iterable[Tuple[List[SplitForm], str]],
     ]:
         '''Kiwi의 형태소 분석 경계에 맞춰 원문의 표면형을 나눕니다.
 
@@ -1847,8 +1941,10 @@ Notes
 Token 구간은 각각 나누어 반환합니다. Token이 없는 원문 구간은 결과에서
 제외하지만, 하나의 Token 구간 안에 포함된 공백은 원문 그대로 보존합니다.
 길이가 0인 Token은 분석 순서상 다음 표면형의 품사 태그에 결합하며, 다음
-표면형이 없을 때에는 이전 표면형에 결합합니다. 각 결과는 원문의 표면형,
-결합된 품사 태그, 원문 내 시작 위치와 길이를 담은 `SplitToken`입니다.
+표면형이 없을 때에는 이전 표면형에 결합합니다. 
+분할된 결과는 `SplitForm` data class로 반환됩니다. 이 클래스에는 원문의 표면형,
+결합된 품사 태그, 원문 내 시작/끝 위치, 그리고 해당 구간에 대응하는
+형태소 `Token`의 목록이 포함되어 있습니다.
 
 Parameters
 ----------
@@ -1889,24 +1985,31 @@ override_config: KiwiConfig
 
 Returns
 -------
-result: List[SplitToken]
+result: List[SplitForm]
     text가 단일 str일 때의 분할 결과입니다.
-results: Iterable[List[SplitToken]]
+results: Iterable[List[SplitForm]]
     text가 str의 Iterable일 때의 분할 결과입니다.
-results_with_echo: Iterable[Tuple[List[SplitToken], str]]
+results_with_echo: Iterable[Tuple[List[SplitForm], str]]
     text가 str의 Iterable이고 `echo=True`일 때의 분할 결과와 원문입니다.
 
 Notes
 -----
 
 ```python
->>> kiwi.split('했다')
-[SplitToken(form='했', tag='VV+EP', start=0, len=1),
- SplitToken(form='다', tag='EF', start=1, len=1)]
->>> [part.form for part in kiwi.split('했다')]
+>>> kiwi.split_into_forms('했다')
+[SplitForm(form='했', tag='VV+EP', start=0, end=1),
+ SplitForm(form='다', tag='EF', start=1, end=2)]
+>>> [part.form for part in kiwi.split_into_forms('했다')]
 ['했', '다']
->>> kiwi.split('랠프 월도 에머슨')
-[SplitToken(form='랠프 월도 에머슨', tag='NNP', start=0, len=9)]
+>>> kiwi.split_into_forms('랠프 월도 에머슨')
+[SplitForm(form='랠프 월도 에머슨', tag='NNP', start=0, end=9)]
+```
+
+`tokens` 필드에는 각 표면형에 대응하는 형태소 분석 결과가 그대로 담겨 있습니다.
+
+```python
+>>> kiwi.split_into_forms('했다')[0].tokens
+[Token(form='하', tag='VV', start=0, len=1), Token(form='었', tag='EP', start=0, len=1)]
 ```
         '''
         # iterable 입력의 각 분석 결과를 원문과 다시 대응시키기 위해 내부 echo를 켭니다.
