@@ -1231,9 +1231,11 @@ inline const char* getTagStr(const POSTag tag, const u16string& form)
 	return tagToString(tag);
 }
 
-py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj,
-	const shared_ptr<Kiwi>& kiwiInst, vector<py::UniqueObj>&& userValues = {},
-	const vector<size_t>* sourceOffsets = nullptr)
+py::UniqueObj resToPyList(vector<TokenResult>&& res, 
+	const KiwiObject* kiwiObj,
+	const shared_ptr<Kiwi>& kiwiInst, 
+	const py::SurrogateOffsetMap& sourceOffsets,
+	vector<py::UniqueObj>&& userValues = {})
 {
 	// set the following objects semi-immortal. (they are neither freed nor managed)
 	// it prevents crashes at Python3.12
@@ -1247,16 +1249,9 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj,
 	{
 		py::UniqueObj rList{ PyList_New(p.first.size()) };
 		size_t jdx = 0;
-		size_t u32offset = 0;
 		const size_t resultHash = hashTokenInfo(p.first);
 		for (auto& q : p.first)
 		{
-			size_t u32chrs = 0;
-			if (!sourceOffsets) for (auto u : q.str)
-			{
-				if ((u & 0xFC00) == 0xD800) u32chrs++;
-			}
-
 			auto tItem = py::makeNewObject<TokenObject>();
 			tItem->kiwiInst = kiwiInst;
 			tItem->_form = move(q.str);
@@ -1264,22 +1259,10 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj,
 			tItem->_rawTag = q.tag;
 			tItem->resultHash = resultHash;
 			tItem->_tag = getTagStr(q.tag, tItem->_form);
-			if (sourceOffsets)
-			{
-				const size_t sourceBegin = q.position;
-				const size_t sourceEnd = sourceBegin + q.length;
-				const size_t pyBegin = upper_bound(sourceOffsets->begin(), sourceOffsets->end(), sourceBegin)
-					- sourceOffsets->begin() - 1;
-				const size_t pyEnd = lower_bound(sourceOffsets->begin(), sourceOffsets->end(), sourceEnd)
-					- sourceOffsets->begin();
-				tItem->_pos = (uint32_t)pyBegin;
-				tItem->_len = (uint32_t)(pyEnd - pyBegin);
-			}
-			else
-			{
-				tItem->_pos = q.position - u32offset;
-				tItem->_len = q.length - u32chrs;
-			}
+			const size_t chrBegin = sourceOffsets.toChrFloor(q.position);
+			const size_t chrEnd = sourceOffsets.toChrCeil((size_t)q.position + q.length);
+			tItem->_pos = (uint32_t)chrBegin;
+			tItem->_len = (uint32_t)(chrEnd - chrBegin);
 			tItem->_wordPosition = q.wordPosition;
 			tItem->_sentPosition = q.sentPosition;
 			tItem->_subSentPosition = q.subSentPosition;
@@ -1328,7 +1311,6 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res, const KiwiObject* kiwiObj,
 			}
 
 			PyList_SetItem(rList.get(), jdx++, (PyObject*)tItem.release());
-			if (!sourceOffsets) u32offset += u32chrs;
 		}
 		PyList_SetItem(retList.get(), idx++, py::buildPyTuple(move(rList), p.second).release());
 	}
@@ -1882,7 +1864,7 @@ inline pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> makePretokenizedSpa
 
 inline void updatePretokenizedSpanToU16(vector<PretokenizedSpan>& spans, const py::StringWithOffset<u16string>& so)
 {
-	const size_t sourceLength = so.offsets.empty() ? 0 : so.offsets.size() - 1;
+	const size_t sourceLength = so.offsets.chrSize;
 	for (auto& s : spans)
 	{
 		// 외부 span과 내부 Token 위치는 Python code point 단위다. UTF-16
@@ -1894,7 +1876,7 @@ inline void updatePretokenizedSpanToU16(vector<PretokenizedSpan>& spans, const p
 		const size_t spanBegin = s.begin;
 		const size_t spanEnd = s.end;
 		const size_t spanLength = spanEnd - spanBegin;
-		const size_t u16SpanBegin = so.offsets[spanBegin];
+		const size_t u16SpanBegin = so.offsets.toU16(spanBegin);
 		for (auto& t : s.tokenization)
 		{
 			// 기존 API가 허용하던 zero-length 내부 형태소는 유지하고, 역방향
@@ -1903,11 +1885,11 @@ inline void updatePretokenizedSpanToU16(vector<PretokenizedSpan>& spans, const p
 			{
 				throw py::ValueError{ "A token in `pretokenized` is outside its span." };
 			}
-			t.begin = so.offsets[spanBegin + t.begin] - u16SpanBegin;
-			t.end = so.offsets[spanBegin + t.end] - u16SpanBegin;
+			t.begin = so.offsets.toU16(spanBegin + t.begin) - u16SpanBegin;
+			t.end = so.offsets.toU16(spanBegin + t.end) - u16SpanBegin;
 		}
 		s.begin = u16SpanBegin;
-		s.end = so.offsets[spanEnd];
+		s.end = so.offsets.toU16(spanEnd);
 
 		if (s.tokenization.size() == 1 && s.tokenization[0].form.empty())
 		{
@@ -1945,7 +1927,11 @@ auto makeFutureCarrier(std::future<FutureTy>&& future, CarriedTy&& carried)
 	return FutureCarrier<FutureTy, std::remove_reference_t<CarriedTy>>{ std::move(future), std::forward<CarriedTy>(carried) };
 }
 
-using AnalysisContext = pair<vector<py::UniqueObj>, vector<size_t>>;
+struct AnalysisContext
+{
+	vector<py::UniqueObj> userValues;
+	py::SurrogateOffsetMap sourceOffsets;
+};
 
 struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, FutureCarrier<vector<TokenResult>, AnalysisContext>>
 {
@@ -1976,8 +1962,7 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 			if (v.first.size() > topN) v.first.erase(v.first.begin() + topN, v.first.end());
 			auto context = move(v.second);
 			return resToPyList(
-				move(v.first), kiwi.get(), kiwiInst, move(context.first),
-				context.second.empty() ? nullptr : &context.second
+				move(v.first), kiwi.get(), kiwiInst, context.sourceOffsets, move(context.userValues)
 			);
 		});
 	}
@@ -1992,18 +1977,13 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 			py::UniqueObj ptResult{ PyObject_CallFunctionObjArgs(pretokenizedCallable.get(), next.get(), nullptr) };
 			pretokenized = makePretokenizedSpans(ptResult.get());
 		}
-		py::StringWithOffset<u16string> so;
-		if (pretokenized.first.empty())
+		auto so = py::toCpp<py::StringWithOffset<u16string>>(next);
+		if (!pretokenized.first.empty())
 		{
-			so.str = py::toCpp<u16string>(next);
-		}
-		else
-		{
-			so = py::toCpp<py::StringWithOffset<u16string>>(next);
 			updatePretokenizedSpanToU16(pretokenized.first, so);
 		}
 		return makeFutureCarrier(
-			kiwiInst->asyncAnalyze(move(so.str), topN, 
+			kiwiInst->asyncAnalyze(move(so.str), topN,
 				options,
 				move(pretokenized.first),
 				config
@@ -2072,7 +2052,9 @@ inline void chrOffsetsToTokenOffsets(const vector<TokenInfo>& tokens, vector<pai
 	}
 }
 
-using TokenEncodeResult = tuple<vector<TokenResult>, vector<uint32_t>, vector<pair<uint32_t, uint32_t>>>;
+// 이 경로는 원본을 UTF-8로 넘기지만 Kiwi가 돌려주는 Token 위치는 UTF-16 기준이므로,
+// 파이썬 코드포인트 단위로 되돌리기 위한 대응표를 결과와 함께 나른다.
+using TokenEncodeResult = tuple<vector<TokenResult>, vector<uint32_t>, vector<pair<uint32_t, uint32_t>>, py::SurrogateOffsetMap>;
 
 struct SwTokenizerResTEIter : public py::ResultIter<SwTokenizerResTEIter, TokenEncodeResult>
 {
@@ -2090,8 +2072,8 @@ struct SwTokenizerResTEIter : public py::ResultIter<SwTokenizerResTEIter, TokenE
 
 	py::UniqueObj buildPy(TokenEncodeResult&& v)
 	{
-		if (returnOffsets) return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi.get(), tokenizer->kiwiInst), get<1>(v), get<2>(v));
-		return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi.get(), tokenizer->kiwiInst), get<1>(v));
+		if (returnOffsets) return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi.get(), tokenizer->kiwiInst, get<3>(v)), get<1>(v), get<2>(v));
+		return py::buildPyTuple(resToPyList(move(get<0>(v)), tokenizer->kiwi.get(), tokenizer->kiwiInst, get<3>(v)), get<1>(v));
 	}
 
 	future<TokenEncodeResult> feedNext(py::SharedObj&& next)
@@ -2099,14 +2081,16 @@ struct SwTokenizerResTEIter : public py::ResultIter<SwTokenizerResTEIter, TokenE
 		if (!PyUnicode_Check(next)) throw py::ValueError{ "`tokenize_encode` requires an instance of `str` or an iterable of `str`." };
 		auto* pool = tokenizer->kiwiInst->getThreadPool();
 		if (!pool) throw py::RuntimeError{ "async mode is unavailable in num_workers == 0" };
-		return pool->enqueue([&](size_t, const string& text)
+		py::SurrogateOffsetMap sourceOffsets;
+		if (!py::buildSurrogateOffsetMap(next.get(), sourceOffsets)) throw py::ExcPropagation{};
+		return pool->enqueue([&](size_t, const string& text, py::SurrogateOffsetMap so)
 		{
 			vector<pair<uint32_t, uint32_t>> offsets;
 			auto res = tokenizer->kiwiInst->analyze(text, 1, Match::allWithNormalizing | Match::zCoda);
 			auto tokenIds = tokenizer->tokenizer.encode(res[0].first.data(), res[0].first.size(), returnOffsets ? &offsets : nullptr);
 			if (returnOffsets) chrOffsetsToTokenOffsets(res[0].first, offsets);
-			return make_tuple(move(res), move(tokenIds), move(offsets));
-		}, py::toCpp<string>(next));
+			return make_tuple(move(res), move(tokenIds), move(offsets), move(so));
+		}, py::toCpp<string>(next), move(sourceOffsets));
 	}
 };
 
@@ -2188,16 +2172,18 @@ py::UniqueObj SwTokenizerObject::tokenizeAndEncode(PyObject* text, bool returnOf
 	if (PyUnicode_Check(text))
 	{
 		vector<pair<uint32_t, uint32_t>> offsets;
+		py::SurrogateOffsetMap sourceOffsets;
+		if (!py::buildSurrogateOffsetMap(text, sourceOffsets)) throw py::ExcPropagation{};
 		auto res = kiwiInst->analyze(py::toCpp<string>(text), 1, Match::allWithNormalizing | Match::zCoda);
 		auto tokenIds = tokenizer.encode(res[0].first.data(), res[0].first.size(), returnOffsets ? &offsets : nullptr);
 		if (returnOffsets)
 		{
 			chrOffsetsToTokenOffsets(res[0].first, offsets);
-			return py::buildPyTuple(resToPyList(move(res), kiwi.get(), kiwiInst), tokenIds, offsets);
+			return py::buildPyTuple(resToPyList(move(res), kiwi.get(), kiwiInst, sourceOffsets), tokenIds, offsets);
 		}
 		else
 		{
-			return py::buildPyTuple(resToPyList(move(res), kiwi.get(), kiwiInst), tokenIds);
+			return py::buildPyTuple(resToPyList(move(res), kiwi.get(), kiwiInst, sourceOffsets), tokenIds);
 		}
 	}
 
@@ -2415,22 +2401,14 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 			pretokenizedSpans = makePretokenizedSpans(pretokenized);
 		}
 
-		py::StringWithOffset<u16string> so;
-		if (pretokenizedSpans.first.empty())
+		auto so = py::toCpp<py::StringWithOffset<u16string>>(text);
+		if (!pretokenizedSpans.first.empty())
 		{
-			so.str = py::toCpp<u16string>(text);
-		}
-		else
-		{
-			so = py::toCpp<py::StringWithOffset<u16string>>(text);
 			updatePretokenizedSpanToU16(pretokenizedSpans.first, so);
 		}
 		auto res = kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs, openEnding, allowedDialects, dialectCost, ptt, typoCostThreshold }, pretokenizedSpans.first, cConfig);
 		if (res.size() > topN) res.erase(res.begin() + topN, res.end());
-		return resToPyList(
-			move(res), this, kiwiInst, move(pretokenizedSpans.second),
-			so.offsets.empty() ? nullptr : &so.offsets
-		);
+		return resToPyList(move(res), this, kiwiInst, so.offsets, move(pretokenizedSpans.second));
 	}
 	else
 	{

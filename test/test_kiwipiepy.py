@@ -197,6 +197,28 @@ def test_pretokenized_non_bmp_offsets():
         for tokens in kiwi.tokenize(iter(texts), pretokenized=pretokenized)
     ] == [expected, expected]
 
+def test_non_bmp_offsets():
+    # UTF-16에서 두 칸을 차지하는 non-BMP 문자가 섞여 있어도 Token 위치는 파이썬 문자 기준이어야 한다.
+    kiwi = Kiwi()
+
+    assert [
+        (token.form, token.start, token.end) for token in kiwi.tokenize('😀 밥을 먹었다')
+    ] == [('😀', 0, 1), ('밥', 2, 3), ('을', 3, 4), ('먹', 5, 6), ('었', 6, 7), ('다', 7, 8)]
+
+    assert [
+        (token.form, token.start, token.end) for token in kiwi.tokenize('밥😀😀 먹었다')
+    ] == [('밥', 0, 1), ('😀', 1, 2), ('😀', 2, 3), ('먹', 4, 5), ('었', 5, 6), ('다', 6, 7)]
+
+    texts = ['오늘 밥을 먹었다', '𠀀 밥을 먹었다', '🇰🇷 밥을 먹었다']
+    for text, tokens in zip(texts, kiwi.tokenize(iter(texts))):
+        for token in tokens:
+            assert token.end <= len(text)
+            assert text[token.start:token.end] == token.form
+
+    text = '😀 안녕하세요. 반갑습니다.'
+    for sent in kiwi.split_into_sents(text):
+        assert text[sent.start:sent.end] == sent.text
+
 def test_pretokenized_ranges_reject_empty_and_overflow():
     """native 입력도 빈 범위와 uint32 범위를 안전하게 거절한다."""
     from _kiwipiepy import _Kiwi
@@ -508,6 +530,26 @@ def test_swtokenizer_tokenize_encode():
         ref_morphs = tokenizer.kiwi.tokenize(sent, normalize_coda=True, z_coda=True)
         assert [m.tagged_form for m in morphs] == [m.tagged_form for m in ref_morphs]
         assert token_ids.tolist() == ref_token_ids.tolist()
+
+def test_swtokenizer_tokenize_encode_non_bmp_offsets():
+    # tokenize_encode는 원본을 UTF-8로 넘기지만 Token 위치는 파이썬 문자 기준으로 돌아와야 한다.
+    tokenizer = sw_tokenizer.SwTokenizer('Kiwi/test/written.tokenizer.json', num_workers=1)
+    sents = [
+        "😀 한국어에 특화된 토크나이저입니다.",
+        "한국어😀에 특화된 토크나이저입니다.",
+    ]
+
+    def assert_offsets(morphs, sent):
+        assert all(m.end <= len(sent) for m in morphs)
+        emoji = next(m for m in morphs if m.form == '😀')
+        assert sent[emoji.start:emoji.end] == '😀'
+
+    for sent in sents:
+        morphs, token_ids = tokenizer.tokenize_encode(sent)
+        assert_offsets(morphs, sent)
+
+    for (morphs, token_ids), sent in zip(tokenizer.tokenize_encode(iter(sents)), sents):
+        assert_offsets(morphs, sent)
 
 def test_swtokenizer_offset():
     tokenizer = sw_tokenizer.SwTokenizer('Kiwi/tokenizers/kor.32k.json', num_workers=1)
