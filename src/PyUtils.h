@@ -299,11 +299,56 @@ namespace py
 	using UniqueObj = UniqueCObj<>;
 	using SharedObj = SharedCObj<>;
 
+	/**
+	 * @brief 파이썬 문자열의 코드포인트 인덱스와 UTF-16 인덱스 사이를 오가는 대응표.
+	 *
+	 * 두 인덱스 공간은 non-BMP 문자(UTF-16에서 서로게이트 쌍 2칸을 차지)에서만 어긋나므로
+	 * 그 문자들의 UTF-16 시작 위치만 오름차순으로 들고 있으면 충분.
+	 */
+	struct SurrogateOffsetMap
+	{
+		std::vector<uint32_t> nonBmpPos;
+		size_t chrSize = 0;
+
+		size_t toU16(size_t chrPos) const
+		{
+			if (nonBmpPos.empty()) return chrPos;
+			size_t lo = 0, hi = nonBmpPos.size();
+			while (lo < hi)
+			{
+				const size_t mid = lo + (hi - lo) / 2;
+				if (nonBmpPos[mid] - mid < chrPos) lo = mid + 1;
+				else hi = mid;
+			}
+			return chrPos + lo;
+		}
+
+		size_t toChrFloor(size_t u16Pos) const
+		{
+			if (nonBmpPos.empty()) return u16Pos;
+			return u16Pos - countBefore(u16Pos);
+		}
+
+		size_t toChrCeil(size_t u16Pos) const
+		{
+			if (nonBmpPos.empty()) return u16Pos;
+			const size_t cnt = countBefore(u16Pos);
+			const bool insidePair = cnt > 0 && u16Pos > 0 && nonBmpPos[cnt - 1] == u16Pos - 1;
+			return u16Pos - cnt + (insidePair ? 1 : 0);
+		}
+
+	private:
+		size_t countBefore(size_t u16Pos) const
+		{
+			return std::lower_bound(nonBmpPos.begin(), nonBmpPos.end(), u16Pos) - nonBmpPos.begin();
+		}
+	};
+
 	template<class Ty>
 	struct StringWithOffset
 	{
 		Ty str;
-		std::vector<size_t> offsets;
+		SurrogateOffsetMap offsets;
 	};
 
 	class ForeachFailed : public std::runtime_error
@@ -727,6 +772,65 @@ namespace py
 		}
 	};
 
+	/**
+	 * @brief 파이썬 문자열을 UTF-16 문자열로 변환한다.
+	 */
+	inline bool pyStrToU16(PyObject* obj, std::u16string& out, SurrogateOffsetMap* map = nullptr)
+	{
+		UniqueObj uobj{ PyUnicode_FromObject(obj) };
+		if (!uobj) return false;
+		const size_t len = PyUnicode_GetLength(uobj.get());
+		auto buf = std::make_unique<Py_UCS4[]>(len);
+		if (!PyUnicode_AsUCS4(uobj.get(), buf.get(), len, 0)) return false;
+
+		out.reserve(len);
+		if (map) map->chrSize = len;
+		for (size_t i = 0; i < len; ++i)
+		{
+			auto c = buf[i];
+			if (c < 0x10000)
+			{
+				out.push_back(c);
+			}
+			else
+			{
+				if (map) map->nonBmpPos.emplace_back((uint32_t)out.size());
+				out.push_back(0xD800 - (0x10000 >> 10) + (c >> 10));
+				out.push_back(0xDC00 + (c & 0x3FF));
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * @brief UTF-16 문자열을 따로 만들지 않고 대응표만 채운다.
+	 */
+	inline bool buildSurrogateOffsetMap(PyObject* obj, SurrogateOffsetMap& out)
+	{
+		UniqueObj uobj{ PyUnicode_FromObject(obj) };
+		if (!uobj) return false;
+		const size_t len = PyUnicode_GetLength(uobj.get());
+		auto buf = std::make_unique<Py_UCS4[]>(len);
+		if (!PyUnicode_AsUCS4(uobj.get(), buf.get(), len, 0)) return false;
+
+		out.chrSize = len;
+		out.nonBmpPos.clear();
+		size_t u16Size = 0;
+		for (size_t i = 0; i < len; ++i)
+		{
+			if (buf[i] < 0x10000)
+			{
+				u16Size += 1;
+			}
+			else
+			{
+				out.nonBmpPos.emplace_back((uint32_t)u16Size);
+				u16Size += 2;
+			}
+		}
+		return true;
+	}
+
 	template<>
 	struct ValueBuilder<std::u16string>
 	{
@@ -738,27 +842,7 @@ namespace py
 
 		bool _toCpp(PyObject* obj, std::u16string& out)
 		{
-			UniqueObj uobj{ PyUnicode_FromObject(obj) };
-			if (!uobj) return false;
-			const size_t len = PyUnicode_GetLength(uobj.get());
-			out.reserve(len);
-			auto buf = std::make_unique<Py_UCS4[]>(len);
-			if (!PyUnicode_AsUCS4(uobj.get(), buf.get(), len, 0)) return false;
-
-			for (size_t i = 0; i < len; ++i)
-			{
-				auto c = buf[i];
-				if (c < 0x10000)
-				{
-					out.push_back(c);
-				}
-				else
-				{
-					out.push_back(0xD800 - (0x10000 >> 10) + (c >> 10));
-					out.push_back(0xDC00 + (c & 0x3FF));
-				}
-			}
-			return true;
+			return pyStrToU16(obj, out);
 		}
 	};
 
@@ -778,31 +862,7 @@ namespace py
 	{
 		bool _toCpp(PyObject* obj, StringWithOffset<std::u16string>& out)
 		{
-			UniqueObj uobj{ PyUnicode_FromObject(obj) };
-			if (!uobj) return false;
-			const size_t len = PyUnicode_GetLength(uobj.get());
-			auto buf = std::make_unique<Py_UCS4[]>(len);
-			if (!PyUnicode_AsUCS4(uobj.get(), buf.get(), len, 0)) return false;
-
-			out.str.reserve(len);
-			out.offsets.reserve(len);
-			for (size_t i = 0; i < len; ++i)
-			{
-				auto c = buf[i];
-				if (c < 0x10000)
-				{
-					out.offsets.emplace_back(out.str.size());
-					out.str.push_back(c);
-				}
-				else
-				{
-					out.offsets.emplace_back(out.str.size());
-					out.str.push_back(0xD800 - (0x10000 >> 10) + (c >> 10));
-					out.str.push_back(0xDC00 + (c & 0x3FF));
-				}
-			}
-			out.offsets.emplace_back(out.str.size());
-			return true;
+			return pyStrToU16(obj, out.str, &out.offsets);
 		}
 	};
 
