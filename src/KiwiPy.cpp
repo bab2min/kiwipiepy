@@ -343,6 +343,108 @@ struct HSDatasetIterObject : py::CObject<HSDatasetIterObject>
 	}
 };
 
+struct GenerativeMADatasetIterObject;
+
+struct GenerativeMADatasetObject : py::CObject<GenerativeMADatasetObject>
+{
+	GenerativeMADataset dataset{ BpeTokenizer{}, GenerativeMAOption{} };
+
+	py::UniqueCObj<GenerativeMADatasetIterObject> iter() const
+	{
+		py::UniqueCObj<GenerativeMADatasetIterObject> ret{ (GenerativeMADatasetIterObject*)PyObject_CallFunctionObjArgs((PyObject*)py::Type<GenerativeMADatasetIterObject>, this, nullptr) };
+		return ret;
+	}
+
+	void addSentence(const u16string& text)
+	{
+		dataset.addSentence(std::u16string_view{ text });
+	}
+
+	size_t getVocabSize() const
+	{
+		return dataset.vocabSize();
+	}
+
+	size_t getBatchSize() const
+	{
+		return dataset.getBatchSize();
+	}
+
+	size_t getMaxSeqLength() const
+	{
+		return dataset.getMaxSeqLength();
+	}
+
+	size_t numSents() const
+	{
+		return dataset.numSents();
+	}
+
+	size_t numTruncatedSents() const
+	{
+		return dataset.numTruncatedSents();
+	}
+
+	size_t numInsertedTypos() const
+	{
+		return dataset.numInsertedTypos();
+	}
+
+	size_t numRemovedSpaces() const
+	{
+		return dataset.numRemovedSpaces();
+	}
+
+	size_t numInsertedSpaces() const
+	{
+		return dataset.numInsertedSpaces();
+	}
+
+	Py_ssize_t len() const
+	{
+		return dataset.numEstimBatches();
+	}
+};
+
+struct GenerativeMADatasetIterObject : py::CObject<GenerativeMADatasetIterObject>
+{
+	py::UniqueCObj<GenerativeMADatasetObject> obj;
+
+	using _InitArgs = std::tuple<py::UniqueCObj<GenerativeMADatasetObject>>;
+
+	GenerativeMADatasetIterObject() = default;
+
+	GenerativeMADatasetIterObject(py::UniqueCObj<GenerativeMADatasetObject>&& dataset)
+	{
+		obj = std::move(dataset);
+		obj->dataset.reset();
+	}
+
+	py::UniqueCObj<GenerativeMADatasetIterObject> iter() const
+	{
+		Py_INCREF(this);
+		return py::UniqueCObj<GenerativeMADatasetIterObject>(const_cast<GenerativeMADatasetIterObject*>(this));
+	}
+
+	py::UniqueObj iternext()
+	{
+		const size_t batchSize = obj->dataset.getBatchSize();
+		const size_t maxSeqLength = obj->dataset.getMaxSeqLength();
+		int64_t* inputIdsPtr = nullptr;
+		py::UniqueObj inputIds = py::newEmptyArray(inputIdsPtr, batchSize, maxSeqLength);
+
+		const size_t sz = obj->dataset.next(inputIdsPtr);
+		if (!sz) throw py::ExcPropagation{};
+
+		if (sz < batchSize)
+		{
+			py::UniqueObj slice{ PySlice_New(nullptr, py::buildPyValue(sz).get(), nullptr) };
+			inputIds = py::UniqueObj{ PyObject_GetItem(inputIds.get(), slice.get()) };
+		}
+		return inputIds;
+	}
+};
+
 struct KNLangModelObject;
 
 struct KNLangModelNextTokensResultObject : py::CObject<KNLangModelNextTokensResultObject>
@@ -964,6 +1066,7 @@ struct KiwiObject : py::CObject<KiwiObject>
 		size_t numWorkers, 
 		float dropout = 0, 
 		float dropoutOnHistory = 0,
+		float ssAugmentingProb = 0,
 		float nounAugmentingProb = 0,
 		float emojiAugmentingProb = 0,
 		float sbAugmentingProb = 0,
@@ -977,6 +1080,23 @@ struct KiwiObject : py::CObject<KiwiObject>
 		const std::vector<std::pair<size_t, std::vector<uint32_t>>>& contextualMapper = {},
 		PyObject* transform = nullptr,
 		size_t seed = 42) const;
+
+	py::UniqueObj makeGenerativeMADataset(const string& tokenizerPath,
+		size_t batchSize,
+		size_t maxSeqLength,
+		size_t numWorkers,
+		uint32_t bosTokenId,
+		uint32_t eosTokenId,
+		uint32_t toMorphemeTokenId,
+		uint32_t toSurfaceTokenId,
+		PyObject* posTagTokenIds,
+		PyObject* typos = nullptr,
+		float typoProb = 0,
+		float typoCostThreshold = 2.5f,
+		float typoCostScale = 1,
+		float spaceRemoveProb = 0,
+		float spaceInsertProb = 0,
+		size_t seed = 0) const;
 
 	py::UniqueObj listAllScripts() const;
 
@@ -1563,7 +1683,7 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 		PyObject* texts,
 		PyObject* config,
 		PyObject* vocabSize,
-		size_t iterations, size_t prefixMinCnt, size_t prefixMaxLength,
+		size_t iterations, size_t prefixMinCnt, size_t prefixMaxLength, //size_t maxMultiMorphSize,
 		bool strictReduction, bool removeRepetitive, bool preventMixedDigitTokens,
 		float chrCoverage, float reductionRatio,
 		py::UniqueCObj<KiwiObject> kiwi,
@@ -1583,6 +1703,7 @@ struct SwTokenizerObject : py::CObject<SwTokenizerObject>
 		trainCfg.reduceStrict = strictReduction;
 		trainCfg.removeRepetitive = removeRepetitive;
 		trainCfg.preventMixedDigitTokens = !!preventMixedDigitTokens;
+		//trainCfg.maxMultiMorphSize = maxMultiMorphSize;
 		
 		auto kiwiInst = kiwi->doPrepare();
 		UnigramSwTrainer trainer{ *kiwiInst, cfg, trainCfg };
@@ -2856,6 +2977,7 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 	size_t numWorkers, 
 	float dropout, 
 	float dropoutOnHistory,
+	float ssAugmentingProb,
 	float nounAugmentingProb,
 	float emojiAugmentingProb,
 	float sbAugmentingProb,
@@ -2933,6 +3055,7 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 		HSDatasetOption {
 			dropout,
 			dropoutOnHistory,
+			ssAugmentingProb,
 			nounAugmentingProb,
 			emojiAugmentingProb,
 			sbAugmentingProb,
@@ -2963,6 +3086,56 @@ py::UniqueObj KiwiObject::makeHSDataset(PyObject* inputPathes,
 		auto ret = py::buildPyTuple(ret1, ret2);
 		return ret;
 	}
+}
+
+py::UniqueObj KiwiObject::makeGenerativeMADataset(const string& tokenizerPath,
+	size_t batchSize,
+	size_t maxSeqLength,
+	size_t numWorkers,
+	uint32_t bosTokenId,
+	uint32_t eosTokenId,
+	uint32_t toMorphemeTokenId,
+	uint32_t toSurfaceTokenId,
+	PyObject* posTagTokenIds,
+	PyObject* typos,
+	float typoProb,
+	float typoCostThreshold,
+	float typoCostScale,
+	float spaceRemoveProb,
+	float spaceInsertProb,
+	size_t seed
+) const
+{
+	std::ifstream ifs;
+	const auto tokenizer = BpeTokenizer::load(kiwi::openFile(ifs, tokenizerPath));
+
+	GenerativeMAOption option;
+	option.toMorphemeTokenId = toMorphemeTokenId;
+	option.toSurfaceTokenId = toSurfaceTokenId;
+	option.bosTokenId = bosTokenId;
+	option.eosTokenId = eosTokenId;
+	option.typoProb = typoProb;
+	option.typoCostThreshold = typoCostThreshold;
+	option.typoCostScale = typoCostScale;
+	option.spaceRemoveProb = spaceRemoveProb;
+	option.spaceInsertProb = spaceInsertProb;
+	for (auto& p : py::toCpp<unordered_map<string, uint32_t>>(posTagTokenIds))
+	{
+		option.posTagTokenIds[(uint8_t)parseTag(p.first.c_str())] = p.second;
+	}
+
+	TypoTransformer emptyTypos;
+	const TypoTransformer* tt = &emptyTypos;
+	if (typos && typos != Py_None)
+	{
+		tt = &py::checkType<TypoTransformerObject>(typos)->tt;
+	}
+
+	auto dataset = builder.makeGenerativeMADataset(tokenizer, option, batchSize, maxSeqLength, numWorkers, *tt);
+	dataset.seed(seed);
+	py::UniqueObj ret{ PyObject_CallObject((PyObject*)py::Type<GenerativeMADatasetObject>, nullptr) };
+	((GenerativeMADatasetObject*)ret.get())->dataset = move(dataset);
+	return ret;
 }
 
 py::UniqueObj KiwiObject::listAllScripts() const
@@ -3073,9 +3246,9 @@ struct ChrDatasetObject : py::CObject<ChrDatasetObject>
 	{
 	}
 
-	void addSentence(const string& text, float weight, const string& nonLabelPrefix)
+	void addSentence(const string& text, float weight, const string& nonLabelPrefix, bool reverse)
 	{
-		dataset.addSentence(text, weight, nonLabelPrefix);
+		dataset.addSentence(text, weight, nonLabelPrefix, reverse);
 	}
 
 	void seed(size_t seed)
@@ -3322,6 +3495,7 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 	py::CustomExcHandler::add<kiwi::UnknownMorphemeException, py::ValueError>();
 	py::CustomExcHandler::add<kiwi::SwTokenizerException, py::ValueError>();
 	py::CustomExcHandler::add<kiwi::Exception, py::Exception>();
+	py::CustomExcHandler::add<std::invalid_argument, py::ValueError>();
 
 	return gModule.init(
 		py::define<TypoTransformerObject>("kiwipiepy._TypoTransformer", "_TypoTransformer", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
@@ -3348,6 +3522,20 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 		.template sqLen<&HSDatasetObject::len>(),
 
 		py::define<HSDatasetIterObject>("kiwipiepy._HSDatasetIter", "_HSDatasetIter", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE),
+
+		py::define<GenerativeMADatasetObject>("kiwipiepy._GenerativeMADataset", "_GenerativeMADataset", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
+		.template method<&GenerativeMADatasetObject::addSentence>("add_sentence")
+		.template property<&GenerativeMADatasetObject::getVocabSize>("vocab_size")
+		.template property<&GenerativeMADatasetObject::getBatchSize>("batch_size")
+		.template property<&GenerativeMADatasetObject::getMaxSeqLength>("max_seq_length")
+		.template property<&GenerativeMADatasetObject::numSents>("num_sents")
+		.template property<&GenerativeMADatasetObject::numTruncatedSents>("num_truncated_sents")
+		.template property<&GenerativeMADatasetObject::numInsertedTypos>("num_inserted_typos")
+		.template property<&GenerativeMADatasetObject::numRemovedSpaces>("num_removed_spaces")
+		.template property<&GenerativeMADatasetObject::numInsertedSpaces>("num_inserted_spaces")
+		.template sqLen<&GenerativeMADatasetObject::len>(),
+
+		py::define<GenerativeMADatasetIterObject>("kiwipiepy._GenerativeMADatasetIter", "_GenerativeMADatasetIter", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE),
 
 		py::define<KNLangModelNextTokensResultObject>("kiwipiepy._KNLangModelNextTokensResult", "_KNLangModelNextTokensResult")
 		.template sqLen<&KNLangModelNextTokensResultObject::len>()
@@ -3382,6 +3570,7 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 		.template method<&KiwiObject::join>("join")
 		.template method<&KiwiObject::convertHSData>("convert_hsdata")
 		.template method<&KiwiObject::makeHSDataset>("make_hsdataset")
+		.template method<&KiwiObject::makeGenerativeMADataset>("make_generative_ma_dataset")
 		.template method<&KiwiObject::listAllScripts>("list_all_scripts")
 		.template method<&KiwiObject::mostSimilarMorphemes>("most_similar_morphemes")
 		.template method<&KiwiObject::mostSimilarContexts>("most_similar_contexts")

@@ -11,6 +11,7 @@ from kiwipiepy._wrap import (
     TypoTransformer, 
     TypoDefinition, 
     HSDataset, 
+    GenerativeMADataset,
     ChrDataset,
     MorphemeSet, 
     PretokenizedToken, 
@@ -35,6 +36,7 @@ Sentence.__module__ = 'kiwipiepy'
 TypoTransformer.__module__ = 'kiwipiepy'
 TypoDefinition.__module__ = 'kiwipiepy'
 HSDataset.__module__ = 'kiwipiepy'
+GenerativeMADataset.__module__ = 'kiwipiepy'
 ChrDataset.__module__ = 'kiwipiepy'
 MorphemeSet.__module__ = 'kiwipiepy'
 PretokenizedToken.__module__ = 'kiwipiepy'
