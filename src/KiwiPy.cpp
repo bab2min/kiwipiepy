@@ -3207,7 +3207,7 @@ void pyTrainBpeTokenizer(
 	bool pretokenizeVcp,
 	bool pretokenizeXsv,
 	PyObject* kiwiObj,
-	bool useJamoAlphabet,
+	size_t jamoAlphabet,
 	size_t maxDigitLength,
 	size_t maxRepeatLength,
 	size_t maxWhitespaceRepeatLength,
@@ -3220,7 +3220,11 @@ void pyTrainBpeTokenizer(
 	config.minPairFrequency = minPairFrequency;
 	config.maxTokenLength = maxTokenLength;
 	config.addPrefixSpace = addPrefixSpace;
-	config.useJamoAlphabet = useJamoAlphabet;
+	if (jamoAlphabet > (size_t)JamoAlphabet::all)
+	{
+		throw py::ValueError{ "`jamoAlphabet` must be 0 (none), 1 (modern_only) or 2 (all)." };
+	}
+	config.useJamoAlphabet = (JamoAlphabet)jamoAlphabet;
 	config.maxDigitLength = maxDigitLength;
 	config.maxRepeatLength = maxRepeatLength;
 	config.maxWhitespaceRepeatLength = maxWhitespaceRepeatLength;
