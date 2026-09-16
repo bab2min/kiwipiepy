@@ -829,7 +829,7 @@ def test_space_issue_187():
 
 def test_space_issue_189():
     kiwi = Kiwi()
-    kiwi.add_user_word('팩', 'NNB', score=1)
+    kiwi.add_user_word('팩', 'NNB', score=4)
     assert kiwi.space('담아 1팩 무료') == '담아 1팩 무료'
     assert kiwi.space('골라 2팩 무료') == '골라 2팩 무료'
 
@@ -926,10 +926,11 @@ def test_continual_typo():
     assert tokens[0].form == '지각'
     assert tokens[1].form == '하'
 
-    tokens = kiwi.tokenize('웨 지가캤니?', typos='basic_with_continual')
+    tokens = kiwi.tokenize('웨 학교 지가캤니?', typos='basic_with_continual')
     assert tokens[0].form == '왜'
-    assert tokens[1].form == '지각'
-    assert tokens[2].form == '하'
+    assert tokens[1].form == '학교'
+    assert tokens[2].form == '지각'
+    assert tokens[3].form == '하'
 
 def test_long_dependency():
     kiwi = Kiwi(model_type='none')
@@ -1162,7 +1163,7 @@ def test_split_into_forms():
             SplitForm('학생', 'NNG', 0, 2),
             SplitForm('입니다', 'VCP+EF', 2, 5),
         ],
-        '도와': [SplitForm('도', 'VV-I', 0, 1), SplitForm('와', 'EF', 1, 2)],
+        '도와!': [SplitForm('도', 'VV-I', 0, 1), SplitForm('와', 'EF', 1, 2), SplitForm('!', 'SF', 2, 3)],
         '안녕하세요': [
             SplitForm('안녕', 'NNG', 0, 2),
             SplitForm('하', 'XSA', 2, 3),
