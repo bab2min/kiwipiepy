@@ -1865,6 +1865,7 @@ namespace py
 		PyObject_HEAD;
 		PyObject* managedDict = nullptr;
 		PyObject* managedWeakList = nullptr;
+		bool successfullyConstructed = false;
 
 		static PyObject* _new(PyTypeObject* subtype, PyObject* args, PyObject* kwargs)
 		{
@@ -1875,15 +1876,19 @@ namespace py
 				auto temp = ((Derived*)ret.get())->ob_base;
 				new ((Derived*)ret.get()) Derived;
 				((Derived*)ret.get())->ob_base = temp;
+				((Derived*)ret.get())->successfullyConstructed = true;
 				return ret.release();
 			});
 		}
 
 		static void dealloc(Derived* self)
 		{
-			self->~Derived();
-
 			auto* cobj = static_cast<CObject<Derived>*>(self);
+			if (cobj->successfullyConstructed)
+			{
+				self->~Derived();
+			}
+
 			Py_XDECREF(cobj->managedDict);
 			Py_XDECREF(cobj->managedWeakList);
 
@@ -1903,14 +1908,19 @@ namespace py
 		template<class InitArgs, size_t ...idx>
 		PY_STRONG_INLINE static void initFromPython(Derived* self, PyObject* args, std::index_sequence<idx...>)
 		{
+			InitArgs converted{ toCpp<std::tuple_element_t<idx, InitArgs>>(PyTuple_GetItem(args, idx))... };
 			auto temp = self->ob_base;
 			auto temp2 = self->managedDict;
 			auto temp3 = self->managedWeakList;
-			self->~Derived();
-			new (self) Derived{ toCpp<std::tuple_element_t<idx, InitArgs>>(PyTuple_GetItem(args, idx))... };
+			if (self->successfullyConstructed)
+			{
+				self->~Derived();
+			}
+			new (self) Derived{ std::get<idx>(std::move(converted))... };
 			self->ob_base = temp;
 			self->managedDict = temp2;
 			self->managedWeakList = temp3;
+			self->successfullyConstructed = true;
 		}
 
 		static int init(Derived* self, PyObject* args, PyObject* kwargs)
