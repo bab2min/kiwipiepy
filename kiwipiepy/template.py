@@ -86,6 +86,8 @@ class Template:
             elif next_placeholder and token.start == next_placeholder[0] and token.end == next_placeholder[0] + 1:
                 opened = True
             else:
+                if not target_tokens and token.len == 0 and token.form == '이' and token.tag == 'VCP':
+                    continue
                 target_tokens.append(token)
     
     def format(self,
