@@ -260,7 +260,7 @@ tokenizer.encode(...)
 # 위와 동일하게 8개 스레드 사용
 ```
         '''
-        self.kiwi.space_tolerance = self._space_tolerance
+        self.kiwi.global_config.space_tolerance = self._space_tolerance
         return super().encode(text, return_offsets)
     
     def encode_from_morphs(self, 
@@ -290,7 +290,7 @@ token_ids_and_offsets: Tuple[List[int], List[Tuple[int, int]]]
     token id의 리스트와 각 토큰들의 시작지점과 끝지점(형태소 단위)을 나타내는 tuple의 리스트를 반환합니다.
 
         '''
-        self.kiwi.space_tolerance = self._space_tolerance
+        self.kiwi.global_config.space_tolerance = self._space_tolerance
         return super().encode_from_morphs(morphs, return_offsets)
 
     def tokenize_encode(self, 
@@ -324,7 +324,7 @@ Notes
 -----
 
         '''
-        self.kiwi.space_tolerance = self._space_tolerance
+        self.kiwi.global_config.space_tolerance = self._space_tolerance
 
         def _refine(res):
             morphs, *etc = res
