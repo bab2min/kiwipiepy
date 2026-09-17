@@ -37,12 +37,14 @@ python3 -m kiwipiepy.bpe_trainer \\
     vcp: 서술격 조사(긍정 지정사, '-이다') 경계를 분할합니다.
     xsv: 동사/형용사 파생 접미사 경계를 분할합니다.
 
---use-jamo-alphabet
-    설정할 경우 한글의 자음과 모음을 BPE의 초기 알파벳으로 사용합니다. 이 경우 한글 음절은 자모 단위로 분해되어 처리됩니다.
+--jamo-alphabet
+    한글의 자음과 모음을 BPE의 초기 알파벳으로 사용할지 설정합니다. 다음과 같은 값이 가능합니다.
+    * none: 한글 자모를 초기 알파벳으로 사용하지 않습니다. (기본값)
+    * modern_only: 현대 한글 자모만 초기 알파벳으로 사용합니다. 이 경우 한글 음절은 자모 단위로 분해되어 처리됩니다.
+    * modern_only_with_nfd: modern_only와 같지만, 한글을 제외한 모든 입력에도 유니코드 정준 분해(NFD)를 수행한 뒤 BPE를 학습합니다.
+    * all: 현대 한글 자모와 옛한글 자모를 모두 초기 알파벳으로 사용합니다. 이 경우 한글 음절은 자모 단위로 분해되어 처리됩니다.
+    * all_with_nfd: all과 같지만, 한글을 제외한 모든 입력에도 유니코드 정준 분해(NFD)를 수행한 뒤 BPE를 학습합니다.
     이렇게 학습된 토크나이저에는 NFD normalizer가 기록되므로, 디코딩 결과는 자모로 분해된 상태로 나옵니다. 음절 형태가 필요하면 NFC 정규화를 적용해야 합니다.
-
---nfd
-    설정할 경우 한글을 제외한 모든 입력을 유니코드 정준 분해(NFD)를 수행한 뒤 BPE를 학습합니다.
 
 --max-digit-length
     숫자 토큰이 가질 수 있는 최대 길이를 지정합니다. 이 길이를 초과하는 숫자 문자열은 pretokenize 단계에서 분할됩니다. (기본값: 3)
@@ -113,7 +115,7 @@ def train_bpe_tokenizer(
     pretokenize_vcp: bool = False,
     pretokenize_xsv: bool = False,
     kiwi:Optional[Kiwi] = None,
-    use_jamo_alphabet: Union[bool, str] = False,
+    jamo_alphabet: str = 'none',
     max_digit_length: int = 3,
     max_repeat_length: int = 8,
     max_whitespace_repeat_length: int = 16,
@@ -148,11 +150,12 @@ pretokenize_xsv : bool, optional (default: False)
     pretokenize 단계에서 동사/형용사 파생 접미사 경계를 분할합니다.
 kiwi : Optional[Kiwi], optional (default: None)
     pretokenize_j, e, vcp, xsv 중 하나라도 True로 지정한 경우, 형태소 분석을 수행하기 위해 Kiwi 객체를 반드시 전달해야 합니다.
-use_jamo_alphabet : bool or str, optional (default: False)
-    False, True, 'nfd' 중 하나를 선택할 수 있습니다. 
-    True나 'nfd'로 설정할 경우 한글의 자음과 모음을 BPE의 초기 알파벳으로 사용합니다. 이 경우 한글 음절은 자모 단위로 분해되어 처리됩니다.
-    'nfd'의 경우 한글을 제외한 모든 입력을 유니코드 정준 분해(NFD)를 수행한 뒤 BPE를 학습합니다.
-    True나 'nfd'로 설정하고 학습한 토크나이저는 `decode()` 결과가 자모로 분해된 상태로 나옵니다.
+jamo_alphabet : str, optional (default: 'none')
+    'none', 'modern_only', 'modern_only_with_nfd', 'all', 'all_with_nfd' 중 하나를 선택할 수 있습니다. 
+    'modern_only', 'modern_only_with_nfd'로 설정할 경우 한글의 자음과 모음을 BPE의 초기 알파벳으로 사용합니다. 이 경우 한글 음절은 자모 단위로 분해되어 처리됩니다.
+    'all', 'all_with_nfd'로 설정할 경우 'modern_only'와 같지만, 옛한글 자모(U+1100~U+11FF, U+A960~U+A97F, U+D7B0~U+D7FF)까지 모두 초기 알파벳에 포함합니다.
+    '*_with_nfd'의 경우 한글을 제외한 모든 입력을 유니코드 정준 분해(NFD)를 수행한 뒤 BPE를 학습합니다.
+    'none'이 아닌 값으로 설정하고 학습한 토크나이저는 `decode()` 결과가 자모로 분해된 상태로 나옵니다.
     원래의 음절 형태가 필요하다면 디코딩 결과에 `unicodedata.normalize('NFC', ...)`를 적용하십시오.
 max_digit_length : int, optional (default: 3)
     숫자 토큰이 가질 수 있는 최대 길이를 지정합니다. 이 길이를 초과하는 숫자 문자열은 pretokenize 단계에서 분할됩니다.
@@ -173,8 +176,8 @@ show_progress : bool, optional (default: True)
     if (pretokenize_j or pretokenize_e or pretokenize_vcp or pretokenize_xsv) and kiwi is None:
         raise ValueError("`kiwi` must be specified if any of `pretokenize_j`, `pretokenize_e`, `pretokenize_vcp`, or `pretokenize_xsv` is True.")
 
-    if use_jamo_alphabet not in (False, True, 'nfd'):
-        raise ValueError("`use_jamo_alphabet` must be one of False, True, or 'nfd'.")
+    if jamo_alphabet not in ('none', 'modern_only', 'modern_only_with_nfd', 'all', 'all_with_nfd'):
+        raise ValueError("`jamo_alphabet` must be one of 'none', 'modern_only', 'modern_only_with_nfd', 'all', or 'all_with_nfd'.")
 
     if show_progress:
         from tqdm import tqdm
@@ -201,7 +204,7 @@ show_progress : bool, optional (default: True)
         if callback:
             callback(event, current, total)
 
-    if use_jamo_alphabet == 'nfd':
+    if jamo_alphabet.endswith('_with_nfd'):
         texts = map(nfd_except_hangul, texts)
 
     _SwTokenizer._train_bpe_tokenizer(
@@ -216,7 +219,7 @@ show_progress : bool, optional (default: True)
         pretokenize_vcp,
         pretokenize_xsv,
         kiwi,
-        bool(use_jamo_alphabet),
+        2 if jamo_alphabet.startswith('all') else 1 if jamo_alphabet.startswith('modern_only') else 0,
         max_digit_length,
         max_repeat_length,
         max_whitespace_repeat_length,
@@ -224,7 +227,7 @@ show_progress : bool, optional (default: True)
         _callback,
     )
 
-    if use_jamo_alphabet:
+    if jamo_alphabet.endswith('_with_nfd'):
         _set_normalizer(save_path, _NFD_NORMALIZER)
 
 def _main(args):
@@ -240,12 +243,12 @@ def _main(args):
     print(f"  Minimum pair frequency: {args.min_pair_frequency}")
     print(f"  Maximum token length: {args.max_token_length}")
     print(f"  Add prefix space: {args.add_prefix_space}")
-    print(f"  Use Jamo alphabet: {args.use_jamo_alphabet}")
+    print(f"  Use Jamo alphabet: {args.jamo_alphabet}")
     print(f"  Maximum digit length: {args.max_digit_length}")
     print(f"  Maximum repeat length: {args.max_repeat_length}")
     print(f"  Maximum whitespace repeat length: {args.max_whitespace_repeat_length}")
     print(f"  Pretokenization options: {args.pretokenize}")
-    print(f"  Number of threads: {args.num_threads}")
+    print(f"  Number of threads: {args.num_workers}")
 
     kiwi = None
     if args.pretokenize:
@@ -264,7 +267,7 @@ def _main(args):
         pretokenize_vcp='vcp' in (args.pretokenize or []),
         pretokenize_xsv='xsv' in (args.pretokenize or []),
         kiwi=kiwi,
-        use_jamo_alphabet='nfd' if args.nfd else args.use_jamo_alphabet,
+        jamo_alphabet=args.jamo_alphabet,
         max_digit_length=args.max_digit_length,
         max_repeat_length=args.max_repeat_length,
         max_whitespace_repeat_length=args.max_whitespace_repeat_length,
@@ -284,10 +287,9 @@ if __name__ == '__main__':
     parser.add_argument('--max-token-length', default=30, type=int)
     parser.add_argument('--add-prefix-space', default=False, action='store_true')
     parser.add_argument('--pretokenize', nargs='*', choices=['j', 'e', 'vcp', 'xsv'])
-    parser.add_argument('--use-jamo-alphabet', default=False, action='store_true')
+    parser.add_argument('--jamo-alphabet', default='none', choices=['none', 'modern_only', 'modern_only_with_nfd', 'all', 'all_with_nfd'])
     parser.add_argument('--max-digit-length', default=3, type=int)
     parser.add_argument('--max-repeat-length', default=8, type=int)
     parser.add_argument('--max-whitespace-repeat-length', default=16, type=int)
-    parser.add_argument('--nfd', default=False, action='store_true', help="Normalize input text to NFD before training")
     parser.add_argument('-t', '--num-workers', default=0, type=int)
     _main(parser.parse_args())

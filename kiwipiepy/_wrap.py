@@ -6,7 +6,7 @@ import itertools
 import warnings
 
 import _kiwipiepy
-from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset, _ChrDataset, _MorphemeSet, _NgramExtractor
+from _kiwipiepy import _Kiwi, _TypoTransformer, _HSDataset, _GenerativeMADataset, _ChrDataset, _MorphemeSet, _NgramExtractor
 from kiwipiepy._c_api import Token
 from kiwipiepy._version import __version__
 from kiwipiepy.utils import Stopwords
@@ -548,6 +548,9 @@ def _convert_typos(typos: Union[str, TypoTransformer]) -> TypoTransformer:
 class HSDataset(_HSDataset):
     pass
 
+class GenerativeMADataset(_GenerativeMADataset):
+    pass
+
 class ChrDataset(_ChrDataset):
     def __init__(self,
                  batch_size: int,
@@ -559,8 +562,8 @@ class ChrDataset(_ChrDataset):
                  ):
         super().__init__(batch_size, causal_context_size, window_size, dropout_prob, sample_without_weights, contextual_mapper or [])
     
-    def add_sentence(self, text: str, weight: float=1.0, non_label_prefix: str = '') -> None:
-        return super().add_sentence(text, weight, non_label_prefix)
+    def add_sentence(self, text: str, weight: float=1.0, non_label_prefix: str = '', reverse: bool = False) -> None:
+        return super().add_sentence(text, weight, non_label_prefix, reverse)
 
 class MorphemeSet(_MorphemeSet):
     '''.. versionadded:: 0.15.0
@@ -3013,6 +3016,7 @@ See Also
         num_workers:int = 1, 
         dropout:float = 0, 
         dropout_on_history:float = 0,
+        ss_augmenting_prob:float = 0,
         noun_augmenting_prob:float = 0,
         emoji_augmenting_prob:float = 0,
         sb_augmenting_prob:float = 0,
@@ -3035,6 +3039,7 @@ See Also
             num_workers, 
             dropout, 
             dropout_on_history, 
+            ss_augmenting_prob,
             noun_augmenting_prob,
             emoji_augmenting_prob,
             sb_augmenting_prob,
@@ -3047,6 +3052,43 @@ See Also
             morpheme_def_min_cnt, 
             contextual_mapper or [],
             transform,
+            seed)
+
+    def make_generative_ma_dataset(
+        self,
+        tokenizer_path:str,
+        bos_token_id:int,
+        eos_token_id:int,
+        to_morpheme_token_id:int,
+        to_surface_token_id:int,
+        pos_tag_token_ids:Dict[str, int],
+        batch_size:int = 128,
+        max_seq_length:int = 512,
+        num_workers:int = 0,
+        typos:Union[str, TypoTransformer] = None,
+        typo_prob:float = 0,
+        typo_cost_threshold:float = 2.5,
+        typo_cost_scale:float = 1,
+        space_remove_prob:float = 0,
+        space_insert_prob:float = 0,
+        seed:int = 0,
+    ):
+        return super().make_generative_ma_dataset(
+            tokenizer_path,
+            batch_size,
+            max_seq_length,
+            num_workers,
+            bos_token_id,
+            eos_token_id,
+            to_morpheme_token_id,
+            to_surface_token_id,
+            pos_tag_token_ids,
+            _convert_typos(typos),
+            typo_prob,
+            typo_cost_threshold,
+            typo_cost_scale,
+            space_remove_prob,
+            space_insert_prob,
             seed)
 
 
