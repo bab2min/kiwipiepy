@@ -6,7 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "kiwipiepy_model"
 description = "Model for kiwipiepy"
 authors = [{ name = "bab2min", email = "bab2min@gmail.com" }]
-license = "LGPL-3.0-or-later"
+license = "Apache-2.0"
+license-files = ["LICENSE.txt", "NOTICE"]
 keywords = ["Korean morphological analysis"]
 classifiers = [
     "Development Status :: 3 - Alpha",
