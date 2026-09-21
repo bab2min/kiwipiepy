@@ -1337,3 +1337,70 @@ def test_split_by_spans_boundaries():
     assert _split_by_spans('', [
         token('이', 'VCP', 0, 0),
     ]) == []
+
+
+def test_issue_135_kiwi_pickle():
+    # https://github.com/bab2min/kiwipiepy/issues/135
+    kiwi = Kiwi(num_workers=1)
+    before = kiwi.tokenize('아버지가방에들어가신다')
+    kiwi2 = pickle.loads(pickle.dumps(kiwi))
+    after = kiwi2.tokenize('아버지가방에들어가신다')
+    assert repr(before) == repr(after)
+    assert kiwi2.num_workers == kiwi.num_workers
+
+
+def test_issue_135_kiwi_pickle_preserves_user_words():
+    # https://github.com/bab2min/kiwipiepy/issues/135
+    kiwi = Kiwi(num_workers=1)
+    kiwi.add_user_word('카피바라', 'NNP', 0.0)
+    kiwi2 = pickle.loads(pickle.dumps(kiwi))
+    assert any(t.form == '카피바라' for t in kiwi2.tokenize('카피바라는 귀엽다'))
+
+
+def test_issue_135_sw_tokenizer_pickle():
+    # https://github.com/bab2min/kiwipiepy/issues/135
+    # Previously TypeError: cannot pickle 'SwTokenizer' object, since the C
+    # base class has no __reduce__/__getstate__. See PR #136 for a prior
+    # attempt that pickled raw internal state and segfaulted under
+    # multiprocessing (naive attribute copy produces a broken C++-backed
+    # object); this reconstructs through the ordinary save()/constructor
+    # path instead.
+    kiwi = Kiwi(num_workers=1)
+    tok = sw_tokenizer.SwTokenizer('test/sample_tokenizer/tokenizer.json', kiwi=kiwi)
+    before = list(tok.encode('아버지가방에들어가신다'))
+
+    tok2 = pickle.loads(pickle.dumps(tok))
+    after = list(tok2.encode('아버지가방에들어가신다'))
+    assert before == after
+
+
+def _issue_135_mp_worker(pickled_tok):
+    tok = pickle.loads(pickled_tok)
+    return list(tok.encode('가자')), tok.kiwi.tokenize('가자')[0].form
+
+
+def test_issue_135_sw_tokenizer_pickle_across_multiprocessing():
+    # https://github.com/bab2min/kiwipiepy/issues/135
+    # The critical regression check: PR #136's fix segfaulted specifically
+    # when the unpickled SwTokenizer was used inside a real
+    # multiprocessing.Pool worker (as HuggingFace datasets/DataLoader
+    # workers do), not merely on an in-process pickle round-trip.
+    import multiprocessing as mp
+
+    if sys.platform.startswith('win'):
+        print("[skipped this test on Windows.]", file=sys.stderr)
+        return
+
+    kiwi = Kiwi(num_workers=1)
+    kiwi.add_user_word('카피바라', 'NNP', 0.0)
+    tok = sw_tokenizer.SwTokenizer('test/sample_tokenizer/tokenizer.json', kiwi=kiwi)
+    pickled = pickle.dumps(tok)
+
+    ctx = mp.get_context('spawn')
+    with ctx.Pool(2) as pool:
+        results = pool.map(_issue_135_mp_worker, [pickled] * 4)
+
+    expected = list(tok.encode('가자'))
+    for ids, form in results:
+        assert ids == expected
+        assert form == '가'
