@@ -4,8 +4,10 @@
 `sw_tokenizer` 모듈은 서브워드 토크나이저와 관련된 클래스를 제공합니다.
 '''
 
+import os
 import re
 import itertools
+import tempfile
 from typing import Callable, List, Optional, Tuple, Union, Iterable, Dict, Any
 from dataclasses import dataclass
 import warnings
@@ -164,6 +166,19 @@ class _ProgressShower(TrainerCallback):
 
 SPECIAL_TOKEN_NAMES = ['unk', 'cls', 'sep', 'mask', 'pad', 'bos', 'eos']
 
+def _rebuild_sw_tokenizer(data: bytes, kiwi: Kiwi) -> 'SwTokenizer':
+    '''`SwTokenizer.__reduce__`가 unpickle 시 호출하는 최상위(top-level) 헬퍼 함수입니다.
+
+    로컬 함수나 바운드 메소드는 pickle이 참조할 수 없으므로, 이 함수는 모듈 최상위에
+    정의되어 있어야 합니다. 저장된 바이트를 임시 파일에 써서 일반적인 `SwTokenizer`
+    생성자를 그대로 호출합니다.
+    '''
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, 'tokenizer.json')
+        with open(p, 'wb') as f:
+            f.write(data)
+        return SwTokenizer(p, kiwi=kiwi)
+
 class SwTokenizer(_SwTokenizer):
     '''
 형태소 분석기 Kiwi를 기반으로 한 서브워드 토크나이저(Subword Tokenizer)를 제공하는 클래스입니다.
@@ -200,8 +215,25 @@ num_workers: int
         super().__init__(kiwi, path)
 
         self._space_tolerance = (self.config.additional.get('space_tolerance') if isinstance(self.config.additional, dict) else None) or 0
-    
-    def encode(self, 
+
+    def __reduce__(self):
+        '''`SwTokenizer`를 pickle 가능하게 만듭니다.
+
+        .. versionadded:: 0.23.0
+
+        C++ 레벨의 내부 상태를 직접 복사하는 대신, 이미 검증된 `save`/생성자 경로를
+        그대로 재사용합니다: `save()`로 직렬화한 바이트를 pickle에 담고, unpickle 시
+        임시 파일에 다시 써서 정상적인 생성자를 호출해 인스턴스를 재구성합니다.
+        내부에서 사용하는 `Kiwi` 인스턴스는 `Kiwi.__reduce__`를 통해 함께 pickle됩니다.
+        '''
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'tokenizer.json')
+            self.save(p)
+            with open(p, 'rb') as f:
+                data = f.read()
+        return (_rebuild_sw_tokenizer, (data, self.kiwi))
+
+    def encode(self,
         text: Union[str, Iterable[str]],
         return_offsets: bool = False,
     ) -> Union[List[int], Tuple[List[int], List[Tuple[int, int]]]]:

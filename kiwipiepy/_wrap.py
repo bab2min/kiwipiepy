@@ -797,10 +797,51 @@ enabled_dialects: Union[Dialect, str]
         self._model_path = model_path
         self._load_default_dict = load_default_dict
         self._load_typo_dict = load_typo_dict
+        self._load_multi_dict = load_multi_dict
         self._enabled_dialects = enabled_dialects
         self._pretokenized_pats : List[Tuple['re.Pattern', str, Any]] = []
         self._user_values : Dict[int, Any] = {}
         self._template_cache : Dict[str, Template] = {}
+        self._user_word_log : List[Tuple[str, tuple, dict]] = []
+
+    def __reduce__(self):
+        '''`Kiwi`를 pickle 가능하게 만듭니다.
+
+        .. versionadded:: 0.23.0
+
+        C++ 레벨의 내부 상태를 직접 복사하는 대신, unpickle 시 생성자를 다시 호출하여
+        인스턴스를 재구성합니다. 이후 `add_user_word`/`add_pre_analyzed_word`를 통해
+        추가되었던 사용자 정의 형태소들을 기록된 호출 로그를 재생하여 복원합니다.
+
+        Notes
+        -----
+        `add_rule`, `add_re_rule`, `add_re_word`, `load_user_dictionary`, `clear_re_words`를
+        통해 추가된 항목은 현재 이 메커니즘으로 복원되지 않습니다. 이 메소드들은 서로 및
+        기본 사전과 상호작용하는 방식이 더 복잡하여(예: `add_re_rule`은 기존 단어들로부터
+        다수의 단어를 파생시킬 수 있어 순서와 멱등성이 중요합니다) 별도의 설계가 필요합니다.
+        '''
+        init_args = (
+            self.num_workers,
+            self._model_path,
+            self._global_config.integrate_allomorph,
+            self._load_default_dict,
+            self._load_typo_dict,
+            self._load_multi_dict,
+            self.model_type,
+            None,
+            2.5,
+            self._enabled_dialects,
+        )
+        state = {
+            'user_word_log': list(self._user_word_log),
+            'pretokenized_pats': list(self._pretokenized_pats),
+        }
+        return (self.__class__, init_args, state)
+
+    def __setstate__(self, state):
+        for method_name, args, kwargs in state.get('user_word_log', []):
+            getattr(self, method_name)(*args, **kwargs)
+        self._pretokenized_pats = state.get('pretokenized_pats', [])
 
     def __repr__(self):
         return (
@@ -869,6 +910,12 @@ False
         '''
         mid, inserted = super().add_user_word(word, tag, score, orig_word)
         self._user_values[mid] = user_value
+        if inserted:
+            self._user_word_log.append((
+                'add_user_word',
+                (word, tag, score, orig_word),
+                {'user_value': user_value},
+            ))
         return inserted
     
     def add_pre_analyzed_word(self,
@@ -924,7 +971,14 @@ Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나�
                 analyzed = new_analyzed
         
         dialect = _convert_dialect(dialect)
-        return super().add_pre_analyzed_word(form, analyzed, score, dialect)
+        inserted = super().add_pre_analyzed_word(form, analyzed, score, dialect)
+        if inserted:
+            self._user_word_log.append((
+                'add_pre_analyzed_word',
+                (form, analyzed, score, dialect),
+                {},
+            ))
+        return inserted
     
     def add_re_word(self,
         pattern:Union[str, 're.Pattern'],
