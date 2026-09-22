@@ -1,7 +1,7 @@
 import re
 from functools import partial
 from typing import Callable, List, Dict, Optional, Tuple, Union, Iterable, NamedTuple, NewType, Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 import itertools
 import warnings
 
@@ -835,6 +835,12 @@ enabled_dialects: Union[Dialect, str]
         state = {
             'user_word_log': list(self._user_word_log),
             'pretokenized_pats': list(self._pretokenized_pats),
+            # global_config holds mutable fields (space_tolerance, cutoff_threshold,
+            # space_penalty, etc.) that users can change after construction via
+            # `kiwi.global_config.<field> = ...`. Only integrate_allomorph is threaded
+            # through the constructor above; the rest must be saved/restored explicitly
+            # or they silently reset to KiwiConfig's defaults on unpickle.
+            'global_config': asdict(self._global_config),
         }
         return (self.__class__, init_args, state)
 
@@ -842,6 +848,8 @@ enabled_dialects: Union[Dialect, str]
         for method_name, args, kwargs in state.get('user_word_log', []):
             getattr(self, method_name)(*args, **kwargs)
         self._pretokenized_pats = state.get('pretokenized_pats', [])
+        for field_name, value in state.get('global_config', {}).items():
+            setattr(self._global_config, field_name, value)
 
     def __repr__(self):
         return (
@@ -910,12 +918,17 @@ False
         '''
         mid, inserted = super().add_user_word(word, tag, score, orig_word)
         self._user_values[mid] = user_value
-        if inserted:
-            self._user_word_log.append((
-                'add_user_word',
-                (word, tag, score, orig_word),
-                {'user_value': user_value},
-            ))
+        # Always log, even when inserted=False (the word/tag/score/orig_word combo
+        # already existed): a duplicate call can still be the caller's way of
+        # updating user_value for that morpheme (self._user_values[mid] is
+        # overwritten above regardless of `inserted`), and skipping the log here
+        # would silently drop that update on the next pickle/unpickle round-trip.
+        # Replaying a duplicate call is a harmless no-op at the native level.
+        self._user_word_log.append((
+            'add_user_word',
+            (word, tag, score, orig_word),
+            {'user_value': user_value},
+        ))
         return inserted
     
     def add_pre_analyzed_word(self,
