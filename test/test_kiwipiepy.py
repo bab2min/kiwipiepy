@@ -1357,6 +1357,30 @@ def test_issue_135_kiwi_pickle_preserves_user_words():
     assert any(t.form == '카피바라' for t in kiwi2.tokenize('카피바라는 귀엽다'))
 
 
+def test_issue_135_kiwi_pickle_preserves_global_config():
+    # global_config fields other than integrate_allomorph (e.g. space_tolerance,
+    # cutoff_threshold) are mutable after construction via `kiwi.global_config.x = ...`
+    # and must survive a pickle round-trip, not silently reset to KiwiConfig defaults.
+    kiwi = Kiwi(num_workers=1)
+    kiwi.global_config.space_tolerance = 2
+    kiwi.global_config.cutoff_threshold = 3.5
+    kiwi2 = pickle.loads(pickle.dumps(kiwi))
+    assert kiwi2.global_config.space_tolerance == 2
+    assert kiwi2.global_config.cutoff_threshold == 3.5
+
+
+def test_issue_135_kiwi_pickle_preserves_updated_user_value():
+    # A second add_user_word call for the same word/tag/score/orig_word returns
+    # inserted=False, but can still be the caller's way of updating user_value for
+    # that morpheme. The replay log must capture that update, not just the first
+    # (inserted=True) call.
+    kiwi = Kiwi(num_workers=1)
+    kiwi.add_user_word('테스트단어', 'NNP', 0.0, user_value='A')
+    kiwi.add_user_word('테스트단어', 'NNP', 0.0, user_value='B')
+    kiwi2 = pickle.loads(pickle.dumps(kiwi))
+    assert kiwi2._user_values == kiwi._user_values
+
+
 def test_issue_135_sw_tokenizer_pickle():
     # https://github.com/bab2min/kiwipiepy/issues/135
     # Previously TypeError: cannot pickle 'SwTokenizer' object, since the C
