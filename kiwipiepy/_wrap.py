@@ -802,7 +802,16 @@ enabled_dialects: Union[Dialect, str]
         self._pretokenized_pats : List[Tuple['re.Pattern', str, Any]] = []
         self._user_values : Dict[int, Any] = {}
         self._template_cache : Dict[str, Template] = {}
-        self._user_word_log : List[Tuple[str, tuple, dict]] = []
+        self._dict_modified_by : Optional[str] = None
+
+    def _mark_dict_modified(self, method_name:str):
+        '''사전을 변경하는 메소드가 호출되었음을 기록합니다.
+
+        기록된 인스턴스는 `__reduce__`에서 pickle이 거부됩니다. 사전 조작의 효과는
+        C++ 레벨에 있어 생성자 재호출만으로는 복원되지 않기 때문입니다.
+        '''
+        if self._dict_modified_by is None:
+            self._dict_modified_by = method_name
 
     def __reduce__(self):
         '''`Kiwi`를 pickle 가능하게 만듭니다.
@@ -810,16 +819,24 @@ enabled_dialects: Union[Dialect, str]
         .. versionadded:: 0.23.0
 
         C++ 레벨의 내부 상태를 직접 복사하는 대신, unpickle 시 생성자를 다시 호출하여
-        인스턴스를 재구성합니다. 이후 `add_user_word`/`add_pre_analyzed_word`를 통해
-        추가되었던 사용자 정의 형태소들을 기록된 호출 로그를 재생하여 복원합니다.
+        인스턴스를 재구성합니다. 따라서 생성자 인자로 결정되는 상태와 `global_config`가
+        그대로 복원됩니다.
 
-        Notes
-        -----
-        `add_rule`, `add_re_rule`, `add_re_word`, `load_user_dictionary`, `clear_re_words`를
-        통해 추가된 항목은 현재 이 메커니즘으로 복원되지 않습니다. 이 메소드들은 서로 및
-        기본 사전과 상호작용하는 방식이 더 복잡하여(예: `add_re_rule`은 기존 단어들로부터
-        다수의 단어를 파생시킬 수 있어 순서와 멱등성이 중요합니다) 별도의 설계가 필요합니다.
+        사전을 변경하는 메소드(`add_user_word`, `add_pre_analyzed_word`, `add_rule`,
+        `add_re_rule`, `add_re_word`, `clear_re_words`, `load_user_dictionary`,
+        `extract_add_words`)를 한 번이라도 호출한 인스턴스는 pickle할 수 없으며
+        `TypeError`가 발생합니다. 이 조작들의 효과는 C++ 레벨에 있어 생성자 재호출로는
+        복원되지 않는데, 절반만 복원된 객체를 조용히 돌려주면 사용자는 사전이 빠졌다는
+        사실을 알 방법이 없기 때문입니다.
         '''
+        if self._dict_modified_by is not None:
+            raise TypeError(
+                f"cannot pickle a Kiwi instance whose dictionary has been modified "
+                f"(`{self._dict_modified_by}` was called). "
+                f"Create a new Kiwi in each process and repeat the dictionary calls there, "
+                f"or build it inside the worker."
+            )
+
         init_args = (
             self.num_workers,
             self._model_path,
@@ -833,8 +850,6 @@ enabled_dialects: Union[Dialect, str]
             self._enabled_dialects,
         )
         state = {
-            'user_word_log': list(self._user_word_log),
-            'pretokenized_pats': list(self._pretokenized_pats),
             # global_config holds mutable fields (space_tolerance, cutoff_threshold,
             # space_penalty, etc.) that users can change after construction via
             # `kiwi.global_config.<field> = ...`. Only integrate_allomorph is threaded
@@ -845,9 +860,6 @@ enabled_dialects: Union[Dialect, str]
         return (self.__class__, init_args, state)
 
     def __setstate__(self, state):
-        for method_name, args, kwargs in state.get('user_word_log', []):
-            getattr(self, method_name)(*args, **kwargs)
-        self._pretokenized_pats = state.get('pretokenized_pats', [])
         for field_name, value in state.get('global_config', {}).items():
             setattr(self._global_config, field_name, value)
 
@@ -916,19 +928,9 @@ False
 False
 ```
         '''
+        self._mark_dict_modified('add_user_word')
         mid, inserted = super().add_user_word(word, tag, score, orig_word)
         self._user_values[mid] = user_value
-        # Always log, even when inserted=False (the word/tag/score/orig_word combo
-        # already existed): a duplicate call can still be the caller's way of
-        # updating user_value for that morpheme (self._user_values[mid] is
-        # overwritten above regardless of `inserted`), and skipping the log here
-        # would silently drop that update on the next pickle/unpickle round-trip.
-        # Replaying a duplicate call is a harmless no-op at the native level.
-        self._user_word_log.append((
-            'add_user_word',
-            (word, tag, score, orig_word),
-            {'user_value': user_value},
-        ))
         return inserted
     
     def add_pre_analyzed_word(self,
@@ -984,13 +986,8 @@ Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나�
                 analyzed = new_analyzed
         
         dialect = _convert_dialect(dialect)
+        self._mark_dict_modified('add_pre_analyzed_word')
         inserted = super().add_pre_analyzed_word(form, analyzed, score, dialect)
-        if inserted:
-            self._user_word_log.append((
-                'add_pre_analyzed_word',
-                (form, analyzed, score, dialect),
-                {},
-            ))
         return inserted
     
     def add_re_word(self,
@@ -1104,6 +1101,7 @@ import kiwipiepy\\n```
  Token(form='ᆸ니다', tag='EF', start=47, len=3)]
 ```
         '''
+        self._mark_dict_modified('add_re_word')
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
             
@@ -1114,6 +1112,7 @@ import kiwipiepy\\n```
 
 `add_re_word`로 추가했던 정규표현식 패턴 기반 처리 규칙을 모두 삭제합니다.
         '''
+        self._mark_dict_modified('clear_re_words')
         self._pretokenized_pats.clear()
 
     def add_rule(self,
@@ -1147,6 +1146,7 @@ Returns
 inserted_forms: List[str]
     규칙에 의해 새로 생성된 형태소의 `list`를 반환합니다.
         '''
+        self._mark_dict_modified('add_rule')
         ret = super().add_rule(tag, replacer, score)
         if not ret: return []
         mids, inserted_forms = zip(*ret)
@@ -1199,6 +1199,7 @@ kiwi.add_re_rule('EF', r'요$', r'염', -3.0)
 이런 이형태들을 대량으로 등록할 경우 이형태가 원본 형태보다 분석결과에서 높은 우선권을 가지지 않도록
 score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
         '''
+        self._mark_dict_modified('add_re_rule')
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         return self.add_rule(tag, lambda x:pattern.sub(repl, x), score, user_value)
@@ -1224,6 +1225,7 @@ Notes
 사용자 정의 사전 파일의 형식에 대해서는 <a href='#_3'>여기</a>를 참조하세요.
         '''
 
+        self._mark_dict_modified('load_user_dictionary')
         return super().load_user_dictionary(dict_path)
 
     def extract_words(self,
@@ -1313,6 +1315,7 @@ result: List[Tuple[str, float, int, float]]
     추출된 단어후보의 목록을 반환합니다. 리스트의 각 항목은 (단어 형태, 최종 점수, 출현 빈도, 품사 점수)로 구성된 튜플입니다.
         '''
 
+        self._mark_dict_modified('extract_add_words')
         return super().extract_add_words(
             texts,
             min_cnt,

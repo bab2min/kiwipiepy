@@ -5,6 +5,8 @@ import tempfile
 import itertools
 import pickle
 
+import pytest
+
 from kiwipiepy import Kiwi, SplitForm, Sentence, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings, Match
 from kiwipiepy.utils import Stopwords
 
@@ -1349,12 +1351,64 @@ def test_issue_135_kiwi_pickle():
     assert kiwi2.num_workers == kiwi.num_workers
 
 
-def test_issue_135_kiwi_pickle_preserves_user_words():
+def _issue_135_kiwi_mp_worker(pickled_kiwi):
+    kiwi = pickle.loads(pickled_kiwi)
+    return [t.form for t in kiwi.tokenize('아버지가 방에 들어가신다')]
+
+
+def test_issue_135_kiwi_pickle_across_multiprocessing():
     # https://github.com/bab2min/kiwipiepy/issues/135
+    # The use case the issue is about: handing a Kiwi to worker processes. A spawn
+    # context is what HuggingFace datasets and DataLoader workers use, and it pickles
+    # the object rather than inheriting it through fork.
+    import multiprocessing as mp
+
+    if sys.platform.startswith('win'):
+        print("[skipped this test on Windows.]", file=sys.stderr)
+        return
+
     kiwi = Kiwi(num_workers=1)
-    kiwi.add_user_word('카피바라', 'NNP', 0.0)
-    kiwi2 = pickle.loads(pickle.dumps(kiwi))
-    assert any(t.form == '카피바라' for t in kiwi2.tokenize('카피바라는 귀엽다'))
+    expected = [t.form for t in kiwi.tokenize('아버지가 방에 들어가신다')]
+    pickled = pickle.dumps(kiwi)
+
+    ctx = mp.get_context('spawn')
+    with ctx.Pool(2) as pool:
+        results = pool.map(_issue_135_kiwi_mp_worker, [pickled] * 4)
+
+    for forms in results:
+        assert forms == expected
+
+
+def test_issue_135_kiwi_pickle_rejects_modified_dictionary():
+    # A dictionary modification lives in the C++ instance, and reconstructing through
+    # the constructor cannot bring it back. Rather than returning an object that is
+    # silently missing it, pickling such an instance fails with the method that made
+    # it unpicklable named in the message.
+    def modified(fn):
+        kiwi = Kiwi(num_workers=1)
+        fn(kiwi)
+        return kiwi
+
+    cases = {
+        'add_user_word': lambda k: k.add_user_word('카피바라', 'NNP', 0.0),
+        'add_pre_analyzed_word': lambda k: k.add_pre_analyzed_word(
+            '사귀다', [('사귀', 'VV'), ('다', 'EF')], -3.0),
+        'add_rule': lambda k: k.add_rule('EF', lambda form: form + 'ㅋ', 0.0),
+        'add_re_rule': lambda k: k.add_re_rule('EF', r'요$', '용', 0.0),
+        'add_re_word': lambda k: k.add_re_word(r'\d+cm', 'NNB'),
+        'clear_re_words': lambda k: k.clear_re_words(),
+        'load_user_dictionary': lambda k: k.load_user_dictionary(
+            'test/test_corpus/user_dictionary_for_pickle_test.txt'),
+    }
+
+    for name, call in cases.items():
+        kiwi = modified(call)
+        with pytest.raises(TypeError) as e:
+            pickle.dumps(kiwi)
+        assert name in str(e.value), f'{name} should be named in the error message'
+
+    # An instance that was never modified is unaffected.
+    pickle.loads(pickle.dumps(Kiwi(num_workers=1)))
 
 
 def test_issue_135_kiwi_pickle_preserves_global_config():
@@ -1367,18 +1421,6 @@ def test_issue_135_kiwi_pickle_preserves_global_config():
     kiwi2 = pickle.loads(pickle.dumps(kiwi))
     assert kiwi2.global_config.space_tolerance == 2
     assert kiwi2.global_config.cutoff_threshold == 3.5
-
-
-def test_issue_135_kiwi_pickle_preserves_updated_user_value():
-    # A second add_user_word call for the same word/tag/score/orig_word returns
-    # inserted=False, but can still be the caller's way of updating user_value for
-    # that morpheme. The replay log must capture that update, not just the first
-    # (inserted=True) call.
-    kiwi = Kiwi(num_workers=1)
-    kiwi.add_user_word('테스트단어', 'NNP', 0.0, user_value='A')
-    kiwi.add_user_word('테스트단어', 'NNP', 0.0, user_value='B')
-    kiwi2 = pickle.loads(pickle.dumps(kiwi))
-    assert kiwi2._user_values == kiwi._user_values
 
 
 def test_issue_135_sw_tokenizer_pickle():
@@ -1416,7 +1458,6 @@ def test_issue_135_sw_tokenizer_pickle_across_multiprocessing():
         return
 
     kiwi = Kiwi(num_workers=1)
-    kiwi.add_user_word('카피바라', 'NNP', 0.0)
     tok = sw_tokenizer.SwTokenizer('test/sample_tokenizer/tokenizer.json', kiwi=kiwi)
     pickled = pickle.dumps(tok)
 
@@ -1428,3 +1469,15 @@ def test_issue_135_sw_tokenizer_pickle_across_multiprocessing():
     for ids, form in results:
         assert ids == expected
         assert form == '가'
+
+
+def test_issue_135_sw_tokenizer_pickle_follows_the_kiwi_gate():
+    # SwTokenizer.__reduce__ carries its Kiwi along, so a tokenizer whose Kiwi has a
+    # modified dictionary is unpicklable for the same reason the Kiwi is.
+    kiwi = Kiwi(num_workers=1)
+    kiwi.add_user_word('카피바라', 'NNP', 0.0)
+    tok = sw_tokenizer.SwTokenizer('test/sample_tokenizer/tokenizer.json', kiwi=kiwi)
+
+    with pytest.raises(TypeError) as e:
+        pickle.dumps(tok)
+    assert 'add_user_word' in str(e.value)
