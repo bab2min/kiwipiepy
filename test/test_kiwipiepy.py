@@ -4,6 +4,7 @@ import re
 import tempfile
 import itertools
 import pickle
+import pytest
 
 from kiwipiepy import Kiwi, SplitForm, Sentence, TypoTransformer, basic_typos, MorphemeSet, sw_tokenizer, PretokenizedToken, extract_substrings, Match
 from kiwipiepy.utils import Stopwords
@@ -687,20 +688,53 @@ def test_bug_38():
 
 def test_stopwords():
     kiwi = Kiwi()
-    tokens, _ = kiwi.analyze('불용어 처리 테스트 중입니다 '
-                             '우리는 강아지를 좋아한다 쟤도 강아지를 좋아한다 '
-                             '지금은 2021년 11월이다.')[0]
+    text = '불용어 처리 테스트 중입니다. 우리는 강아지를 좋아한다.'
+    tokens = kiwi.tokenize(text)
+
+    # 기본 사전은 조사/어미/문장부호 등을 걸러냅니다.
     stopwords = Stopwords()
-    print(set(tokens) - set(stopwords.filter(tokens)))
-    filename = curpath + '/test_corpus/custom_stopwords.txt'
-    stopwords = Stopwords(filename)
+    filtered = stopwords.filter(tokens)
+    assert [t.form for t in filtered if t.tag == 'JX'] == []
+    assert [t.form for t in filtered if t.tag == 'SF'] == []
+    assert '강아지' in [t.form for t in filtered]
+
+    # 태그만 적힌 줄은 해당 품사 전체를 걸러냅니다.
+    assert 'SF' in stopwords.stoptags
+    assert (('.', 'SF') in stopwords) == True
+
+    stopwords = Stopwords(curpath + '/test_corpus/custom_stopwords.txt')
+    assert (('강아지', 'NNP') in stopwords) == False
 
     stopwords.add(('강아지', 'NNP'))
     assert (('강아지', 'NNP') in stopwords) == True
 
+    stopwords.add(('강아지', 'NNG'))
+    assert '강아지' not in [t.form for t in stopwords.filter(kiwi.tokenize('강아지'))]
+    stopwords.remove(('강아지', 'NNG'))
+
     stopwords.remove(('강아지', 'NNP'))
     assert (('강아지', 'NNP') in stopwords) == False
-    print(set(tokens) - set(stopwords.filter(tokens)))
+
+    # 여러 개를 한번에 넣고 뺄 수 있고, str은 NNP로 간주합니다.
+    stopwords.add(['고양이', ('토끼', 'NNG')])
+    assert (('고양이', 'NNP') in stopwords) == True
+    assert (('토끼', 'NNG') in stopwords) == True
+    stopwords.remove(['고양이', ('토끼', 'NNG')])
+    assert (('고양이', 'NNP') in stopwords) == False
+
+    # 잘못된 태그나 사전에 없는 항목은 오류입니다.
+    with pytest.raises(ValueError):
+        stopwords.add(('강아지', 'NOT_A_TAG'))
+    with pytest.raises(ValueError):
+        stopwords.remove(('없는단어', 'NNG'))
+
+    # 저장한 뒤 다시 읽으면 같은 내용이어야 합니다.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, 'stopwords.txt')
+        stopwords.save(path)
+        restored = Stopwords(path)
+        assert restored.stopwords == stopwords.stopwords
+        assert restored.stoptags == stopwords.stoptags
 
 def test_tokenize():
     kiwi = Kiwi()
