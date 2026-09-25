@@ -1376,7 +1376,6 @@ def test_split_by_spans_boundaries():
 
 
 def test_issue_135_kiwi_pickle():
-    # https://github.com/bab2min/kiwipiepy/issues/135
     kiwi = Kiwi(num_workers=1)
     before = kiwi.tokenize('아버지가방에들어가신다')
     kiwi2 = pickle.loads(pickle.dumps(kiwi))
@@ -1389,12 +1388,7 @@ def _issue_135_kiwi_mp_worker(pickled_kiwi):
     kiwi = pickle.loads(pickled_kiwi)
     return [t.form for t in kiwi.tokenize('아버지가 방에 들어가신다')]
 
-
 def test_issue_135_kiwi_pickle_across_multiprocessing():
-    # https://github.com/bab2min/kiwipiepy/issues/135
-    # The use case the issue is about: handing a Kiwi to worker processes. A spawn
-    # context is what HuggingFace datasets and DataLoader workers use, and it pickles
-    # the object rather than inheriting it through fork.
     import multiprocessing as mp
 
     if sys.platform.startswith('win'):
@@ -1414,10 +1408,6 @@ def test_issue_135_kiwi_pickle_across_multiprocessing():
 
 
 def test_issue_135_kiwi_pickle_rejects_modified_dictionary():
-    # A dictionary modification lives in the C++ instance, and reconstructing through
-    # the constructor cannot bring it back. Rather than returning an object that is
-    # silently missing it, pickling such an instance fails with the method that made
-    # it unpicklable named in the message.
     def modified(fn):
         kiwi = Kiwi(num_workers=1)
         fn(kiwi)
@@ -1441,14 +1431,10 @@ def test_issue_135_kiwi_pickle_rejects_modified_dictionary():
             pickle.dumps(kiwi)
         assert name in str(e.value), f'{name} should be named in the error message'
 
-    # An instance that was never modified is unaffected.
     pickle.loads(pickle.dumps(Kiwi(num_workers=1)))
 
 
 def test_issue_135_kiwi_pickle_preserves_global_config():
-    # global_config fields other than integrate_allomorph (e.g. space_tolerance,
-    # cutoff_threshold) are mutable after construction via `kiwi.global_config.x = ...`
-    # and must survive a pickle round-trip, not silently reset to KiwiConfig defaults.
     kiwi = Kiwi(num_workers=1)
     kiwi.global_config.space_tolerance = 2
     kiwi.global_config.cutoff_threshold = 3.5
@@ -1458,13 +1444,6 @@ def test_issue_135_kiwi_pickle_preserves_global_config():
 
 
 def test_issue_135_sw_tokenizer_pickle():
-    # https://github.com/bab2min/kiwipiepy/issues/135
-    # Previously TypeError: cannot pickle 'SwTokenizer' object, since the C
-    # base class has no __reduce__/__getstate__. See PR #136 for a prior
-    # attempt that pickled raw internal state and segfaulted under
-    # multiprocessing (naive attribute copy produces a broken C++-backed
-    # object); this reconstructs through the ordinary save()/constructor
-    # path instead.
     kiwi = Kiwi(num_workers=1)
     tok = sw_tokenizer.SwTokenizer('test/sample_tokenizer/tokenizer.json', kiwi=kiwi)
     before = list(tok.encode('아버지가방에들어가신다'))
@@ -1480,11 +1459,6 @@ def _issue_135_mp_worker(pickled_tok):
 
 
 def test_issue_135_sw_tokenizer_pickle_across_multiprocessing():
-    # https://github.com/bab2min/kiwipiepy/issues/135
-    # The critical regression check: PR #136's fix segfaulted specifically
-    # when the unpickled SwTokenizer was used inside a real
-    # multiprocessing.Pool worker (as HuggingFace datasets/DataLoader
-    # workers do), not merely on an in-process pickle round-trip.
     import multiprocessing as mp
 
     if sys.platform.startswith('win'):
@@ -1506,8 +1480,6 @@ def test_issue_135_sw_tokenizer_pickle_across_multiprocessing():
 
 
 def test_issue_135_sw_tokenizer_pickle_follows_the_kiwi_gate():
-    # SwTokenizer.__reduce__ carries its Kiwi along, so a tokenizer whose Kiwi has a
-    # modified dictionary is unpicklable for the same reason the Kiwi is.
     kiwi = Kiwi(num_workers=1)
     kiwi.add_user_word('카피바라', 'NNP', 0.0)
     tok = sw_tokenizer.SwTokenizer('test/sample_tokenizer/tokenizer.json', kiwi=kiwi)
