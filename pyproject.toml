@@ -6,8 +6,17 @@ build-backend = "setuptools.build_meta"
 name = "kiwipiepy"
 description = "Kiwi, the Korean Tokenizer for Python"
 authors = [{ name = "bab2min", email = "bab2min@gmail.com" }]
-license = "LGPL-3.0-or-later"
-license-files = ["LICENSE.txt"]
+license = "Apache-2.0"
+license-files = [
+    "LICENSE.txt",
+    "NOTICE",
+    "Kiwi/third_party/eigen/COPYING.MPL2",
+    "Kiwi/third_party/cpp-btree/LICENSE",
+    "Kiwi/third_party/streamvbyte/LICENSE",
+    "Kiwi/third_party/cpuinfo/LICENSE",
+    "Kiwi/third_party/mimalloc/LICENSE",
+    "Kiwi/third_party/json/LICENSE.MIT",
+]
 keywords = ["Korean morphological analysis"]
 requires-python = ">=3.9"
 classifiers = [
@@ -22,7 +31,7 @@ classifiers = [
     "Programming Language :: C++",
 ]
 dependencies = [
-    "kiwipiepy_model>=0.23,<0.24",
+    "kiwipiepy_model>=0.24,<0.25",
     "numpy",
     "tqdm",
 ]

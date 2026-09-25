@@ -11,5 +11,6 @@ prune Kiwi/third_party/json
 recursive-include Kiwi/third_party/json/include *
 prune Kiwi/third_party/cpuinfo/test
 include LICENSE.txt
+include NOTICE
 include CMakeLists.txt
 include Kiwi/CMakeLists.txt
