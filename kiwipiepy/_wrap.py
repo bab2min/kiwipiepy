@@ -1,7 +1,7 @@
 import re
 from functools import partial
 from typing import Callable, List, Dict, Optional, Tuple, Union, Iterable, NamedTuple, NewType, Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 import itertools
 import warnings
 
@@ -797,10 +797,71 @@ enabled_dialects: Union[Dialect, str]
         self._model_path = model_path
         self._load_default_dict = load_default_dict
         self._load_typo_dict = load_typo_dict
+        self._load_multi_dict = load_multi_dict
         self._enabled_dialects = enabled_dialects
         self._pretokenized_pats : List[Tuple['re.Pattern', str, Any]] = []
         self._user_values : Dict[int, Any] = {}
         self._template_cache : Dict[str, Template] = {}
+        self._dict_modified_by : Optional[str] = None
+
+    def _mark_dict_modified(self, method_name:str):
+        '''사전을 변경하는 메소드가 호출되었음을 기록합니다.
+
+        기록된 인스턴스는 `__reduce__`에서 pickle이 거부됩니다. 사전 조작의 효과는
+        C++ 레벨에 있어 생성자 재호출만으로는 복원되지 않기 때문입니다.
+        '''
+        if self._dict_modified_by is None:
+            self._dict_modified_by = method_name
+
+    def __reduce__(self):
+        '''`Kiwi`를 pickle 가능하게 만듭니다.
+
+        .. versionadded:: 0.23.0
+
+        C++ 레벨의 내부 상태를 직접 복사하는 대신, unpickle 시 생성자를 다시 호출하여
+        인스턴스를 재구성합니다. 따라서 생성자 인자로 결정되는 상태와 `global_config`가
+        그대로 복원됩니다.
+
+        사전을 변경하는 메소드(`add_user_word`, `add_pre_analyzed_word`, `add_rule`,
+        `add_re_rule`, `add_re_word`, `clear_re_words`, `load_user_dictionary`,
+        `extract_add_words`)를 한 번이라도 호출한 인스턴스는 pickle할 수 없으며
+        `TypeError`가 발생합니다. 이 조작들의 효과는 C++ 레벨에 있어 생성자 재호출로는
+        복원되지 않는데, 절반만 복원된 객체를 조용히 돌려주면 사용자는 사전이 빠졌다는
+        사실을 알 방법이 없기 때문입니다.
+        '''
+        if self._dict_modified_by is not None:
+            raise TypeError(
+                f"cannot pickle a Kiwi instance whose dictionary has been modified "
+                f"(`{self._dict_modified_by}` was called). "
+                f"Create a new Kiwi in each process and repeat the dictionary calls there, "
+                f"or build it inside the worker."
+            )
+
+        init_args = (
+            self.num_workers,
+            self._model_path,
+            self._global_config.integrate_allomorph,
+            self._load_default_dict,
+            self._load_typo_dict,
+            self._load_multi_dict,
+            self.model_type,
+            None,
+            2.5,
+            self._enabled_dialects,
+        )
+        state = {
+            # global_config holds mutable fields (space_tolerance, cutoff_threshold,
+            # space_penalty, etc.) that users can change after construction via
+            # `kiwi.global_config.<field> = ...`. Only integrate_allomorph is threaded
+            # through the constructor above; the rest must be saved/restored explicitly
+            # or they silently reset to KiwiConfig's defaults on unpickle.
+            'global_config': asdict(self._global_config),
+        }
+        return (self.__class__, init_args, state)
+
+    def __setstate__(self, state):
+        for field_name, value in state.get('global_config', {}).items():
+            setattr(self._global_config, field_name, value)
 
     def __repr__(self):
         return (
@@ -867,6 +928,7 @@ False
 False
 ```
         '''
+        self._mark_dict_modified('add_user_word')
         mid, inserted = super().add_user_word(word, tag, score, orig_word)
         self._user_values[mid] = user_value
         return inserted
@@ -924,7 +986,9 @@ Kiwi 분석 결과에서 해당 형태소의 분석 결과가 정확하게 나�
                 analyzed = new_analyzed
         
         dialect = _convert_dialect(dialect)
-        return super().add_pre_analyzed_word(form, analyzed, score, dialect)
+        self._mark_dict_modified('add_pre_analyzed_word')
+        inserted = super().add_pre_analyzed_word(form, analyzed, score, dialect)
+        return inserted
     
     def add_re_word(self,
         pattern:Union[str, 're.Pattern'],
@@ -1037,6 +1101,7 @@ import kiwipiepy\\n```
  Token(form='ᆸ니다', tag='EF', start=47, len=3)]
 ```
         '''
+        self._mark_dict_modified('add_re_word')
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
             
@@ -1047,6 +1112,7 @@ import kiwipiepy\\n```
 
 `add_re_word`로 추가했던 정규표현식 패턴 기반 처리 규칙을 모두 삭제합니다.
         '''
+        self._mark_dict_modified('clear_re_words')
         self._pretokenized_pats.clear()
 
     def add_rule(self,
@@ -1080,6 +1146,7 @@ Returns
 inserted_forms: List[str]
     규칙에 의해 새로 생성된 형태소의 `list`를 반환합니다.
         '''
+        self._mark_dict_modified('add_rule')
         ret = super().add_rule(tag, replacer, score)
         if not ret: return []
         mids, inserted_forms = zip(*ret)
@@ -1132,6 +1199,7 @@ kiwi.add_re_rule('EF', r'요$', r'염', -3.0)
 이런 이형태들을 대량으로 등록할 경우 이형태가 원본 형태보다 분석결과에서 높은 우선권을 가지지 않도록
 score를 `-3` 이하의 값으로 설정하는걸 권장합니다.
         '''
+        self._mark_dict_modified('add_re_rule')
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         return self.add_rule(tag, lambda x:pattern.sub(repl, x), score, user_value)
@@ -1157,6 +1225,7 @@ Notes
 사용자 정의 사전 파일의 형식에 대해서는 <a href='#_3'>여기</a>를 참조하세요.
         '''
 
+        self._mark_dict_modified('load_user_dictionary')
         return super().load_user_dictionary(dict_path)
 
     def extract_words(self,
@@ -1246,6 +1315,7 @@ result: List[Tuple[str, float, int, float]]
     추출된 단어후보의 목록을 반환합니다. 리스트의 각 항목은 (단어 형태, 최종 점수, 출현 빈도, 품사 점수)로 구성된 튜플입니다.
         '''
 
+        self._mark_dict_modified('extract_add_words')
         return super().extract_add_words(
             texts,
             min_cnt,
