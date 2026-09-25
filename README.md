@@ -818,7 +818,7 @@ kiwi을 생성하고, 사용자 사전에 단어를 추가하는 작업이 완�
 ```python
 Kiwi.tokenize(text, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None, allowed_dialects='standard', dialect_cost=3.0, oov_handling=None, typos=None, typo_cost_threshold=2.5)
 Kiwi.analyze(text, top_n, match_option, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None, allowed_dialects='standard', dialect_cost=3.0, oov_handling=None, typos=None, typo_cost_threshold=2.5)
-Kiwi.split(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, echo=False, blocklist=None, open_ending=False, allowed_dialects='standard', dialect_cost=3.0, pretokenized=None, oov_handling=None, typos=None, typo_cost_threshold=2.5, override_config=None)
+Kiwi.split_into_forms(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, echo=False, blocklist=None, open_ending=False, allowed_dialects='standard', dialect_cost=3.0, pretokenized=None, oov_handling=None, typos=None, typo_cost_threshold=2.5, override_config=None)
 Kiwi.split_into_sents(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, blocklist=None, allowed_dialects='standard', dialect_cost=3.0, return_tokens=False)
 Kiwi.glue(text_chunks, insert_new_lines=None, return_space_insertions=False)
 Kiwi.space(text, reset_whitespace=False)
@@ -911,18 +911,20 @@ SystemError: <built-in function next> returned a result with an error set
 <hr>
 
 <details>
-<summary><code>split(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, echo=False, blocklist=None, open_ending=False, allowed_dialects='standard', dialect_cost=3.0, pretokenized=None, oov_handling=None, typos=None, typo_cost_threshold=2.5, override_config=None)</code></summary>
+<summary><code>split_into_forms(text, match_options=Match.ALL, normalize_coda=False, z_coda=True, split_complex=False, compatible_jamo=False, saisiot=None, echo=False, blocklist=None, open_ending=False, allowed_dialects='standard', dialect_cost=3.0, pretokenized=None, oov_handling=None, typos=None, typo_cost_threshold=2.5, override_config=None)</code></summary>
 
-형태소 분석 경계에 맞춰 원문의 표면형을 나눕니다. 각 결과는 표면형과 품사 태그, 원문 내 시작 위치와 길이를 담은 `SplitToken`입니다. 하나의 표면형에 여러 형태소가 대응하면 품사 태그를 분석 결과 순서대로 `+`로 연결합니다.
+형태소 분석 경계에 맞춰 원문의 표면형을 나눕니다. 각 결과는 표면형과 품사 태그, 원문 내 시작/끝 위치, 그리고 해당 구간에 대응하는 형태소 `Token`의 목록을 담은 `SplitForm`입니다. 하나의 표면형에 여러 형태소가 대응하면 품사 태그를 분석 결과 순서대로 `+`로 연결합니다.
 
 ```python
->> kiwi.split('했다')
-[SplitToken(form='했', tag='VV+EP', start=0, len=1),
- SplitToken(form='다', tag='EF', start=1, len=1)]
->> [part.form for part in kiwi.split('했다')]
+>> kiwi.split_into_forms('했다')
+[SplitForm(form='했', tag='VV+EP', start=0, end=1),
+ SplitForm(form='다', tag='EF', start=1, end=2)]
+>> [part.form for part in kiwi.split_into_forms('했다')]
 ['했', '다']
->> kiwi.split('랠프 월도 에머슨')
-[SplitToken(form='랠프 월도 에머슨', tag='NNP', start=0, len=9)]
+>> kiwi.split_into_forms('했다')[0].tokens
+[Token(form='하', tag='VV', start=0, len=1), Token(form='었', tag='EP', start=0, len=1)]
+>> kiwi.split_into_forms('랠프 월도 에머슨')
+[SplitForm(form='랠프 월도 에머슨', tag='NNP', start=0, end=9)]
 ```
 
 Token이 없는 원문 구간은 결과에서 제외하지만, 하나의 Token 구간 안에 포함된 공백은 원문 그대로 보존합니다. `text`가 str의 iterable이면 여러 입력을 병렬로 처리하며, `echo=True`이면 각 분할 결과와 원문을 함께 반환합니다.

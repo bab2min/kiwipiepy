@@ -857,6 +857,17 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.24.0 (2026-09-25)
+    * Kiwi 0.24.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.24.0 )이 반영되었습니다.
+        * 형태소 경계를 고려한 Byte-level BPE Tokenizer Trainer 추가
+        * 사귀어, 바뀌어를 사겨, 바껴 등으로 잘못 줄여적은 경우에도 오타 교정이 적용되도록 신규 규칙 추가
+        * '기다', '비다', '이다' 동사를 Join할 때 어색한 축약형이 만들어지지 않도록 수정
+        * 따옴표 뒤에 감탄사가 따라오는 문장을 종종 잘못 분석하던 모델 오류 일부 수정
+    * 원문의 표면형을 형태소 분석 경계에 맞춰 나누는 `Kiwi.split_into_forms` 메소드가 추가되었습니다. 각 결과인 `SplitForm`에는 해당 구간에 대응하는 형태소 목록이 `tokens` 필드로 담깁니다.
+    * `Sentence`가 `namedtuple`에서 데이터 클래스로 변경되었습니다. 언패킹(`text, start, end, tokens, subs = sent`), 인덱싱(`sent[0]`), `len()`, 튜플과의 비교, `_asdict()`, `_replace()`, `_fields` 등 튜플처럼 다루는 사용법은 `FutureWarning`과 함께 당분간 계속 동작하지만, 향후 버전에서 제거될 예정이므로 속성 이름으로 접근하는 방식으로 옮겨주세요.
+    * pretokenized 사용 시 non-BMP 문자 뒤 Token 위치가 잘못 계산되는 버그를 수정했습니다.
+    * 사전에 조작을 가하지 않은 경우 Kiwi 및 SwTokenizer이 pickle 가능하도록 개선되었습니다.
+
 * 0.23.2 (2026-06-12)
     * Kiwi 0.23.2의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.23.2 )이 반영되었습니다.
         * Windows에서 모델 파일의 경로가 유니코드 문자를 포함할 때 로딩에 실패하는 버그 수정
