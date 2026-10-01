@@ -72,6 +72,9 @@ class Template:
             else:
                 self._parsed_format.append(([], field, format, conversion))
         
+        if not self._parsed_format:
+            return
+
         tokens = kiwi.tokenize(''.join(chunks), pretokenized=pretokenized_lists)
         placeholder_iter = iter(pretokenized_lists)
         next_placeholder = next(placeholder_iter, None)
