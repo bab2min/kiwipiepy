@@ -2070,6 +2070,17 @@ struct FutureCarrier
 	FutureCarrier(FutureCarrier&&) = default;
 	FutureCarrier& operator=(FutureCarrier&&) = default;
 
+	template<class Rep, class Period>
+	std::future_status wait_for(const std::chrono::duration<Rep, Period>& timeout) const
+	{
+		return future.wait_for(timeout);
+	}
+
+	void wait() const
+	{
+		future.wait();
+	}
+
 	std::pair<FutureTy, CarriedTy> get()
 	{
 		return std::make_pair(future.get(), std::move(carried));
@@ -2526,6 +2537,12 @@ py::UniqueObj KiwiObject::extractAddWords(PyObject* sentences, size_t minCnt, si
 	return retList;
 }
 
+// A text whose length times topN is below this is analysed with the GIL held. Its analysis takes
+// about as long as getting the GIL back can, so releasing it made each call slower next to a
+// thread running Python code (six times at 250 characters); from about this length it cost
+// nothing. The analysis time grows with topN too (3.7 times at topN=5), hence the product.
+static constexpr size_t gilReleaseMinLength = 4000;
+
 py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, 
 	Match matchOptions, bool echo, PyObject* blockList, bool openEnding, 
 	Dialect allowedDialects, float dialectCost,
@@ -2566,7 +2583,15 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 		{
 			updatePretokenizedSpanToU16(pretokenizedSpans.first, so);
 		}
-		auto res = kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs.get(), openEnding, allowedDialects, dialectCost, ptt.get(), typoCostThreshold }, pretokenizedSpans.first, cConfig);
+		auto analyzeText = [&]()
+		{
+			return kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs.get(), openEnding, allowedDialects, dialectCost, ptt.get(), typoCostThreshold }, pretokenizedSpans.first, cConfig);
+		};
+		auto res = so.str.size() * topN < gilReleaseMinLength ? analyzeText() : [&]()
+		{
+			py::GilRelease nogil;
+			return analyzeText();
+		}();
 		if (res.size() > topN) res.erase(res.begin() + topN, res.end());
 		return resToPyList(move(res), this, kiwiInst, so.offsets, move(pretokenizedSpans.second));
 	}
