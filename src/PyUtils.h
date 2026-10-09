@@ -15,6 +15,7 @@
 #include <cstring>
 #include <deque>
 #include <future>
+#include <chrono>
 #include <optional>
 #include <variant>
 #include <numeric>
@@ -366,6 +367,43 @@ namespace py
 		{
 		}
 	};
+
+	/**
+	 * Releases the GIL for its lifetime and takes it back on scope exit, also when an
+	 * exception unwinds through it. Only pure C++ work may run inside: no Python object
+	 * may be touched, created or destroyed.
+	 *
+	 * Taking the GIL back can wait a whole switch interval (5 ms by default) while another
+	 * thread runs Python code, so it is worth releasing only around work that takes longer.
+	 */
+	class GilRelease
+	{
+		PyThreadState* state;
+	public:
+		GilRelease() : state{ PyEval_SaveThread() } {}
+		~GilRelease() { PyEval_RestoreThread(state); }
+		GilRelease(const GilRelease&) = delete;
+		GilRelease& operator=(const GilRelease&) = delete;
+	};
+
+	/**
+	 * How long a wait keeps the GIL before giving it up. Results of a batch are usually ready
+	 * or nearly so when they are collected, and giving the GIL up for each of them made a batch
+	 * of short texts about six times slower next to a thread running Python code.
+	 */
+	constexpr std::chrono::milliseconds gilKeepWait{ 1 };
+
+	/**
+	 * Blocks until a future is ready, giving up the GIL only when it is not ready within
+	 * gilKeepWait (see GilRelease).
+	 */
+	template<typename _Future>
+	void waitWithoutGil(const _Future& f)
+	{
+		if (f.wait_for(gilKeepWait) == std::future_status::ready) return;
+		GilRelease nogil;
+		f.wait();
+	}
 
 	class BaseException : public std::runtime_error
 	{
@@ -2079,6 +2117,7 @@ namespace py
 			{
 				auto f = std::move(futures.front());
 				futures.pop_front();
+				waitWithoutGil(f);
 				f.get();
 			}
 		}
@@ -2098,10 +2137,12 @@ namespace py
 			{
 				auto input = std::move(inputItems.front());
 				inputItems.pop_front();
+				waitWithoutGil(f);
 				return buildPyTuple(static_cast<Derived*>(this)->buildPy(f.get()), input);
 			}
 			else
 			{
+				waitWithoutGil(f);
 				return static_cast<Derived*>(this)->buildPy(f.get());
 			}
 		}

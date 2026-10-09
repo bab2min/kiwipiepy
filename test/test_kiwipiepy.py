@@ -105,6 +105,20 @@ def test_blocklist():
     tokens = kiwi.tokenize("고마움을", blocklist=ms)
     assert tokens[0].form == "고맙"
 
+def test_blocklist_after_rebuild_while_old_instance_is_in_use():
+    # A batch still being consumed keeps the instance it started with alive. A word added
+    # meanwhile rebuilds Kiwi, and the blocklist must then block the new instance's morphemes
+    # while the pending batch keeps blocking the old instance's.
+    kiwi = Kiwi(num_workers=2)
+    ms = MorphemeSet(kiwi, ['고마움'])
+    pending = kiwi.tokenize(["고마움을"] * 200, blocklist=ms)
+    assert next(pending)[0].form == "고맙"
+
+    kiwi.add_user_word('TEST1', 'NNP')
+    assert kiwi.tokenize("고마움을", blocklist=ms)[0].form == "고맙"
+    assert list(kiwi.tokenize(["고마움을"] * 4, blocklist=ms))[-1][0].form == "고맙"
+    assert all(tokens[0].form == "고맙" for tokens in pending)
+
 def test_pretokenized():
     kiwi = Kiwi(load_multi_dict=False)
     text = "드디어패트와 매트가 2017년에 국내 개봉했다. 패트와매트는 2016년..."
@@ -951,6 +965,22 @@ def test_typo_correction():
     assert ret[2].form == '되'
     assert ret[3].form == 'ᆫ대'
     print(ret)
+
+def test_typo_transformer_change_after_use():
+    if sys.maxsize <= 2**32:
+        print("[skipped this test in 32bit OS.]", file=sys.stderr)
+        return
+    kiwi = Kiwi()
+    typos = TypoTransformer([])
+    assert kiwi.tokenize("외않됀대?", typos=typos)[0].form != '왜'
+    assert typos.generate("외") == [("외", 0.0)]
+
+    typos |= basic_typos
+    assert kiwi.tokenize("외않됀대?", typos=typos)[0].form == '왜'
+    assert any(form == "왜" for form, _ in typos.generate("외"))
+
+    typos.scale_cost(100)
+    assert kiwi.tokenize("외않됀대?", typos=typos)[0].form != '왜'
 
 def test_continual_typo():
     kiwi = Kiwi()

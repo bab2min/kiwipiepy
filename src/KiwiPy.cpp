@@ -36,8 +36,9 @@ vector<pair<u16string, size_t>> pyExtractSubstrings(const u16string& str, size_t
 struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 {
 	TypoTransformer tt;
-	PreparedTypoTransformer ptt;
-	bool prepared = false;
+	// Built from `tt` on first use and dropped when `tt` changes. An analysis holds its own
+	// reference, so neither a change nor a re-initialisation frees the one it reads.
+	std::shared_ptr<const PreparedTypoTransformer> prepared;
 
 	using _InitArgs = std::tuple<PyObject*, float, float>;
 
@@ -98,12 +99,26 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 		{
 			throw py::ValueError{ "`obj` must be an instance of `TypoTransformer`." };
 		}
+#ifdef Py_GIL_DISABLED
+		Py_BEGIN_CRITICAL_SECTION(this);
+#endif
 		tt.update(((TypoTransformerObject*)obj)->tt);
+		prepared.reset();
+#ifdef Py_GIL_DISABLED
+		Py_END_CRITICAL_SECTION();
+#endif
 	}
 
 	void scaleCost(float scale)
 	{
+#ifdef Py_GIL_DISABLED
+		Py_BEGIN_CRITICAL_SECTION(this);
+#endif
 		tt.scaleCost(scale);
+		prepared.reset();
+#ifdef Py_GIL_DISABLED
+		Py_END_CRITICAL_SECTION();
+#endif
 	}
 
 	float getContinualTypoCost() const
@@ -145,26 +160,25 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 		return ret;
 	}
 
-	PreparedTypoTransformer& getPtt()
+	std::shared_ptr<const PreparedTypoTransformer> getPtt()
 	{
-		if (!prepared)
-		{
+		std::shared_ptr<const PreparedTypoTransformer> ret;
 #ifdef Py_GIL_DISABLED
-			Py_BEGIN_CRITICAL_SECTION(this);
+		Py_BEGIN_CRITICAL_SECTION(this);
 #endif
-			ptt = tt.prepare(true);
-			prepared = true;
+		if (!prepared) prepared = std::make_shared<const PreparedTypoTransformer>(tt, true);
+		ret = prepared;
 #ifdef Py_GIL_DISABLED
-			Py_END_CRITICAL_SECTION();
+		Py_END_CRITICAL_SECTION();
 #endif
-		}
-		return ptt;
+		return ret;
 	}
 
 	py::UniqueObj generate(const string& orig, float costThreshold = 2.5)
 	{
 		py::UniqueObj ret{ PyList_New(0) };
-		for (auto r : getPtt().generate(utf8To16(orig), costThreshold))
+		const auto ptt = getPtt();
+		for (auto r : ptt->generate(utf8To16(orig), costThreshold))
 		{
 			PyList_Append(ret.get(), py::buildPyTuple(r.str, r.cost).get());
 		}
@@ -1460,8 +1474,10 @@ struct MorphemeSetObject : py::CObject<MorphemeSetObject>
 {
 	py::UniqueCObj<KiwiObject> kiwi;
 	std::vector<std::tuple<string, POSTag, uint8_t>> morphList;
+	// The set resolved against the Kiwi instance `kiwiPtr`, replaced rather than modified when
+	// that instance or `morphList` changes, so an analysis may keep reading the one it took.
 	mutable std::weak_ptr<Kiwi> kiwiPtr;
-	mutable std::unordered_set<const kiwi::Morpheme*> morphSet;
+	mutable std::shared_ptr<const std::unordered_set<const kiwi::Morpheme*>> morphSet;
 
 	using _InitArgs = std::tuple<py::UniqueCObj<KiwiObject>>;
 
@@ -1474,9 +1490,7 @@ struct MorphemeSetObject : py::CObject<MorphemeSetObject>
 
 	void update(PyObject* morphs)
 	{
-		morphList.clear();
-		morphSet.clear();
-
+		std::vector<std::tuple<string, POSTag, uint8_t>> newList;
 		py::foreach<PyObject*>(morphs, [&](PyObject* item)
 		{
 			if (PyTuple_Check(item) && (PyTuple_Size(item) == 2 || PyTuple_Size(item) == 3))
@@ -1493,38 +1507,57 @@ struct MorphemeSetObject : py::CObject<MorphemeSetObject>
 				{
 					tag = parseTag(stag.c_str());
 				}
-				morphList.emplace_back(form, tag, senseId);
+				newList.emplace_back(form, tag, senseId);
 			}
 			else
 			{
 				throw py::ForeachFailed{};
 			}
 		}, "`morphs` must be an iterable of `tuple`.");
+
+#ifdef Py_GIL_DISABLED
+		Py_BEGIN_CRITICAL_SECTION(this);
+#endif
+		morphList = std::move(newList);
+		morphSet.reset();
+		kiwiPtr.reset();
+#ifdef Py_GIL_DISABLED
+		Py_END_CRITICAL_SECTION();
+#endif
 	}
 
-	const std::unordered_set<const kiwi::Morpheme*>& getMorphemeSet() const
+	/**
+	 * The blocklist resolved against `kiwiInst`, the instance the caller analyses with. A set
+	 * resolved against another instance, even one still alive, holds that instance's morphemes
+	 * and blocks nothing in this one, so it is resolved again.
+	 */
+	std::shared_ptr<const std::unordered_set<const kiwi::Morpheme*>> getMorphemeSet(const std::shared_ptr<Kiwi>& kiwiInst) const
 	{
-		auto kiwiInst = kiwiPtr.lock();
-		if (!kiwiInst)
+		std::shared_ptr<const std::unordered_set<const kiwi::Morpheme*>> ret;
+#ifdef Py_GIL_DISABLED
+		Py_BEGIN_CRITICAL_SECTION(this);
+#endif
+		if (!morphSet || kiwiPtr.lock() != kiwiInst)
 		{
-			morphSet.clear();
-			kiwiPtr = kiwiInst = kiwi->doPrepare();
-		}
-		if (morphSet.empty())
-		{
+			auto resolved = std::make_shared<std::unordered_set<const kiwi::Morpheme*>>();
 			for (auto& p : morphList)
 			{
 				auto form = utf8To16(std::get<0>(p));
 				auto tag = std::get<1>(p);
 				auto senseId = std::get<2>(p);
-				auto morphs = kiwiInst->findMorphemes(form, tag, senseId);
-				for (auto m : morphs)
+				for (auto m : kiwiInst->findMorphemes(form, tag, senseId))
 				{
-					morphSet.insert(m);
+					resolved->insert(m);
 				}
 			}
+			morphSet = std::move(resolved);
+			kiwiPtr = kiwiInst;
 		}
-		return morphSet;
+		ret = morphSet;
+#ifdef Py_GIL_DISABLED
+		Py_END_CRITICAL_SECTION();
+#endif
+		return ret;
 	}
 };
 
@@ -2037,6 +2070,17 @@ struct FutureCarrier
 	FutureCarrier(FutureCarrier&&) = default;
 	FutureCarrier& operator=(FutureCarrier&&) = default;
 
+	template<class Rep, class Period>
+	std::future_status wait_for(const std::chrono::duration<Rep, Period>& timeout) const
+	{
+		return future.wait_for(timeout);
+	}
+
+	void wait() const
+	{
+		future.wait();
+	}
+
 	std::pair<FutureTy, CarriedTy> get()
 	{
 		return std::make_pair(future.get(), std::move(carried));
@@ -2059,7 +2103,9 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 {
 	py::UniqueCObj<KiwiObject> kiwi;
 	std::shared_ptr<Kiwi> kiwiInst;
-	py::UniqueCObj<MorphemeSetObject> blocklist;
+	// What `options` points to, kept alive until the last queued analysis has finished.
+	std::shared_ptr<const std::unordered_set<const kiwi::Morpheme*>> blocklist;
+	std::shared_ptr<const PreparedTypoTransformer> typos;
 	py::UniqueObj pretokenizedCallable;
 #ifdef Py_GIL_DISABLED
 	std::shared_lock<std::shared_mutex> lock;
@@ -2491,6 +2537,12 @@ py::UniqueObj KiwiObject::extractAddWords(PyObject* sentences, size_t minCnt, si
 	return retList;
 }
 
+// A text whose length times topN is below this is analysed with the GIL held. Its analysis takes
+// about as long as getting the GIL back can, so releasing it made each call slower next to a
+// thread running Python code (six times at 250 characters); from about this length it cost
+// nothing. The analysis time grows with topN too (3.7 times at topN=5), hence the product.
+static constexpr size_t gilReleaseMinLength = 4000;
+
 py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, 
 	Match matchOptions, bool echo, PyObject* blockList, bool openEnding, 
 	Dialect allowedDialects, float dialectCost,
@@ -2500,18 +2552,21 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 	auto kiwiInst = doPrepare();
 	KiwiConfig cConfig = toKiwiConfig(config);
 
-	const PreparedTypoTransformer* ptt = nullptr;
+	// Snapshots held for the whole analysis: the objects they come from may change meanwhile.
+	std::shared_ptr<const PreparedTypoTransformer> ptt;
 	if (typos && typos != Py_None)
 	{
-		auto tt = py::checkType<TypoTransformerObject>(typos);
-		ptt = &tt->getPtt();
+		ptt = py::checkType<TypoTransformerObject>(typos)->getPtt();
+	}
+	std::shared_ptr<const unordered_set<const Morpheme*>> morphs;
+	if (blockList != Py_None)
+	{
+		morphs = ((MorphemeSetObject*)blockList)->getMorphemeSet(kiwiInst);
 	}
 
 	if (PyUnicode_Check(text))
 	{
-		const unordered_set<const Morpheme*>* morphs = nullptr;
 		pair<vector<PretokenizedSpan>, vector<py::UniqueObj>> pretokenizedSpans;
-		if (blockList != Py_None) morphs = &((MorphemeSetObject*)blockList)->getMorphemeSet();
 		if (PyCallable_Check(pretokenized))
 		{
 			py::UniqueObj ptResult{ PyObject_CallFunctionObjArgs(pretokenized, text, nullptr) };
@@ -2528,7 +2583,15 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 		{
 			updatePretokenizedSpanToU16(pretokenizedSpans.first, so);
 		}
-		auto res = kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs, openEnding, allowedDialects, dialectCost, ptt, typoCostThreshold }, pretokenizedSpans.first, cConfig);
+		auto analyzeText = [&]()
+		{
+			return kiwiInst->analyze(so.str, topN, AnalyzeOption{ matchOptions, morphs.get(), openEnding, allowedDialects, dialectCost, ptt.get(), typoCostThreshold }, pretokenizedSpans.first, cConfig);
+		};
+		auto res = so.str.size() * topN < gilReleaseMinLength ? analyzeText() : [&]()
+		{
+			py::GilRelease nogil;
+			return analyzeText();
+		}();
 		if (res.size() > topN) res.erase(res.begin() + topN, res.end());
 		return resToPyList(move(res), this, kiwiInst, so.offsets, move(pretokenizedSpans.second));
 	}
@@ -2542,17 +2605,12 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 		Py_INCREF(this);
 		ret->inputIter = move(iter);
 		ret->topN = topN;
-		ret->options = AnalyzeOption{ matchOptions, nullptr, openEnding, allowedDialects, dialectCost, ptt, typoCostThreshold };
+		ret->options = AnalyzeOption{ matchOptions, morphs.get(), openEnding, allowedDialects, dialectCost, ptt.get(), typoCostThreshold };
+		ret->blocklist = move(morphs);
+		ret->typos = move(ptt);
 		ret->config = cConfig;
 		ret->echo = !!echo;
 		ret->kiwiInst = kiwiInst;
-
-		if (blockList != Py_None)
-		{
-			ret->blocklist = py::UniqueCObj<MorphemeSetObject>{ (MorphemeSetObject*)blockList };
-			ret->options.blocklist = &ret->blocklist->getMorphemeSet();
-			Py_INCREF(blockList);
-		}
 
 		if (PyCallable_Check(pretokenized))
 		{
