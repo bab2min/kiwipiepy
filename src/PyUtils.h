@@ -386,17 +386,8 @@ namespace py
 		GilRelease& operator=(const GilRelease&) = delete;
 	};
 
-	/**
-	 * How long a wait keeps the GIL before giving it up. Results of a batch are usually ready
-	 * or nearly so when they are collected, and giving the GIL up for each of them made a batch
-	 * of short texts about six times slower next to a thread running Python code.
-	 */
 	constexpr std::chrono::milliseconds gilKeepWait{ 1 };
 
-	/**
-	 * Blocks until a future is ready, giving up the GIL only when it is not ready within
-	 * gilKeepWait (see GilRelease).
-	 */
 	template<typename _Future>
 	void waitWithoutGil(const _Future& f)
 	{

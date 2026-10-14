@@ -36,8 +36,6 @@ vector<pair<u16string, size_t>> pyExtractSubstrings(const u16string& str, size_t
 struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 {
 	TypoTransformer tt;
-	// Built from `tt` on first use and dropped when `tt` changes. An analysis holds its own
-	// reference, so neither a change nor a re-initialisation frees the one it reads.
 	std::shared_ptr<const PreparedTypoTransformer> prepared;
 
 	using _InitArgs = std::tuple<PyObject*, float, float>;
@@ -1526,11 +1524,6 @@ struct MorphemeSetObject : py::CObject<MorphemeSetObject>
 #endif
 	}
 
-	/**
-	 * The blocklist resolved against `kiwiInst`, the instance the caller analyses with. A set
-	 * resolved against another instance, even one still alive, holds that instance's morphemes
-	 * and blocks nothing in this one, so it is resolved again.
-	 */
 	std::shared_ptr<const std::unordered_set<const kiwi::Morpheme*>> getMorphemeSet(const std::shared_ptr<Kiwi>& kiwiInst) const
 	{
 		std::shared_ptr<const std::unordered_set<const kiwi::Morpheme*>> ret;
@@ -2103,7 +2096,6 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 {
 	py::UniqueCObj<KiwiObject> kiwi;
 	std::shared_ptr<Kiwi> kiwiInst;
-	// What `options` points to, kept alive until the last queued analysis has finished.
 	std::shared_ptr<const std::unordered_set<const kiwi::Morpheme*>> blocklist;
 	std::shared_ptr<const PreparedTypoTransformer> typos;
 	py::UniqueObj pretokenizedCallable;
