@@ -384,6 +384,16 @@ def test_user_value():
     assert tokens[0].user_value == {'tag':'SPECIAL'}
     assert sum(1 for t in tokens if t.user_value is not None) == 1
 
+def test_dropped_tokens_release_their_user_value():
+    kiwi = Kiwi()
+    value = ['user_value']
+    kiwi.add_user_word('사용자단어', user_value=value)
+    assert kiwi.tokenize('사용자단어')[0].user_value is value
+    before = sys.getrefcount(value)
+    for _ in range(10):
+        kiwi.tokenize('사용자단어')
+    assert sys.getrefcount(value) == before
+
 def test_user_value_issue168():
     kiwi = Kiwi()
     text = """마크다운 코드가 섞인 문자열
