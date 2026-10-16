@@ -2108,8 +2108,8 @@ namespace py
 			{
 				auto f = std::move(futures.front());
 				futures.pop_front();
+				// get() would rethrow an analysis error here, in a destructor, and abort the process.
 				waitWithoutGil(f);
-				f.get();
 			}
 		}
 

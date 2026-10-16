@@ -869,6 +869,14 @@ def test_space():
     ]))
     assert res_a == [res0, res1, res2]
 
+def test_dropping_a_batch_whose_analyses_failed():
+    kiwi = Kiwi(num_workers=2)
+    batch = kiwi.tokenize(["가나다라마바사"] * 3, pretokenized=lambda text: [(0, 4), (2, 6)])
+    with pytest.raises(ValueError):
+        next(batch)
+    # The analyses still queued failed too; dropping them must not abort the process.
+    del batch
+
 def test_space_with_multiword_token():
     kiwi = Kiwi()
     kiwi.add_user_word('구미 1동', 'NNP', 10)
