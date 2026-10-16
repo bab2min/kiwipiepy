@@ -2240,6 +2240,7 @@ namespace py
 		if constexpr (!std::is_same_v<Ty, PyObject>)
 		{
 			new (ret.get()) Ty;
+			ret->successfullyConstructed = true;
 		}
 		return ret;
 	}

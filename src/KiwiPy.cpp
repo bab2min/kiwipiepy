@@ -468,6 +468,11 @@ struct KNLangModelNextTokensResultObject : py::CObject<KNLangModelNextTokensResu
 
 	mutable std::future<void> future;
 
+	~KNLangModelNextTokensResultObject()
+	{
+		if (future.valid()) py::waitWithoutGil(future);
+	}
+
 	size_t len() const
 	{
 		return 2;
@@ -501,6 +506,11 @@ struct KNLangModelEvaluateResultObject : py::CObject<KNLangModelEvaluateResultOb
 	py::UniqueCObj<KNLangModelObject> parent;
 
 	mutable std::future<void> future;
+
+	~KNLangModelEvaluateResultObject()
+	{
+		if (future.valid()) py::waitWithoutGil(future);
+	}
 
 	size_t len() const
 	{
