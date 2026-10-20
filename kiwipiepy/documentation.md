@@ -857,6 +857,16 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
 
 역사
 ----
+* 0.24.1 (2026-10-20)
+    * Kiwi 0.24.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.24.1 )이 반영되었습니다.
+        * 공백 없이 긴 입력 텍스트에 대해서 종종 크래스기 발생하던 현상 수정
+        * 유니코드 줄 바꿈 문자 처리 버그 수정
+        * 긴 텍스트를 분석할 때 분석 결과가 불필요하게 복사되는 부분을 개선
+        * ARM64에서 CoNg 모델 로드 시 NEON 최적화 구현
+    * `Kiwi.template()` 에 빈 문자열을 입력했을 때의 오동작 수정
+    * `Kiwi.tokenize()` 결과에서 발생하던 메모리 누수 버그 수정
+    * 긴 문서 분석 시 GIL을 해제하여 멀티스레딩 환경에서 분석 속도가 향상되도록 개선
+
 * 0.24.0 (2026-09-25)
     * Kiwi 0.24.0의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.24.0 )이 반영되었습니다.
         * 형태소 경계를 고려한 Byte-level BPE Tokenizer Trainer 추가
