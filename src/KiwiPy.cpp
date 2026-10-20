@@ -372,6 +372,13 @@ struct GenerativeMADatasetObject : py::CObject<GenerativeMADatasetObject>
 		dataset.addSentence(std::u16string_view{ text });
 	}
 
+	size_t addAnalyzedCorpus(const string& path)
+	{
+		std::ifstream ifs;
+		kiwi::openFile(ifs, path);
+		return dataset.addAnalyzedCorpus(ifs);
+	}
+
 	size_t getVocabSize() const
 	{
 		return dataset.vocabSize();
@@ -436,6 +443,11 @@ struct GenerativeMADatasetIterObject : py::CObject<GenerativeMADatasetIterObject
 	{
 		Py_INCREF(this);
 		return py::UniqueCObj<GenerativeMADatasetIterObject>(const_cast<GenerativeMADatasetIterObject*>(this));
+	}
+
+	size_t skip(size_t numBatches)
+	{
+		return obj->dataset.skip(numBatches);
 	}
 
 	py::UniqueObj iternext()
@@ -1118,6 +1130,12 @@ struct KiwiObject : py::CObject<KiwiObject>
 		float typoCostScale = 1,
 		float spaceRemoveProb = 0,
 		float spaceInsertProb = 0,
+		PyObject* morphemeTokenIds = nullptr,
+		float morphemeDropout = 0,
+		float bpeDropout = 0,
+		float wordSyllableDropout = 0,
+		bool generateToMorpheme = true,
+		bool generateToSurface = true,
 		size_t seed = 0) const;
 
 	py::UniqueObj listAllScripts() const;
@@ -3163,6 +3181,12 @@ py::UniqueObj KiwiObject::makeGenerativeMADataset(const string& tokenizerPath,
 	float typoCostScale,
 	float spaceRemoveProb,
 	float spaceInsertProb,
+	PyObject* morphemeTokenIds,
+	float morphemeDropout,
+	float bpeDropout,
+	float wordSyllableDropout,
+	bool generateToMorpheme,
+	bool generateToSurface,
 	size_t seed
 ) const
 {
@@ -3183,6 +3207,18 @@ py::UniqueObj KiwiObject::makeGenerativeMADataset(const string& tokenizerPath,
 	{
 		option.posTagTokenIds[(uint8_t)parseTag(p.first.c_str())] = p.second;
 	}
+	if (morphemeTokenIds && morphemeTokenIds != Py_None)
+	{
+		for (auto& p : py::toCpp<vector<pair<pair<string, string>, uint32_t>>>(morphemeTokenIds))
+		{
+			option.morphemeTokenIds[make_pair(utf8To16(p.first.first), parseTag(p.first.second.c_str()))] = p.second;
+		}
+	}
+	option.morphemeDropout = morphemeDropout;
+	option.bpeDropout = bpeDropout;
+	option.wordSyllableDropout = wordSyllableDropout;
+	option.generateToMorpheme = generateToMorpheme;
+	option.generateToSurface = generateToSurface;
 
 	TypoTransformer emptyTypos;
 	const TypoTransformer* tt = &emptyTypos;
@@ -3585,6 +3621,7 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 
 		py::define<GenerativeMADatasetObject>("kiwipiepy._GenerativeMADataset", "_GenerativeMADataset", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
 		.template method<&GenerativeMADatasetObject::addSentence>("add_sentence")
+		.template method<&GenerativeMADatasetObject::addAnalyzedCorpus>("add_analyzed_corpus")
 		.template property<&GenerativeMADatasetObject::getVocabSize>("vocab_size")
 		.template property<&GenerativeMADatasetObject::getBatchSize>("batch_size")
 		.template property<&GenerativeMADatasetObject::getMaxSeqLength>("max_seq_length")
@@ -3595,7 +3632,8 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 		.template property<&GenerativeMADatasetObject::numInsertedSpaces>("num_inserted_spaces")
 		.template sqLen<&GenerativeMADatasetObject::len>(),
 
-		py::define<GenerativeMADatasetIterObject>("kiwipiepy._GenerativeMADatasetIter", "_GenerativeMADatasetIter", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE),
+		py::define<GenerativeMADatasetIterObject>("kiwipiepy._GenerativeMADatasetIter", "_GenerativeMADatasetIter", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
+		.template method<&GenerativeMADatasetIterObject::skip>("skip"),
 
 		py::define<KNLangModelNextTokensResultObject>("kiwipiepy._KNLangModelNextTokensResult", "_KNLangModelNextTokensResult")
 		.template sqLen<&KNLangModelNextTokensResultObject::len>()
