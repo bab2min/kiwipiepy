@@ -3141,8 +3141,15 @@ See Also
         typo_cost_scale:float = 1,
         space_remove_prob:float = 0,
         space_insert_prob:float = 0,
+        morpheme_token_ids:Dict[Tuple[str, str], int] = None,
+        morpheme_dropout:float = 0,
+        bpe_dropout:float = 0,
+        word_syllable_dropout:float = 0,
+        directions:str = 'both',
         seed:int = 0,
     ):
+        if directions not in ('both', 'to_morpheme', 'to_surface'):
+            raise ValueError(f"`directions` must be one of 'both', 'to_morpheme' and 'to_surface', but given {directions!r}")
         return super().make_generative_ma_dataset(
             tokenizer_path,
             batch_size,
@@ -3159,6 +3166,12 @@ See Also
             typo_cost_scale,
             space_remove_prob,
             space_insert_prob,
+            list(morpheme_token_ids.items()) if morpheme_token_ids else None,
+            morpheme_dropout,
+            bpe_dropout,
+            word_syllable_dropout,
+            directions != 'to_surface',
+            directions != 'to_morpheme',
             seed)
 
 
