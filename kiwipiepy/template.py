@@ -93,6 +93,15 @@ class Template:
                     continue
                 target_tokens.append(token)
     
+    @classmethod
+    def _from_parsed(cls, kiwi: 'Kiwi', format_str: str, parsed_format: list):
+        self = cls.__new__(cls)
+        self._kiwi = kiwi
+        self._format_str = format_str
+        self._formatter = string.Formatter()
+        self._parsed_format = parsed_format
+        return self
+
     def format(self,
         *args,
         **kwargs,
