@@ -1913,13 +1913,13 @@ namespace py
 		static void dealloc(Derived* self)
 		{
 			auto* cobj = static_cast<CObject<Derived>*>(self);
+			if (cobj->managedWeakList) PyObject_ClearWeakRefs((PyObject*)self);
 			if (cobj->successfullyConstructed)
 			{
 				self->~Derived();
 			}
 
 			Py_XDECREF(cobj->managedDict);
-			Py_XDECREF(cobj->managedWeakList);
 
 			if (PyType_HasFeature(Py_TYPE(self), Py_TPFLAGS_HAVE_GC))
 			{
@@ -2017,9 +2017,9 @@ namespace py
 
 		static void dealloc(PObject* self)
 		{
+			if (self->managedWeakList) PyObject_ClearWeakRefs((PyObject*)self);
 			self->value.~Ty();
 			Py_XDECREF(self->managedDict);
-			Py_XDECREF(self->managedWeakList);
 
 			if (PyType_HasFeature(Py_TYPE(self), Py_TPFLAGS_HAVE_GC))
 			{
