@@ -4,6 +4,7 @@ import re
 import tempfile
 import itertools
 import pickle
+import math
 import pytest
 
 import pytest
@@ -1223,6 +1224,26 @@ def test_cong_functions():
     sims = kiwi.predict_next_morpheme('오늘 점심은', bg_weight=0.5, top_n=10)
     print(sims)
     assert len(sims) == 10
+
+def test_cong_functions_reject_out_of_range_ids():
+    kiwi = Kiwi()
+    for bad in (-1, 2**31 - 1):
+        with pytest.raises(ValueError):
+            kiwi.most_similar_contexts(context_id=bad)
+        with pytest.raises(ValueError):
+            kiwi.morpheme_similarity(bad, 1)
+        with pytest.raises(ValueError):
+            kiwi.most_similar_morphemes(bad)
+        with pytest.raises(ValueError):
+            kiwi.context_similarity([bad], [1])
+        with pytest.raises(ValueError):
+            kiwi.predict_next_morpheme([bad])
+
+    # Token.id can be larger than the LM vocabulary (e.g. allomorphs like '와/JC')
+    tok = kiwi.tokenize('친구와 나')[1]
+    assert tok.tagged_form == '와/JC'
+    score = kiwi.morpheme_similarity(tok.id, ('과', 'JC'))
+    assert math.isfinite(score)
 
 def test_dialect():
     kiwi = Kiwi(enabled_dialects='jeju,archaic')

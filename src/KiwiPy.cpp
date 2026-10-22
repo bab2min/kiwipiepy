@@ -2817,7 +2817,13 @@ inline uint32_t convertToMorphId(const Kiwi* kiwi, PyObject* target, E&& errorMs
 	}
 	else if (PyLong_Check(target))
 	{
-		return py::toCpp<uint32_t>(target);
+		const auto id = py::toCpp<long long>(target);
+		auto* morph = id < 0 ? nullptr : kiwi->idToMorph(id);
+		if (!morph || morph->lmMorphemeId >= kiwi->getLangModel()->vocabSize())
+		{
+			throw py::ValueError{ "morpheme id out of range: " + to_string(id) };
+		}
+		return morph->lmMorphemeId;
 	}
 	else
 	{
@@ -2879,9 +2885,20 @@ py::UniqueObj KiwiObject::mostSimilarContexts(PyObject* retTy, PyObject* target,
 		targetIds = convertToIds(kiwiInst.get(), target);
 	}
 	
-	const uint32_t targetContextId = target == Py_None ?
-		PyLong_AsLong(contextId) :
-		congLm->toContextId(targetIds.data(), targetIds.size());
+	uint32_t targetContextId;
+	if (target == Py_None)
+	{
+		const auto id = py::toCpp<long long>(contextId);
+		if (id < 0 || (size_t)id >= contextForms.size())
+		{
+			throw py::ValueError{ "`context_id` out of range: " + to_string(id) };
+		}
+		targetContextId = (uint32_t)id;
+	}
+	else
+	{
+		targetContextId = congLm->toContextId(targetIds.data(), targetIds.size());
+	}
 	Vector<pair<uint32_t, float>> output(topN);
 	if (topN > 1)
 	{
