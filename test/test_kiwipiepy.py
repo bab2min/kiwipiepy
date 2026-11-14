@@ -1545,3 +1545,15 @@ def test_issue_135_sw_tokenizer_pickle_follows_the_kiwi_gate():
     with pytest.raises(TypeError) as e:
         pickle.dumps(tok)
     assert 'add_user_word' in str(e.value)
+
+
+def test_weakref_cleared_on_dealloc():
+    import gc, weakref
+    called = []
+    kiwi = Kiwi(num_workers=1)
+    token = kiwi.tokenize('안녕하세요')[0]
+    refs = [weakref.ref(o, lambda r: called.append(r)) for o in (token, kiwi)]
+    del token, kiwi
+    gc.collect()
+    assert [r() for r in refs] == [None, None]
+    assert len(called) == 2
