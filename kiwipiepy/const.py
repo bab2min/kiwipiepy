@@ -142,6 +142,12 @@ class Match(IntFlag):
     .. versionadded:: 0.23.0
     """
 
+    QUOTED_HA_OMISSION = 1 << 28
+    """
+    인용 뒤에 생략된 '하'를 복원하여 매칭합니다 (예: 구매하라'는 -> 라/EF '/SSC 하/VV 는/ETM).
+    받침 없이 ㅏ·ㅑ로 끝나는 음절 + 문장부호 0~1개 + 닫는 따옴표 바로 뒤의, 초성이 ㅇ이 아닌 어미에 적용합니다.
+    """
+
     JOIN_V_SUFFIX = JOIN_VERB_SUFFIX | JOIN_ADJ_SUFFIX
     """
     동사/형용사형 파생접미사를 분리하지 않고 결합합니다.

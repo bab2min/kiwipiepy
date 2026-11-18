@@ -38,12 +38,17 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 	TypoTransformer tt;
 	std::shared_ptr<const PreparedTypoTransformer> prepared;
 
-	using _InitArgs = std::tuple<PyObject*, float, float>;
+	using _InitArgs = std::tuple<PyObject*, float, float, float, bool, size_t>;
 
 	TypoTransformerObject() = default;
 
-	TypoTransformerObject(PyObject* defs, float continualTypoCost, float lengtheningTypoCost)
+	TypoTransformerObject(PyObject* defs, float continualTypoCost, float lengtheningTypoCost, float fuzzyTypoCost, bool fuzzyRealWordErrors, size_t fuzzyMinJamo)
 	{
+		if (fuzzyTypoCost)
+		{
+			tt.setFuzzyTypoCost(fuzzyTypoCost, fuzzyRealWordErrors, fuzzyMinJamo);
+		}
+
 		if (continualTypoCost)
 		{
 			tt.setContinualTypoCost(continualTypoCost);
@@ -127,6 +132,21 @@ struct TypoTransformerObject : py::CObject<TypoTransformerObject>
 	float getLengtheningTypoCost() const
 	{
 		return tt.getLengtheningTypoCost();
+	}
+
+	float getFuzzyTypoCost() const
+	{
+		return tt.getFuzzyTypoCost();
+	}
+
+	bool getFuzzyRealWordErrors() const
+	{
+		return tt.getFuzzyRealWordErrors();
+	}
+
+	size_t getFuzzyMinJamo() const
+	{
+		return tt.getFuzzyMinJamo();
 	}
 
 	py::UniqueObj getDefs() const
@@ -3601,6 +3621,9 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 		.template method<&TypoTransformerObject::scaleCost>("scale_cost")
 		.template property<&TypoTransformerObject::getContinualTypoCost>("_continual_typo_cost")
 		.template property<&TypoTransformerObject::getLengtheningTypoCost>("_lengthening_typo_cost")
+		.template property<&TypoTransformerObject::getFuzzyTypoCost>("_fuzzy_typo_cost")
+		.template property<&TypoTransformerObject::getFuzzyRealWordErrors>("_fuzzy_real_word_errors")
+		.template property<&TypoTransformerObject::getFuzzyMinJamo>("_fuzzy_min_jamo")
 		.template property<&TypoTransformerObject::getDefs>("_defs"),
 
 		py::define<HSDatasetObject>("kiwipiepy._HSDataset", "_HSDataset", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)

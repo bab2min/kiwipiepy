@@ -396,6 +396,24 @@ lengthening_typo_cost: float
     .. versionadded:: 0.19.0
 
     장음화에 대한 교정 비용. 기본값은 0으로, 장음화에 대한 교정을 수행하지 않습니다.
+fuzzy_typo_cost: float
+    .. versionadded:: 0.24.2
+
+    자모 편집 한 번에 대한 교정 비용. 기본값은 0으로, 자모 편집 교정을 수행하지 않습니다.
+    0보다 크면 형태 하나에 자모 편집 한 번(한 음절의 초성 또는 중성 치환, 종성 치환, 종성 삽입·삭제)까지 허용한 형태도 후보로 찾습니다.
+    자모가 `fuzzy_min_jamo`개 미만인 형태는 편집하지 않습니다.
+    `typo_cost_weight`(기본 6)가 곱해지므로, 비용이 1이면 맞게 쓴 덜 흔한 단어를 흔한 단어로 잘못 고치는 일이 잦습니다. 2~3 정도를 권합니다.
+fuzzy_real_word_errors: bool
+    .. versionadded:: 0.24.2
+
+    False(기본값)이면 원문 구간이 그 자체로 사전에 있는 형태일 때는 자모 편집을 하지 않습니다(사전에 없는 꼴이 된 오타만 교정).
+    True이면 사전에 있는 다른 단어로 바뀐 오타(실제 단어 오류)도 찾지만, 후보가 크게 늘어 분석이 수십 배 느려질 수 있습니다.
+fuzzy_min_jamo: int
+    .. versionadded:: 0.24.2
+
+    자모 편집 대상이 되는 사전 형태의 최소 자모 수. 음절은 초성+중성 2개, 받침은 1개로 셉니다.
+    기본값 3은 받침 있는 1음절 형태(예: `각`)부터, 4는 2음절 형태(예: `가지`)부터 편집합니다.
+    `fuzzy_real_word_errors=True`일 때는 3이 4보다 분석이 2~3배 느리므로, 속도가 중요하면 4를 쓰십시오.
 
 Notes
 -----
@@ -437,10 +455,15 @@ Notes
         defs: List[TypoDefinition],
         continual_typo_cost: float = 0,
         lengthening_typo_cost: float = 0,
+        fuzzy_typo_cost: float = 0,
+        fuzzy_real_word_errors: bool = False,
+        fuzzy_min_jamo: int = 3,
     ):
         try:
             assert continual_typo_cost >= 0, "continual_typo_cost should be zero or positive."
             assert lengthening_typo_cost >= 0, "lengthening_typo_cost should be zero or positive."
+            assert fuzzy_typo_cost >= 0, "fuzzy_typo_cost should be zero or positive."
+            assert fuzzy_min_jamo >= 1, "fuzzy_min_jamo should be positive."
         except AssertionError as e:
             raise ValueError(*e.args)
         
@@ -448,6 +471,9 @@ Notes
             ((list(map(_convert_consonant, d.orig)), list(map(_convert_consonant, d.error)), d.cost, d.condition) for d in defs),
             continual_typo_cost,
             lengthening_typo_cost,
+            fuzzy_typo_cost,
+            fuzzy_real_word_errors,
+            fuzzy_min_jamo,
         )
 
     def generate(self, text:str, cost_threshold:float = 2.5) -> List[Tuple[str, float]]:
@@ -518,13 +544,34 @@ errors: List[Tuple[str, float]]
         장음화에 대한 교정 비용'''
         return self._lengthening_typo_cost
 
+    @property
+    def fuzzy_typo_cost(self) -> float:
+        '''.. versionadded:: 0.24.2
+        
+        자모 편집 한 번에 대한 교정 비용'''
+        return self._fuzzy_typo_cost
+
+    @property
+    def fuzzy_real_word_errors(self) -> bool:
+        '''.. versionadded:: 0.24.2
+        
+        사전에 있는 다른 단어로 바뀐 오타도 자모 편집으로 찾는지 여부'''
+        return self._fuzzy_real_word_errors
+
+    @property
+    def fuzzy_min_jamo(self) -> int:
+        '''.. versionadded:: 0.24.2
+        
+        자모 편집 대상이 되는 사전 형태의 최소 자모 수'''
+        return self._fuzzy_min_jamo
+
     def __repr__(self):
         defs = self._defs
         if len(defs) < 5:
             defs_str = ", ".join(map(repr, defs))
         else:
             defs_str = ", ".join(map(repr, defs[:5])) + f", ... ({len(defs) - 5} more)"
-        return f"TypoTransformer([{defs_str}], continual_typo_cost={self._continual_typo_cost!r}, lengthening_typo_cost={self._lengthening_typo_cost!r})"
+        return f"TypoTransformer([{defs_str}], continual_typo_cost={self._continual_typo_cost!r}, lengthening_typo_cost={self._lengthening_typo_cost!r}, fuzzy_typo_cost={self._fuzzy_typo_cost!r}, fuzzy_real_word_errors={self._fuzzy_real_word_errors!r}, fuzzy_min_jamo={self._fuzzy_min_jamo!r})"
 
 def _convert_typos(typos: Union[str, TypoTransformer]) -> TypoTransformer:
     import kiwipiepy
