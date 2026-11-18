@@ -19,7 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\ByteGrammar.cpp" />
     <ClCompile Include="src\KiwiPy.cpp" />
+    <ClCompile Include="src\LatticeGuide.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\workflows\deploy.yml" />
@@ -38,6 +40,8 @@
     <None Include="x64\Release\test.py" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\ByteGrammar.h" />
+    <ClInclude Include="src\LatticeGuide.h" />
     <ClInclude Include="src\PyArgParser.h" />
     <ClInclude Include="src\PyUtils.h" />
   </ItemGroup>

@@ -1,6 +1,7 @@
 ﻿#define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
 
 #include <stdexcept>
+#include <cstring>
 #include <fstream>
 #include <algorithm>
 #include <limits>
@@ -11,6 +12,8 @@
 #define MAIN_MODULE
 
 #include "PyUtils.h"
+#include "ByteGrammar.h"
+#include "LatticeGuide.h"
 
 #include <kiwi/Kiwi.h>
 #include <kiwi/Dataset.h>
@@ -3682,6 +3685,376 @@ void pyTrainBpeTokenizer(
 }
 
 
+struct GrammarMatcherObject : py::CObject<GrammarMatcherObject>
+{
+	using _InitArgs = std::tuple<>;
+
+	std::unique_ptr<guide::GrammarMatcher> matcher;
+
+	guide::GrammarMatcher& get() const
+	{
+		if (!matcher) throw py::RuntimeError{ "`_GrammarMatcher` must be made by `ByteGrammar.matcher` or `matcher_packed`." };
+		return *matcher;
+	}
+
+	bool accept(uint32_t token)
+	{
+		return get().accept(token);
+	}
+
+	py::UniqueObj allowedTokens() const
+	{
+		auto toks = get().allowedTokens();
+		py::UniqueObj ret{ PyList_New(toks.size()) };
+		for (size_t i = 0; i < toks.size(); ++i) PyList_SetItem(ret.get(), i, PyLong_FromUnsignedLong(toks[i]));
+		return ret;
+	}
+
+	bool canTerminate() const { return get().canTerminate(); }
+	bool isTerminated() const { return get().isTerminated(); }
+	void reset() { get().reset(); }
+	size_t numNodes() const { return get().numNodes(); }
+	size_t numDroppedEdges() const { return get().numDroppedEdges(); }
+
+	py::UniqueObj copy() const
+	{
+		auto ret = py::makeNewObject<GrammarMatcherObject>();
+		ret->matcher = std::make_unique<guide::GrammarMatcher>(get());
+		return ret;
+	}
+};
+
+struct LatticeFollowerObject : py::CObject<LatticeFollowerObject>
+{
+	using _InitArgs = std::tuple<>;
+
+	std::unique_ptr<guide::LatticeFollower> follower;
+
+	guide::LatticeFollower& get() const
+	{
+		if (!follower) throw py::RuntimeError{ "`_LatticeFollower` must be made by `LatticeTokens.follower`." };
+		return *follower;
+	}
+
+	void consume(uint32_t token)
+	{
+		get().consume(token);
+	}
+
+	py::UniqueObj allowed(PyObject* top)
+	{
+		const auto t = py::toCpp<std::vector<uint32_t>>(top);
+		auto ret = get().allowed(t);
+		if (!ret) return py::buildPyValue(nullptr);
+		py::UniqueObj lst{ PyList_New(ret->size()) };
+		for (size_t i = 0; i < ret->size(); ++i) PyList_SetItem(lst.get(), i, PyLong_FromUnsignedLong((*ret)[i]));
+		return lst;
+	}
+
+	void prepare()
+	{
+		get().prepare();
+	}
+
+	bool isDead() const { return get().isDead(); }
+	bool isStuck() const { return get().isStuck(); }
+	size_t numRelaxed() const { return get().numRelaxed(); }
+
+	py::UniqueObj buffer() const
+	{
+		auto& b = get().buffer();
+		return py::UniqueObj{ PyBytes_FromStringAndSize(b.data(), b.size()) };
+	}
+};
+
+struct LatticeTokensObject : py::CObject<LatticeTokensObject>
+{
+	std::shared_ptr<guide::LatticeTokens> tokens;
+
+	using _InitArgs = std::tuple<PyObject*, PyObject*>;
+
+	LatticeTokensObject() = default;
+
+	LatticeTokensObject(PyObject* tokenBytes, PyObject* knownWords)
+	{
+		std::vector<std::string> tb;
+		py::foreach<PyObject*>(tokenBytes, [&](PyObject* item)
+		{
+			char* data = nullptr;
+			Py_ssize_t len = 0;
+			if (item == Py_None) tb.emplace_back();
+			else if (PyBytes_AsStringAndSize(item, &data, &len) == 0) tb.emplace_back(data, len);
+			else throw py::ExcPropagation{};
+		}, "`token_bytes` must be an iterable of `bytes` or `None`.");
+		std::vector<std::string> words;
+		if (knownWords != Py_None) words = py::toCpp<std::vector<std::string>>(knownWords);
+		tokens = std::make_shared<guide::LatticeTokens>(move(tb), move(words));
+	}
+
+	// groups: [(시작, 끝, [형태, ...]), ...], formTags: [(시작, 끝, 형태, [태그 토큰, ...]), ...] 또는 None
+	py::UniqueObj makeFollower(const std::string& text, PyObject* groups, int budget, PyObject* tags, uint32_t eos,
+		PyObject* prefix, PyObject* formTags, bool anyForm) const
+	{
+		std::vector<guide::LatticeGroupSpec> specs;
+		py::foreach<PyObject*>(groups, [&](PyObject* item)
+		{
+			if (!PySequence_Check(item) || PySequence_Size(item) != 3) throw py::ValueError{ "Each group must be `(start, end, forms)`." };
+			auto& g = specs.emplace_back();
+			g.start = py::toCpp<uint32_t>(py::UniqueObj{ PySequence_GetItem(item, 0) }.get());
+			g.end = py::toCpp<uint32_t>(py::UniqueObj{ PySequence_GetItem(item, 1) }.get());
+			g.forms = py::toCpp<std::vector<std::string>>(py::UniqueObj{ PySequence_GetItem(item, 2) }.get());
+		}, "`groups` must be an iterable of `(start, end, forms)`.");
+		guide::FormTagTable ft;
+		if (formTags != Py_None)
+		{
+			py::foreach<PyObject*>(formTags, [&](PyObject* item)
+			{
+				if (!PySequence_Check(item) || PySequence_Size(item) != 4) throw py::ValueError{ "Each form tag entry must be `(start, end, form, tags)`." };
+				auto& sp = ft[py::toCpp<std::string>(py::UniqueObj{ PySequence_GetItem(item, 2) }.get())].emplace_back();
+				sp.start = py::toCpp<uint32_t>(py::UniqueObj{ PySequence_GetItem(item, 0) }.get());
+				sp.end = py::toCpp<uint32_t>(py::UniqueObj{ PySequence_GetItem(item, 1) }.get());
+				auto ids = py::toCpp<std::vector<uint32_t>>(py::UniqueObj{ PySequence_GetItem(item, 3) }.get());
+				sp.tags = { ids.begin(), ids.end() };
+			}, "`form_tags` must be an iterable of `(start, end, form, tags)` or None.");
+		}
+		const auto pre = prefix == Py_None ? std::vector<std::string>{} : py::toCpp<std::vector<std::string>>(prefix);
+		auto lat = std::make_shared<guide::Lattice>(text, specs, budget, tokens, anyForm);
+		auto ret = py::makeNewObject<LatticeFollowerObject>();
+		ret->follower = std::make_unique<guide::LatticeFollower>(lat, tokens, py::toCpp<std::vector<uint32_t>>(tags), eos, pre, move(ft));
+		return ret;
+	}
+};
+
+struct ByteGrammarObject : py::CObject<ByteGrammarObject>
+{
+	std::shared_ptr<guide::ByteGrammar> grammar;
+	std::unordered_map<std::string, std::vector<uint32_t>> tagTokens;
+	std::vector<uint32_t> senseTokens;
+
+	using _InitArgs = std::tuple<PyObject*, PyObject*, PyObject*, PyObject*>;
+
+	ByteGrammarObject() = default;
+
+	ByteGrammarObject(PyObject* tokenBytes, PyObject* tags, PyObject* senses, PyObject* eos)
+	{
+		std::vector<std::string> tb;
+		py::foreach<PyObject*>(tokenBytes, [&](PyObject* item)
+		{
+			char* data = nullptr;
+			Py_ssize_t len = 0;
+			if (item == Py_None) tb.emplace_back();
+			else if (PyBytes_AsStringAndSize(item, &data, &len) == 0) tb.emplace_back(data, len);
+			else throw py::ExcPropagation{};
+		}, "`token_bytes` must be an iterable of `bytes` or `None`.");
+		PyObject* key;
+		PyObject* value;
+		Py_ssize_t pos = 0;
+		if (!PyDict_Check(tags)) throw py::ValueError{ "`tag_tokens` must be a `Dict[str, int | Sequence[int]]`." };
+		while (PyDict_Next(tags, &pos, &key, &value))
+		{
+			auto& ids = tagTokens[py::toCpp<std::string>(key)];
+			if (PyLong_Check(value)) ids.emplace_back(py::toCpp<uint32_t>(value));
+			else ids = py::toCpp<std::vector<uint32_t>>(value);
+			std::sort(ids.begin(), ids.end());
+			ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+		}
+		senseTokens = py::toCpp<std::vector<uint32_t>>(senses);
+		std::vector<uint32_t> specials = senseTokens;
+		for (auto& [t, ids] : tagTokens) specials.insert(specials.end(), ids.begin(), ids.end());
+		grammar = std::make_shared<guide::ByteGrammar>(move(tb), specials, py::toCpp<std::vector<uint32_t>>(eos));
+	}
+
+	// senses: {(형태, 태그): [번호(1부터)]} → "형태\t태그" → 번호 토큰들
+	std::unordered_map<std::string, std::vector<uint32_t>> parseSenses(PyObject* senses) const
+	{
+		std::unordered_map<std::string, std::vector<uint32_t>> senseMap;
+		if (senses == Py_None) return senseMap;
+		PyObject* key;
+		PyObject* value;
+		Py_ssize_t pos = 0;
+		while (PyDict_Next(senses, &pos, &key, &value))
+		{
+			auto [form, tag] = py::toCpp<std::pair<std::string, std::string>>(key);
+			auto& out = senseMap[form + '\t' + tag];
+			for (auto k : py::toCpp<std::vector<uint32_t>>(value))
+			{
+				if (k < 1 || k > senseTokens.size()) throw py::ValueError{ "A sense number in `senses` is out of range." };
+				out.emplace_back(senseTokens[k - 1]);
+			}
+		}
+		return senseMap;
+	}
+
+	// 태그는 -R을 떼고 맞춘다. 모르는 태그면 그 간선을 matcher가 버리도록 없는 토큰 번호를 준다.
+	void setMorph(guide::GraphMorph& m, const std::string& form, std::string tag,
+		const std::unordered_map<std::string, std::vector<uint32_t>>& senseMap, bool senseRequired) const
+	{
+		m.form = form;
+		if (tag.size() > 2 && tag.compare(tag.size() - 2, 2, "-R") == 0) tag.resize(tag.size() - 2);
+		auto it = tagTokens.find(tag);
+		if (it != tagTokens.end()) m.tagTokens = it->second;
+		auto st = senseMap.find(form + '\t' + tag);
+		if (st != senseMap.end()) m.senseTokens = st->second;
+		m.senseRequired = senseRequired;
+	}
+
+	py::UniqueObj makeMatcher(uint32_t numStates, PyObject* edges, PyObject* senses, bool senseRequired) const
+	{
+		const auto senseMap = parseSenses(senses);
+		std::vector<guide::GraphEdge> es;
+		py::foreach<PyObject*>(edges, [&](PyObject* item)
+		{
+			if (!PySequence_Check(item) || PySequence_Size(item) < 4) throw py::ValueError{ "Each edge must be `(from, to, typo_cost, [(form, tag), ...])`." };
+			auto& e = es.emplace_back();
+			e.from = py::toCpp<uint32_t>(py::UniqueObj{ PySequence_GetItem(item, 0) }.get());
+			e.to = py::toCpp<uint32_t>(py::UniqueObj{ PySequence_GetItem(item, 1) }.get());
+			py::foreach<std::pair<std::string, std::string>>(py::UniqueObj{ PySequence_GetItem(item, 3) }.get(), [&](auto&& ft)
+			{
+				setMorph(e.morphs.emplace_back(), ft.first, ft.second, senseMap, senseRequired);
+			}, "Each morpheme of an edge must be `Tuple[str, str]`.");
+		}, "`edges` must be an iterable of `Kiwi.morph_graph` edges.");
+		auto ret = py::makeNewObject<GrammarMatcherObject>();
+		{
+			py::GilRelease nogil;
+			ret->matcher = grammar->makeMatcher(numStates, es);
+		}
+		return ret;
+	}
+
+	/**
+	 * 압축 그래프: strings는 형태·태그 문자열 표, packed는 int32(little endian) 바이트열
+	 * [from, to, 형태소 수, (형태 번호, 태그 번호) * 형태소 수, ...]
+	 */
+	py::UniqueObj makeMatcherPacked(uint32_t numStates, PyObject* strings, PyObject* packed, PyObject* senses, bool senseRequired) const
+	{
+		const auto senseMap = parseSenses(senses);
+		const auto table = py::toCpp<std::vector<std::string>>(strings);
+		char* data = nullptr;
+		Py_ssize_t len = 0;
+		py::UniqueObj bytes{ PyBytes_FromObject(packed) }; // bytes가 아닌 버퍼 객체(bytearray, numpy 배열 등)는 복사해 받는다
+		if (!bytes) PyErr_Clear();
+		if (!bytes || PyBytes_AsStringAndSize(bytes.get(), &data, &len) < 0 || len % 4) throw py::ValueError{ "`packed` must be int32 bytes." };
+		std::vector<int32_t> flat(len / 4);
+		std::memcpy(flat.data(), data, len);
+		// 간선 풀기와 matcher 만들기는 GIL 없이 한다(스레드에서 부르면 생성 중인 엔진과 겹쳐 돈다).
+		std::unique_ptr<guide::GrammarMatcher> matcher;
+		const char* error = nullptr;
+		{
+			py::GilRelease nogil;
+			std::vector<guide::GraphEdge> es;
+			for (size_t i = 0; i < flat.size() && !error;)
+			{
+				if (i + 3 > flat.size() || flat[i + 2] < 0 || i + 3 + 2 * (size_t)flat[i + 2] > flat.size())
+				{
+					error = "`packed` is truncated.";
+					break;
+				}
+				auto& e = es.emplace_back();
+				e.from = (uint32_t)flat[i];
+				e.to = (uint32_t)flat[i + 1];
+				const size_t k = (size_t)flat[i + 2];
+				for (size_t m = 0; m < k; ++m)
+				{
+					const auto f = (size_t)flat[i + 3 + 2 * m], t = (size_t)flat[i + 4 + 2 * m];
+					if (f >= table.size() || t >= table.size())
+					{
+						error = "A string index in `packed` is out of range.";
+						break;
+					}
+					setMorph(e.morphs.emplace_back(), table[f], table[t], senseMap, senseRequired);
+				}
+				i += 3 + 2 * k;
+			}
+			if (!error) matcher = grammar->makeMatcher(numStates, es);
+		}
+		if (error) throw py::ValueError{ error };
+		auto ret = py::makeNewObject<GrammarMatcherObject>();
+		ret->matcher = std::move(matcher);
+		return ret;
+	}
+
+	// matchers의 각 원소는 이 grammar로 만든 _GrammarMatcher 또는 None. 호출 동안 참조를 붙잡아 둔다.
+	std::vector<GrammarMatcherObject*> collectMatchers(PyObject* matchers, std::vector<py::UniqueObj>& refs) const
+	{
+		std::vector<GrammarMatcherObject*> ret;
+		py::foreach<PyObject*>(matchers, [&](PyObject* item)
+		{
+			if (item == Py_None)
+			{
+				ret.emplace_back(nullptr);
+				return;
+			}
+			if (!PyObject_IsInstance(item, (PyObject*)py::Type<GrammarMatcherObject>)) throw py::ValueError{ "`matchers` must contain `GrammarMatcher` or `None`." };
+			auto m = (GrammarMatcherObject*)item;
+			if (m->get().getGrammar() != grammar.get()) throw py::ValueError{ "A matcher in `matchers` was made from another grammar." };
+			Py_INCREF(item);
+			refs.emplace_back(item);
+			ret.emplace_back(m);
+		}, "`matchers` must be an iterable of `GrammarMatcher` or `None`.");
+		return ret;
+	}
+
+	std::vector<size_t> collectRows(PyObject* rows, size_t n) const
+	{
+		std::vector<size_t> ret;
+		if (rows == Py_None)
+		{
+			for (size_t i = 0; i < n; ++i) ret.emplace_back(i);
+		}
+		else ret = py::toCpp<std::vector<size_t>>(rows);
+		if (ret.size() != n) throw py::ValueError{ "`rows` must have the same length as `matchers`." };
+		return ret;
+	}
+
+	py::UniqueObj acceptTokens(PyObject* matchers, PyObject* tokens) const
+	{
+		std::vector<py::UniqueObj> refs;
+		auto ms = collectMatchers(matchers, refs);
+		auto toks = py::toCpp<std::vector<uint32_t>>(tokens);
+		if (toks.size() != ms.size()) throw py::ValueError{ "`tokens` must have the same length as `matchers`." };
+		uint8_t* out = nullptr;
+		auto ret = py::newEmptyArray(out, ms.size());
+		{
+			py::GilRelease nogil;
+			for (size_t i = 0; i < ms.size(); ++i) out[i] = ms[i] && ms[i]->matcher->accept(toks[i]);
+		}
+		return ret;
+	}
+
+	py::UniqueObj allowedPairs(PyObject* matchers, PyObject* rows) const
+	{
+		std::vector<py::UniqueObj> refs;
+		auto ms = collectMatchers(matchers, refs);
+		auto rs = collectRows(rows, ms.size());
+		std::vector<std::vector<uint32_t>> allowed(ms.size());
+		size_t total = 0;
+		{
+			py::GilRelease nogil;
+			for (size_t i = 0; i < ms.size(); ++i)
+			{
+				if (ms[i]) allowed[i] = ms[i]->matcher->allowedTokens();
+				total += allowed[i].size();
+			}
+		}
+		int64_t* pairs = nullptr;
+		int32_t* counts = nullptr;
+		auto pairArr = py::newEmptyArray(pairs, total, 2);
+		auto countArr = py::newEmptyArray(counts, ms.size());
+		for (size_t i = 0; i < ms.size(); ++i)
+		{
+			counts[i] = (int32_t)allowed[i].size();
+			for (auto t : allowed[i])
+			{
+				*pairs++ = (int64_t)rs[i];
+				*pairs++ = (int64_t)t;
+			}
+		}
+		return py::buildPyTuple(pairArr.get(), countArr.get());
+	}
+
+	size_t getVocabSize() const { return grammar->vocabSize(); }
+};
+
 PyMODINIT_FUNC PyInit__kiwipiepy()
 {
 	py::CustomExcHandler::add<kiwi::IOException, py::OSError>();
@@ -3783,6 +4156,36 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 		.template property<&KiwiObject::getGlobalConfig, &KiwiObject::setGlobalConfig>("__global_config")
 		.template property<&KiwiObject::getNumWorkers>("_num_workers")
 		.template property<&KiwiObject::getModelType>("_model_type"),
+
+		py::define<ByteGrammarObject>("kiwipiepy._ByteGrammar", "_ByteGrammar", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
+		.template method<&ByteGrammarObject::makeMatcher>("_matcher")
+		.template method<&ByteGrammarObject::makeMatcherPacked>("_matcher_packed")
+		.template method<&ByteGrammarObject::acceptTokens>("_accept_tokens")
+		.template method<&ByteGrammarObject::allowedPairs>("_allowed_pairs")
+		.template property<&ByteGrammarObject::getVocabSize>("vocab_size"),
+
+		py::define<GrammarMatcherObject>("kiwipiepy._GrammarMatcher", "_GrammarMatcher", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
+		.template method<&GrammarMatcherObject::accept>("accept")
+		.template method<&GrammarMatcherObject::allowedTokens>("allowed_tokens")
+		.template method<&GrammarMatcherObject::canTerminate>("can_terminate")
+		.template method<&GrammarMatcherObject::isTerminated>("is_terminated")
+		.template method<&GrammarMatcherObject::reset>("reset")
+		.template method<&GrammarMatcherObject::copy>("copy")
+		.template method<&GrammarMatcherObject::copy>("__copy__")
+		.template property<&GrammarMatcherObject::numNodes>("num_nodes")
+		.template property<&GrammarMatcherObject::numDroppedEdges>("num_dropped_edges"),
+
+		py::define<LatticeTokensObject>("kiwipiepy._LatticeTokens", "_LatticeTokens", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
+		.template method<&LatticeTokensObject::makeFollower>("follower"),
+
+		py::define<LatticeFollowerObject>("kiwipiepy._LatticeFollower", "_LatticeFollower", Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE)
+		.template method<&LatticeFollowerObject::consume>("consume")
+		.template method<&LatticeFollowerObject::allowed>("allowed")
+		.template method<&LatticeFollowerObject::prepare>("prepare")
+		.template property<&LatticeFollowerObject::isDead>("dead")
+		.template property<&LatticeFollowerObject::isStuck>("stuck")
+		.template property<&LatticeFollowerObject::numRelaxed>("num_relaxed")
+		.template property<&LatticeFollowerObject::buffer>("buffer"),
 
 		py::define<TokenObject>("kiwipiepy.Token", "Token")
 		.template property<&TokenObject::_form>("form")

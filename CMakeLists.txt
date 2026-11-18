@@ -74,6 +74,8 @@ link_directories(${LIBRARY_DIRS})
 
 add_library("_kiwipiepy" SHARED
   src/KiwiPy.cpp
+  src/ByteGrammar.cpp
+  src/LatticeGuide.cpp
 )
 
 target_link_libraries("_kiwipiepy" PRIVATE 
