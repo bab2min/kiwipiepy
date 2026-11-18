@@ -1544,7 +1544,82 @@ with open('result.txt', 'w', encoding='utf-8') as output:
             override_config = self.global_config
 
         return super().analyze(text, top_n, match_options, False, blocklist, open_ending, allowed_dialects, dialect_cost, typos, typo_cost_threshold, pretokenized, override_config)
-    
+
+    def morph_graph(self,
+        text:str,
+        match_options:int = Match.ALL,
+        normalize_coda:bool = False,
+        z_coda:bool = True,
+        compatible_jamo:bool = False,
+        allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
+        typos: Optional[Union[str, TypoTransformer]] = None,
+        typo_cost_threshold: float = 2.5,
+        max_unk_span_size:int = 0,
+        max_unk_span_size_with_space:int = 0,
+        top_n:int = 0,
+        oov_handling:Optional[str] = None,
+        override_config:Optional[KiwiConfig] = None,
+    ) -> Union[Tuple[int, List[Tuple[int, int, float, List[Tuple[str, str]]]], List[Tuple[int, int]]],
+               Tuple[int, List[Tuple[int, int, float, List[Tuple[str, str]]]], List[Tuple[int, int]], List[Tuple[List[Token], float]]]]:
+        '''형태소 분석을 수행할 때 내부적으로 생성되는 형태소 그래프를 반환합니다.
+Parameters
+----------
+text: str
+    분석할 문자열입니다.
+match_options: kiwipiepy.const.Match
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+normalize_coda: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+z_coda: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+compatible_jamo: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+allowed_dialects: Union[Dialect, str]
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+typos: Union[str, TypoTransformer]
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+typo_cost_threshold: float
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+max_unk_span_size: int
+    미등록어 간선의 최대 길이. 기본값은 0으로 이 경우 형태소 분석 로직이 발견한 미등록어 간선을 제외한 미등록어 간선을 허용하지 않습니다. 미등록어 간선은 한글 음절로만 구성될 수 있습니다.
+max_unk_span_size_with_space: int
+    다어절 미등록어 간선의 최대 길이. 기본값은 0으로 이 경우 다어절 미등록어 간선을 허용하지 않습니다.
+    이 옵션으로 추가되는 다어절 미등록어 간선은 공백을 사이에 둔 한글 음절 구간이나 로마자·숫자가 섞인 구간(예: `조지 5세`)으로 구성되며, 길이를 계산할 때는 공백을 포함하지 않습니다.
+top_n: int
+    0보다 크면 상위 `top_n`개 분석 결과를 함께 반환합니다.
+oov_handling: str
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다. 상위 분석 결과의 점수에만 영향을 줍니다.
+override_config: KiwiConfig
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+
+Returns
+-------
+num_states: int
+    상태의 총 개수
+edges: List[Tuple[int, int, float, List[Tuple[str, str]]]]
+    모든 간선의 목록. 각 간선은 `(from, to, typo_cost, [(form, tag), ...])`로 구성됩니다.
+    간선은 from을 기준으로 오름차순으로 정렬되어 있고, typo_cost는 오타 교정 비용입니다.
+    미등록어 구간은 품사를 정하지 않고 태그 `UN`으로 나타냅니다.
+state_positions: List[Tuple[int, int]]
+    각 상태의 원문 시작 위치와 끝 위치. `state_positions[s]`는 상태 s의 `(그 상태에서 시작하는 간선의 원문 시작 위치, 그 상태에서 끝나는 간선의 원문 끝 위치)`를 나타냅니다.
+    따라서 간선이 덮는 원문 구간은 `(state_positions[from][0], state_positions[to][1])`입니다.
+top_n_results: List[Tuple[List[Token], float]]
+    `top_n`이 0보다 큰 경우, 언어 모델로 상위 `top_n`개 분석을 찾아 반환합니다. 각 항목은 `(분석 결과, 분석 점수)`로 구성됩니다. `top_n`이 0인 경우 이 값은 반환되지 않습니다.
+    이 값은 같은 옵션으로 `analyze(text, top_n=top_n, ...)`를 호출한 결과와 같습니다.
+        '''
+        if normalize_coda:
+            match_options |= Match.NORMALIZING_CODA
+        if z_coda:
+            match_options |= Match.Z_CODA
+        if compatible_jamo:
+            match_options |= Match.COMPATIBLE_JAMO
+        allowed_dialects = _convert_dialect(allowed_dialects)
+        match_options |= _convert_oov_handling(oov_handling)
+        typos = _convert_typos(typos)
+        if override_config is None:
+            override_config = self.global_config
+        return super().morph_graph(text, match_options, allowed_dialects, typos, typo_cost_threshold, max_unk_span_size, max_unk_span_size_with_space, top_n, override_config)
+
     def morpheme(self,
         idx:int,
     ):

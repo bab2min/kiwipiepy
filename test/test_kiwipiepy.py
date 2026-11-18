@@ -1557,3 +1557,16 @@ def test_weakref_cleared_on_dealloc():
     gc.collect()
     assert [r() for r in refs] == [None, None]
     assert len(called) == 2
+
+
+def test_morph_graph_top_n():
+    '''morph_graph(top_n=N)의 네 번째 값은 같은 옵션의 analyze(top_n=N)와 같다(같은 격자에서 경로를 찾는다).'''
+    from kiwipiepy import basic_typos_with_continual_and_lengthening
+    kiwi = Kiwi()
+    for text in ['나는 어제 학교에 갔다.', '사뮤실에서 일했다', '배라는거래~ ㅋㅋ']:
+        for typos in [None, basic_typos_with_continual_and_lengthening]:
+            assert len(kiwi.morph_graph(text, typos=typos)) == 3
+            n, edges, positions, top = kiwi.morph_graph(text, typos=typos, top_n=3)
+            ref = kiwi.analyze(text, top_n=3, typos=typos)
+            assert [(s, [(t.form, t.tag, t.start, t.len) for t in ts]) for ts, s in top] == \
+                [(s, [(t.form, t.tag, t.start, t.len) for t in ts]) for ts, s in ref]

@@ -1094,10 +1094,20 @@ struct KiwiObject : py::CObject<KiwiObject>
 		float typoCostThreshold = 2.5f,
 		PyObject* pretokenized = Py_None,
 		PyObject* config = Py_None);
+	py::UniqueObj morphGraph(PyObject* text,
+		Match matchOptions = Match::all,
+		Dialect allowedDialects = Dialect::standard,
+		PyObject* typos = Py_None,
+		float typoCostThreshold = 2.5f,
+		size_t maxUnkSpanSize = 0,
+		size_t maxUnkSpanSizeWithSpace = 0,
+		size_t topN = 0,
+		PyObject* config = Py_None);
 	py::UniqueObj extractAddWords(PyObject* sentences, size_t minCnt = 10, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true);
 	py::UniqueObj extractWords(PyObject* sentences, size_t minCnt, size_t maxWordLen = 10, float minScore = 0.25f, float posScore = -3, bool lmFilter = true) const;
 	size_t loadUserDictionary(const string& path);
 	py::UniqueObj getMorpheme(size_t id);
+	py::UniqueObj listSenses(const std::u16string& filterForm);
 	py::UniqueObj join(PyObject* morphs, bool lmSearch = true, bool returnPositions = false);
 	py::UniqueObj mostSimilarMorphemes(PyObject* retTy, PyObject* target, size_t topN);
 	py::UniqueObj mostSimilarContexts(PyObject* retTy, PyObject* target, PyObject* contextId, size_t topN);
@@ -2583,7 +2593,54 @@ py::UniqueObj KiwiObject::extractAddWords(PyObject* sentences, size_t minCnt, si
 // nothing. The analysis time grows with topN too (3.7 times at topN=5), hence the product.
 static constexpr size_t gilReleaseMinLength = 4000;
 
-py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN, 
+py::UniqueObj KiwiObject::morphGraph(PyObject* text, Match matchOptions,
+	Dialect allowedDialects, PyObject* typos, float typoCostThreshold, 
+	size_t maxUnkSpanSize, size_t maxUnkSpanSizeWithSpace, size_t topN,
+	PyObject* config)
+{
+	auto kiwiInst = doPrepare();
+	KiwiConfig cConfig = toKiwiConfig(config);
+	std::shared_ptr<const PreparedTypoTransformer> ptt;
+	if (typos && typos != Py_None)
+	{
+		ptt = py::checkType<TypoTransformerObject>(typos)->getPtt();
+	}
+	MorphGraphOption graphOption;
+	graphOption.maxUnkSpanSize = maxUnkSpanSize;
+	graphOption.maxUnkSpanSizeWithSpace = maxUnkSpanSizeWithSpace;
+	graphOption.topN = topN;
+	auto so = py::toCpp<py::StringWithOffset<u16string>>(text);
+	MorphGraph graph;
+	{
+		py::GilRelease nogil;
+		graph = kiwiInst->buildMorphGraph(so.str, AnalyzeOption{ matchOptions, nullptr, false, allowedDialects, 0.f, ptt.get(), typoCostThreshold }, graphOption, cConfig);
+	}
+
+	py::UniqueObj edges{ PyList_New(graph.edges.size()) };
+	size_t idx = 0;
+	for (auto& e : graph.edges)
+	{
+		py::UniqueObj morphs{ PyList_New(e.morphs.size()) };
+		size_t jdx = 0;
+		for (auto& m : e.morphs)
+		{
+			const char* tag = getTagStr(m.second, m.first);
+			PyList_SetItem(morphs.get(), jdx++, py::buildPyTuple(m.first, tag).release());
+		}
+		PyList_SetItem(edges.get(), idx++, py::buildPyTuple(e.from, e.to, e.typoCost, morphs.get()).release());
+	}
+	py::UniqueObj positions{ PyList_New(graph.statePositions.size()) };
+	idx = 0;
+	for (auto& p : graph.statePositions)
+	{
+		PyList_SetItem(positions.get(), idx++, py::buildPyTuple(so.offsets.toChrFloor(p.first), so.offsets.toChrCeil(p.second)).release());
+	}
+	if (!topN) return py::buildPyTuple(graph.numStates, edges.get(), positions.get());
+	if (graph.topPaths.size() > topN) graph.topPaths.erase(graph.topPaths.begin() + topN, graph.topPaths.end());
+	return py::buildPyTuple(graph.numStates, edges.get(), positions.get(), resToPyList(move(graph.topPaths), this, kiwiInst, so.offsets));
+}
+
+py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 	Match matchOptions, bool echo, PyObject* blockList, bool openEnding, 
 	Dialect allowedDialects, float dialectCost,
 	PyObject* typos, float typoCostThreshold,
@@ -2685,6 +2742,29 @@ py::UniqueObj KiwiObject::getMorpheme(size_t id)
 	ret->_morphId = id;
 	ret->_regularity = !isIrregular(morph->tag);
 	ret->_sense = morph->senseId;
+	return ret;
+}
+
+py::UniqueObj KiwiObject::listSenses(const u16string& filterForm)
+{
+	auto kiwiInst = doPrepare();
+	auto ret = py::UniqueObj{ PyList_New(0) };
+	for (size_t i = 0; i < kiwiInst->getMorphemeSize(); ++i)
+	{
+		auto* morph = kiwiInst->idToMorph(i);
+		if (morph->senseId == 0 || morph->tag == POSTag::sb) continue;
+		auto joinedForm = joinHangul(morph->getForm());
+		if (!filterForm.empty() && filterForm != joinedForm) continue;
+		auto r = py::makeNewObject<TokenObject>();
+		r->kiwiInst = kiwiInst;
+		r->_form = move(joinedForm);
+		r->_tag = getTagStr(morph->tag, r->_form);
+		r->_baseMorph = r->_morph = morph;
+		r->_morphId = i;
+		r->_regularity = !isIrregular(morph->tag);
+		r->_sense = morph->senseId;
+		PyList_Append(ret.get(), (PyObject*)r.get());
+	}
 	return ret;
 }
 
@@ -3687,7 +3767,9 @@ PyMODINIT_FUNC PyInit__kiwipiepy()
 		.template method<&KiwiObject::extractWords>("extract_words")
 		.template method<&KiwiObject::extractAddWords>("extract_add_words")
 		.template method<&KiwiObject::analyze>("analyze")
+		.template method<&KiwiObject::morphGraph>("morph_graph")
 		.template method<&KiwiObject::getMorpheme>("morpheme")
+		.template method<&KiwiObject::listSenses>("list_senses")
 		.template method<&KiwiObject::join>("join")
 		.template method<&KiwiObject::convertHSData>("convert_hsdata")
 		.template method<&KiwiObject::makeHSDataset>("make_hsdataset")
