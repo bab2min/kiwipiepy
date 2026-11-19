@@ -396,6 +396,24 @@ lengthening_typo_cost: float
     .. versionadded:: 0.19.0
 
     장음화에 대한 교정 비용. 기본값은 0으로, 장음화에 대한 교정을 수행하지 않습니다.
+fuzzy_typo_cost: float
+    .. versionadded:: 0.24.2
+
+    자모 편집 한 번에 대한 교정 비용. 기본값은 0으로, 자모 편집 교정을 수행하지 않습니다.
+    0보다 크면 형태 하나에 자모 편집 한 번(한 음절의 초성 또는 중성 치환, 종성 치환, 종성 삽입·삭제)까지 허용한 형태도 후보로 찾습니다.
+    자모가 `fuzzy_min_jamo`개 미만인 형태는 편집하지 않습니다.
+    `typo_cost_weight`(기본 6)가 곱해지므로, 비용이 1이면 맞게 쓴 덜 흔한 단어를 흔한 단어로 잘못 고치는 일이 잦습니다. 2~3 정도를 권합니다.
+fuzzy_real_word_errors: bool
+    .. versionadded:: 0.24.2
+
+    False(기본값)이면 원문 구간이 그 자체로 사전에 있는 형태일 때는 자모 편집을 하지 않습니다(사전에 없는 꼴이 된 오타만 교정).
+    True이면 사전에 있는 다른 단어로 바뀐 오타(실제 단어 오류)도 찾지만, 후보가 크게 늘어 분석이 수십 배 느려질 수 있습니다.
+fuzzy_min_jamo: int
+    .. versionadded:: 0.24.2
+
+    자모 편집 대상이 되는 사전 형태의 최소 자모 수. 음절은 초성+중성 2개, 받침은 1개로 셉니다.
+    기본값 3은 받침 있는 1음절 형태(예: `각`)부터, 4는 2음절 형태(예: `가지`)부터 편집합니다.
+    `fuzzy_real_word_errors=True`일 때는 3이 4보다 분석이 2~3배 느리므로, 속도가 중요하면 4를 쓰십시오.
 
 Notes
 -----
@@ -437,10 +455,15 @@ Notes
         defs: List[TypoDefinition],
         continual_typo_cost: float = 0,
         lengthening_typo_cost: float = 0,
+        fuzzy_typo_cost: float = 0,
+        fuzzy_real_word_errors: bool = False,
+        fuzzy_min_jamo: int = 3,
     ):
         try:
             assert continual_typo_cost >= 0, "continual_typo_cost should be zero or positive."
             assert lengthening_typo_cost >= 0, "lengthening_typo_cost should be zero or positive."
+            assert fuzzy_typo_cost >= 0, "fuzzy_typo_cost should be zero or positive."
+            assert fuzzy_min_jamo >= 1, "fuzzy_min_jamo should be positive."
         except AssertionError as e:
             raise ValueError(*e.args)
         
@@ -448,6 +471,9 @@ Notes
             ((list(map(_convert_consonant, d.orig)), list(map(_convert_consonant, d.error)), d.cost, d.condition) for d in defs),
             continual_typo_cost,
             lengthening_typo_cost,
+            fuzzy_typo_cost,
+            fuzzy_real_word_errors,
+            fuzzy_min_jamo,
         )
 
     def generate(self, text:str, cost_threshold:float = 2.5) -> List[Tuple[str, float]]:
@@ -518,13 +544,34 @@ errors: List[Tuple[str, float]]
         장음화에 대한 교정 비용'''
         return self._lengthening_typo_cost
 
+    @property
+    def fuzzy_typo_cost(self) -> float:
+        '''.. versionadded:: 0.24.2
+        
+        자모 편집 한 번에 대한 교정 비용'''
+        return self._fuzzy_typo_cost
+
+    @property
+    def fuzzy_real_word_errors(self) -> bool:
+        '''.. versionadded:: 0.24.2
+        
+        사전에 있는 다른 단어로 바뀐 오타도 자모 편집으로 찾는지 여부'''
+        return self._fuzzy_real_word_errors
+
+    @property
+    def fuzzy_min_jamo(self) -> int:
+        '''.. versionadded:: 0.24.2
+        
+        자모 편집 대상이 되는 사전 형태의 최소 자모 수'''
+        return self._fuzzy_min_jamo
+
     def __repr__(self):
         defs = self._defs
         if len(defs) < 5:
             defs_str = ", ".join(map(repr, defs))
         else:
             defs_str = ", ".join(map(repr, defs[:5])) + f", ... ({len(defs) - 5} more)"
-        return f"TypoTransformer([{defs_str}], continual_typo_cost={self._continual_typo_cost!r}, lengthening_typo_cost={self._lengthening_typo_cost!r})"
+        return f"TypoTransformer([{defs_str}], continual_typo_cost={self._continual_typo_cost!r}, lengthening_typo_cost={self._lengthening_typo_cost!r}, fuzzy_typo_cost={self._fuzzy_typo_cost!r}, fuzzy_real_word_errors={self._fuzzy_real_word_errors!r}, fuzzy_min_jamo={self._fuzzy_min_jamo!r})"
 
 def _convert_typos(typos: Union[str, TypoTransformer]) -> TypoTransformer:
     import kiwipiepy
@@ -1497,7 +1544,84 @@ with open('result.txt', 'w', encoding='utf-8') as output:
             override_config = self.global_config
 
         return super().analyze(text, top_n, match_options, False, blocklist, open_ending, allowed_dialects, dialect_cost, typos, typo_cost_threshold, pretokenized, override_config)
-    
+
+    def morph_graph(self,
+        text:str,
+        match_options:int = Match.ALL,
+        normalize_coda:bool = False,
+        z_coda:bool = True,
+        compatible_jamo:bool = False,
+        allowed_dialects:Union[Dialect, str] = Dialect.STANDARD,
+        typos: Optional[Union[str, TypoTransformer]] = None,
+        typo_cost_threshold: float = 2.5,
+        max_unk_span_size:int = 0,
+        max_unk_span_size_with_space:int = 0,
+        top_n:int = 0,
+        oov_handling:Optional[str] = None,
+        override_config:Optional[KiwiConfig] = None,
+    ) -> Union[Tuple[int, List[Tuple[int, int, float, List[Tuple[str, str]]]], List[Tuple[int, int]]],
+               Tuple[int, List[Tuple[int, int, float, List[Tuple[str, str]]]], List[Tuple[int, int]], List[Tuple[List[Token], float]]]]:
+        '''형태소 분석을 수행할 때 내부적으로 생성되는 형태소 그래프를 반환합니다.
+Parameters
+----------
+text: str
+    분석할 문자열입니다.
+match_options: kiwipiepy.const.Match
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+normalize_coda: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+z_coda: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+compatible_jamo: bool
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+allowed_dialects: Union[Dialect, str]
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+typos: Union[str, TypoTransformer]
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+typo_cost_threshold: float
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+max_unk_span_size: int
+    미등록어 간선의 최대 길이. 기본값은 0으로 이 경우 형태소 분석 로직이 발견한 미등록어 간선을 제외한 미등록어 간선을 허용하지 않습니다. 미등록어 간선은 한글 음절로만 구성될 수 있습니다.
+max_unk_span_size_with_space: int
+    다어절 미등록어 간선의 최대 길이. 기본값은 0으로 이 경우 다어절 미등록어 간선을 허용하지 않습니다.
+    이 옵션으로 추가되는 다어절 미등록어 간선은 공백을 사이에 둔 한글 음절 구간이나 로마자·숫자가 섞인 구간(예: `조지 5세`)으로 구성되며, 길이를 계산할 때는 공백을 포함하지 않습니다.
+top_n: int
+    0보다 크면 상위 `top_n`개 분석 결과를 함께 반환합니다.
+oov_handling: str
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다. 상위 분석 결과의 점수에만 영향을 줍니다.
+override_config: KiwiConfig
+    이 인자는 `Kiwi.tokenize`에서와 동일한 역할을 수행합니다.
+
+Returns
+-------
+num_states: int
+    상태의 총 개수
+edges: List[Tuple[int, int, float, List[Tuple[str, str]]]]
+    모든 간선의 목록. 각 간선은 `(from, to, typo_cost, [(form, tag), ...])`로 구성됩니다.
+    간선은 from을 기준으로 오름차순으로 정렬되어 있고, typo_cost는 오타 교정 비용입니다.
+    미등록어 구간은 품사를 정하지 않고 태그 `UN`으로 나타냅니다.
+state_positions: List[Tuple[int, int]]
+    각 상태의 원문 시작 위치와 끝 위치. `state_positions[s]`는 상태 s의 `(그 상태에서 시작하는 간선의 원문 시작 위치, 그 상태에서 끝나는 간선의 원문 끝 위치)`를 나타냅니다.
+    따라서 간선이 덮는 원문 구간은 `(state_positions[from][0], state_positions[to][1])`입니다.
+top_n_results: List[Tuple[List[Token], float]]
+    `top_n`이 0보다 큰 경우, 언어 모델로 상위 `top_n`개 분석을 찾아 반환합니다. 각 항목은 `(분석 결과, 분석 점수)`로 구성됩니다. `top_n`이 0인 경우 이 값은 반환되지 않습니다.
+    이 값은 같은 옵션으로 `analyze(text, top_n=top_n, ...)`를 호출한 결과와 같습니다.
+        '''
+        if max_unk_span_size < 0 or max_unk_span_size_with_space < 0 or top_n < 0:
+            raise ValueError("`max_unk_span_size`, `max_unk_span_size_with_space` and `top_n` must be zero or positive.")
+        if normalize_coda:
+            match_options |= Match.NORMALIZING_CODA
+        if z_coda:
+            match_options |= Match.Z_CODA
+        if compatible_jamo:
+            match_options |= Match.COMPATIBLE_JAMO
+        allowed_dialects = _convert_dialect(allowed_dialects)
+        match_options |= _convert_oov_handling(oov_handling)
+        typos = _convert_typos(typos)
+        if override_config is None:
+            override_config = self.global_config
+        return super().morph_graph(text, match_options, allowed_dialects, typos, typo_cost_threshold, max_unk_span_size, max_unk_span_size_with_space, top_n, override_config)
+
     def morpheme(self,
         idx:int,
     ):

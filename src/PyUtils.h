@@ -1437,6 +1437,20 @@ namespace py
 		return npy_type;
 	}
 
+	// C 순서로 연속이고 바이트 순서가 기계와 같아야 데이터 포인터에서 그대로 읽을 수 있다
+	inline bool isArrayContiguousNative(PyObject* obj)
+	{
+		UniqueObj flags{ PyObject_GetAttrString(obj, "flags") };
+		if (!flags) throw ExcPropagation{};
+		UniqueObj contiguous{ PyObject_GetAttrString(flags.get(), "c_contiguous") };
+		if (!contiguous) throw ExcPropagation{};
+		UniqueObj dtype{ PyObject_GetAttrString(obj, "dtype") };
+		if (!dtype) throw ExcPropagation{};
+		UniqueObj native{ PyObject_GetAttrString(dtype.get(), "isnative") };
+		if (!native) throw ExcPropagation{};
+		return PyObject_IsTrue(contiguous.get()) == 1 && PyObject_IsTrue(native.get()) == 1;
+	}
+
 	inline size_t getArraySize(PyObject* obj)
 	{
 		UniqueObj attr{ PyObject_GetAttrString(obj, "size") };
@@ -1469,7 +1483,7 @@ namespace py
 
 		bool _toCpp(PyObject* obj, std::vector<_Ty, _Alloc>& out)
 		{
-			if (detail::NpyType<_Ty>::npy_type >= 0 && getArrayDtype(obj) == detail::NpyType<_Ty>::npy_type)
+			if (detail::NpyType<_Ty>::npy_type >= 0 && getArrayDtype(obj) == detail::NpyType<_Ty>::npy_type && isArrayContiguousNative(obj))
 			{
 				_Ty* ptr = (_Ty*)getArrayDataPtr(obj);
 				out = std::vector<_Ty>{ ptr, ptr + getArraySize(obj) };

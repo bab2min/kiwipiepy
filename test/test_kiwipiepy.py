@@ -1557,3 +1557,346 @@ def test_weakref_cleared_on_dealloc():
     gc.collect()
     assert [r() for r in refs] == [None, None]
     assert len(called) == 2
+
+
+def test_morph_graph_top_n():
+    '''morph_graph(top_n=N)의 네 번째 값은 같은 옵션의 analyze(top_n=N)와 같다(같은 격자에서 경로를 찾는다).'''
+    from kiwipiepy import basic_typos_with_continual_and_lengthening
+    kiwi = Kiwi()
+    for text in ['나는 어제 학교에 갔다.', '사뮤실에서 일했다', '배라는거래~ ㅋㅋ']:
+        for typos in [None, basic_typos_with_continual_and_lengthening]:
+            assert len(kiwi.morph_graph(text, typos=typos)) == 3
+            n, edges, positions, top = kiwi.morph_graph(text, typos=typos, top_n=3)
+            ref = kiwi.analyze(text, top_n=3, typos=typos)
+            assert [(s, [(t.form, t.tag, t.start, t.len) for t in ts]) for ts, s in top] == \
+                [(s, [(t.form, t.tag, t.start, t.len) for t in ts]) for ts, s in ref]
+
+
+def _lattice_fixture(text, forms, form_tags=None, groups=(), any_form=True):
+    '''forms마다 토큰 하나를 둔 작은 토큰 표로 정렬 격자 진행 상태를 만든다. 태그 토큰은 일반 토큰 뒤 번호.'''
+    from kiwipiepy.guide import LatticeTokens
+    forms = list(dict.fromkeys(forms))
+    tok = {f: i for i, f in enumerate(forms)}
+    tags = {'NNG': len(forms), 'JKS': len(forms) + 1, 'VV': len(forms) + 2, 'EP': len(forms) + 3, 'EF': len(forms) + 4,
+            'SF': len(forms) + 5, 'W_HASHTAG': len(forms) + 6, 'NNP': len(forms) + 7}
+    eos = len(forms) + 8
+    table = LatticeTokens([f.encode() for f in forms] + [None] * 9, None)
+    ft = [(a, b, f, [tags[t] for t in ts]) for (a, b, f), ts in (form_tags or {}).items()]
+    fol = table.follower(text, list(groups), 4, sorted(tags.values()), eos, [], ft or None, any_form)
+    return fol, tok, tags, eos
+
+
+def test_lattice_follower_accepts_path():
+    text = '미세먼지가 들어왔다.'
+    forms = ['미세먼지', '가', '들어오', '었', '다', '.']
+    fol, tok, tags, eos = _lattice_fixture(text, forms, groups=[(6, 9, ['들어오', '었'])])
+    for f, t in zip(forms, ['NNG', 'JKS', 'VV', 'EP', 'EF', 'SF']):
+        assert tok[f] in fol.allowed([tok[f]]), f
+        fol.consume(tok[f])
+        assert tags[t] in fol.allowed([]), f
+        fol.consume(tags[t])
+    assert eos in fol.allowed([])  # 원문 끝 뒤의 짧은 형태도 삽입 편집으로 허용되므로 종료 토큰이 들어 있는지만 본다
+    assert not fol.dead
+
+
+def test_lattice_follower_blocks_repeat_and_early_end():
+    text = '미세먼지가 들어왔다.'
+    forms = ['미세먼지', '가', '들어오', '었', '다', '.']
+    fol, tok, tags, eos = _lattice_fixture(text, forms, groups=[(6, 9, ['들어오', '었'])])
+    fol.consume(tok['미세먼지'])
+    fol.consume(tags['NNG'])
+    assert eos not in fol.allowed([tok['가']])
+    fol.consume(tok['가'])
+    fol.consume(tags['JKS'])
+    allowed = fol.allowed([tok['미세먼지'], tok['들어오']])
+    assert tok['미세먼지'] not in allowed  # 이미 지난 원문을 다시 쓰는 반복
+    assert tok['들어오'] in allowed
+
+
+def test_lattice_follower_typo_by_edit_cost():
+    text = '감영증 확산'
+    forms = ['감염증', '확산', '대한민국만세']
+    fol, tok, tags, eos = _lattice_fixture(text, forms)
+    allowed = fol.allowed([tok['감염증'], tok['대한민국만세']])
+    assert tok['감염증'] in allowed  # 자모 하나 차이(영 → 염)
+    assert tok['대한민국만세'] not in allowed  # 어절 예산 4를 넘는다
+    fol_known, tok_known, _, _ = _lattice_fixture(text, forms, any_form=False)
+    assert fol_known.allowed([tok_known['감염증']]) == [len(forms) + 8]  # 아는 단어 목록이 비면 편집 경로가 없어 종료 토큰만 남는다
+
+
+def test_lattice_follower_form_tags_and_stuck():
+    text = '#홍루이젠 좋다'
+    forms = ['#홍루이젠', '좋', '다', 'xyzxyzxyz']
+    fol, tok, tags, eos = _lattice_fixture(text, forms, form_tags={(0, 5, '#홍루이젠'): ['W_HASHTAG']})
+    fol.consume(tok['#홍루이젠'])
+    assert [t for t in fol.allowed([]) if t in tags.values()] == [tags['W_HASHTAG']]
+
+    fol2, tok2, _, _ = _lattice_fixture(text, forms)
+    fol2.consume(tok2['xyzxyzxyz'])  # 예산을 넘는 형태를 강제로 넣으면 이어 쓸 길이가 없다
+    assert set(fol2.allowed([tok2['좋']])) == set(tags.values())  # 예산을 넘겨서라도 형태를 끝내게 한다
+    assert fol2.num_relaxed == 1 and not fol2.stuck and not fol2.dead
+    fol2.consume(tags['NNG'])
+    assert tok2['좋'] in fol2.allowed([tok2['좋']])  # 그 뒤로는 다시 격자 제약을 따른다
+
+
+def test_lattice_follower_form_tags_by_span():
+    '''태그 표는 형태가 표의 원문 구간을 그대로 옮겼을 때만 적용한다(같은 문자열이 다른 위치에 오면 제한하지 않는다).'''
+    text = '#홍루이젠 #홍루이젠'
+    forms = ['#홍루이젠']
+    fol, tok, tags, eos = _lattice_fixture(text, forms, form_tags={(0, 5, '#홍루이젠'): ['W_HASHTAG']})
+    fol.consume(tok['#홍루이젠'])
+    assert [t for t in fol.allowed([]) if t in tags.values()] == [tags['W_HASHTAG']]
+    fol.consume(tags['W_HASHTAG'])
+    fol.consume(tok['#홍루이젠'])
+    assert set(t for t in fol.allowed([]) if t in tags.values()) == set(tags.values())
+
+
+def test_lattice_follower_edit_across_space():
+    '''자모 편집 형태도 공백을 넘어 다음 어절까지 이어 쓸 수 있다(원문 ㅋㅋ  비너스, 형태 ㅋㅋㅋ  비너스: 삽입 1).'''
+    text = 'ㅋㅋ  비너스 골드'
+    forms = ['ㅋㅋㅋ', '  비', '너스', '골드']
+    fol, tok, tags, eos = _lattice_fixture(text, forms)
+    for f in ['ㅋㅋㅋ', '  비', '너스']:
+        assert tok[f] in fol.allowed([tok[f]]), f
+        fol.consume(tok[f])
+    fol.consume(tags['NNP'])
+    assert tok['골드'] in fol.allowed([tok['골드']])
+    assert not fol.dead and not fol.stuck and fol.num_relaxed == 0
+
+
+def test_lattice_follower_edit_on_group_form():
+    '''자모 편집은 묶음(그래프 간선)의 형태에도 잰다: 원문 어여어어 → 묶음 어여 → 형태 어요(비용 1).
+    원문 글자와만 재면 비용 5로 예산을 넘어 !!를 엉뚱한 위치에 맞추고 뒤의 안이 막힌다.'''
+    text = '싶어여어어!! 안냐'
+    forms = ['싶', '어요', '!!', '안']
+    seq = [('싶', 'VV'), ('어요', 'EF'), ('!!', 'SF')]
+    def reaches(groups):
+        fol, tok, tags, eos = _lattice_fixture(text, forms, groups=groups)
+        for f, t in seq:
+            if tok[f] not in fol.allowed([tok[f]]):
+                return False
+            fol.consume(tok[f])
+            fol.consume(tags[t])
+        return tok['안'] in fol.allowed([tok['안']])
+    assert reaches([(1, 5, ['어여'])])
+    assert not reaches([])
+
+
+def test_lattice_follower_edit_hangul_only():
+    '''자모 편집은 한글 자모에만 쓴다. 한글이 아닌 글자(위첨자 라틴 등)는 원문 그대로만 쓸 수 있다.'''
+    text = '아니다 ᶜᴵᵀᴵᶻᴱᴺ 우리'
+    forms = ['아니', '다', '.', 'ᶜᴵᵀᴵᶻᴱᴺ', 'ᆿ']
+    fol, tok, tags, eos = _lattice_fixture(text, forms)
+    for f, t in [('아니', 'VV'), ('다', 'EF')]:
+        fol.consume(tok[f])
+        fol.consume(tags[t])
+    allowed = fol.allowed([tok['.'], tok['ᆿ'], tok['ᶜᴵᵀᴵᶻᴱᴺ']])
+    assert tok['ᶜᴵᵀᴵᶻᴱᴺ'] in allowed
+    assert tok['.'] not in allowed  # ᶜ를 다른 글자로 바꿔 쓰거나 기호를 끼워 넣지 못한다
+    fol.consume(tok['ᆿ'])  # 한글 자모 삽입(비용 1)은 된다
+    fol.consume(tags['NNG'])
+    allowed = fol.allowed([tok['.'], tok['ᶜᴵᵀᴵᶻᴱᴺ']])
+    assert tok['ᶜᴵᵀᴵᶻᴱᴺ'] in allowed and tok['.'] not in allowed
+
+
+def test_lattice_follower_skips_blank_like():
+    '''점자 공백 같은 보이지 않는 공백류 글자는 건너뛸 수 있다(정답에 형태소로 남지 않는다). 원문의 _는 그대로 옮겨 쓰거나
+    모델 출력 규칙대로 공백으로 쓸 수 있다(^_^ → ^ ^).'''
+    text = '\u2800\u2800 하나 ^_^'
+    forms = ['하나', '^_^', '^ ^']
+    fol, tok, tags, eos = _lattice_fixture(text, forms)
+    assert tok['하나'] in fol.allowed([tok['하나']])
+    fol.consume(tok['하나'])
+    fol.consume(tags['NNG'])
+    allowed = fol.allowed([tok['^_^'], tok['^ ^']])
+    assert tok['^_^'] in allowed and tok['^ ^'] in allowed
+    fol.consume(tok['^_^'])
+    fol.consume(tags['SF'])
+    assert eos in fol.allowed([])
+
+
+def test_lattice_follower_no_insert_before_symbol():
+    '''다음 원문 글자가 기호이면 원문을 소비하지 않는 한글 삽입을 막는다(``의 두 번째 `를 빠뜨리고 에를 끼워 넣지 못한다).'''
+    text = '좀비``에관한'
+    forms = ['좀비', '`', '에', '관하']
+    fol, tok, tags, eos = _lattice_fixture(text, forms)
+    for f, t in [('좀비', 'NNG'), ('`', 'SF')]:
+        fol.consume(tok[f])
+        fol.consume(tags[t])
+    allowed = fol.allowed([tok['에'], tok['`']])
+    assert tok['에'] not in allowed and tok['`'] in allowed
+    fol.consume(tok['`'])
+    fol.consume(tags['SF'])
+    assert tok['에'] in fol.allowed([tok['에']])
+    fol.consume(tok['에'])
+    fol.consume(tags['JKS'])
+    assert tok['관하'] in fol.allowed([tok['관하']])
+
+    # 어절 끝(공백 앞) 상태에서도 다음 어절 첫 글자가 기호이면 막는다
+    fol2, tok2, tags2, _ = _lattice_fixture('렌즈 .. ?눈안에', ['렌즈', '..', '?', '눈'])
+    for f, t in [('렌즈', 'NNG'), ('..', 'SF')]:
+        fol2.consume(tok2[f])
+        fol2.consume(tags2[t])
+    allowed = fol2.allowed([tok2['눈'], tok2['?']])
+    assert tok2['눈'] not in allowed and tok2['?'] in allowed
+    # 기호로 시작하는 그래프 묶음(?누 + ᆫ) 앞에 끼워 넣는 것으로 보고 이어 쓰게 하지도 않는다
+    fol3, tok3, tags3, _ = _lattice_fixture('렌즈 .. ?눈안에', ['렌즈', '..', '?', '눈'], groups=[(6, 8, ['?누', 'ᆫ'])])
+    for f, t in [('렌즈', 'NNG'), ('..', 'SF')]:
+        fol3.consume(tok3[f])
+        fol3.consume(tags3[t])
+    assert tok3['눈'] not in fol3.allowed([tok3['눈'], tok3['?']])
+
+
+def test_lattice_follower_partial_utf8():
+    '''글자 중간에서 끊긴 토큰은 그 글자를 마무리할 수 있을 때만 허용한다(예산이 바닥나면 끊긴 조각도 막는다).'''
+    from kiwipiepy.guide import LatticeTokens
+    text = '가나'
+    pieces = ['가', '나', '\u314b'.encode()[:1], '\u314b'.encode()[1:]]  # ㅋ = E3 85 8B를 첫 바이트와 나머지로
+    table = LatticeTokens([p if isinstance(p, bytes) else p.encode() for p in pieces] + [None, None], None)
+    tag, eos = 4, 5
+    fol = table.follower(text, [], 0, [tag], eos, [], None, True)  # 예산 0: 원문 그대로만
+    assert 2 not in fol.allowed([0, 2])  # ㅋ의 첫 바이트는 원문 '가'와 맞출 수 없다
+    fol4 = table.follower(text, [], 4, [tag], eos, [], None, True)
+    assert 2 in fol4.allowed([2])  # 예산이 있으면 ㅋ 삽입으로 마무리할 수 있다
+    fol4.consume(2)
+    assert 3 in fol4.allowed([])  # 마무리 토큰이 상위 후보에 없어도 후보로 들어간다
+
+
+def test_lattice_follower_invalid_utf8_inside_form():
+    '''끊긴 글자 뒤에 다른 글자의 첫 바이트가 바로 오면(형태 중간의 깨진 바이트) 자모 편집 경로로 허용하지 않는다.'''
+    from kiwipiepy.guide import LatticeTokens
+    text = '가나다라'
+    pieces = [b'\xea', b'\xeb\x82\x98']  # 가의 첫 바이트, 그리고 '나' 전체(가를 마무리하지 않고 다른 글자를 시작)
+    table = LatticeTokens(pieces + [None, None], None)
+    tag, eos = 2, 3
+    fol = table.follower(text, [], 4, [tag], eos, [], None, True)
+    assert 0 in fol.allowed([0])
+    fol.consume(0)
+    assert 1 not in (fol.allowed([1]) or [])
+
+def _grammar_fixture():
+    '''일반 토큰 0 가, 1 나, 2 가나, 3 다와 태그·번호·종료 토큰으로 만든 작은 문법'''
+    from kiwipiepy.guide import ByteGrammar
+    pieces = ['가', '나', '가나', '다']
+    tags = {'NNG': 4, 'NNP': 5, 'EF': 6, 'JKS': 7, 'UN': [4, 5]}
+    senses, eos = [8, 9], 10
+    g = ByteGrammar([p.encode() for p in pieces] + [None] * 7, tags, senses, [eos])
+    return g, eos
+
+
+def _pack(graph):
+    import struct
+    n, edges = graph
+    index, flat = {}, []
+    for e in edges:
+        flat += [e[0], e[1], len(e[3])]
+        for form, tag in e[3]:
+            flat += [index.setdefault(form, len(index)), index.setdefault(tag, len(index))]
+    return n, list(index), struct.pack(f'<{len(flat)}i', *flat)
+
+
+def test_byte_grammar_accepts_any_token_split():
+    '''형태 자리에서는 바이트를 이었을 때 형태가 되는 토큰열을 모두 허용하고, 허용하지 않는 토큰은 상태를 바꾸지 않는다.'''
+    g, eos = _grammar_fixture()
+    graph = (3, [(0, 1, 0., [('가나', 'NNG')]), (1, 2, 0., [('다', 'EF')])])
+    for first in ([2], [0, 1]):
+        m = g.matcher(graph)
+        assert m.allowed_tokens() == [0, 2]
+        assert not m.accept(1) and m.allowed_tokens() == [0, 2]
+        for t in first:
+            assert m.accept(t)
+        assert m.allowed_tokens() == [4]
+        assert not m.accept(eos)
+        assert m.accept(4) and m.allowed_tokens() == [3]
+        assert m.accept(3) and m.accept(6)
+        assert m.can_terminate() and m.allowed_tokens() == [eos]
+        assert m.accept(eos) and m.is_terminated() and m.allowed_tokens() == []
+
+
+def test_byte_grammar_multiple_tags_keep_paths():
+    '''태그 후보가 여럿인 간선(UN → NNG, NNP)이 같은 형태의 다른 간선과 뒤 경로를 섞지 않는다.'''
+    g, eos = _grammar_fixture()
+    graph = (4, [(0, 1, 0., [('가', 'UN')]), (1, 3, 0., [('나', 'EF')]),
+                 (0, 2, 0., [('가', 'NNG')]), (2, 3, 0., [('다', 'JKS')])])
+    m = g.matcher(graph)
+    assert m.accept(0) and m.allowed_tokens() == [4, 5]
+    nnp = m.copy()
+    assert nnp.accept(5) and nnp.allowed_tokens() == [1]
+    assert m.accept(4) and m.allowed_tokens() == [1, 3]
+
+
+def test_byte_grammar_senses():
+    g, eos = _grammar_fixture()
+    graph = (3, [(0, 1, 0., [('가', 'NNG')]), (1, 2, 0., [('다', 'EF')])])
+    senses = {('가', 'NNG'): [1, 2]}
+    m = g.matcher(graph, senses)
+    assert m.accept(0) and m.accept(4) and m.allowed_tokens() == [3, 8, 9]
+    assert m.accept(9) and m.allowed_tokens() == [3]
+    m = g.matcher(graph, senses, sense_required=True)
+    assert m.accept(0) and m.accept(4) and m.allowed_tokens() == [8, 9]
+    m = g.matcher(graph)
+    assert m.accept(0) and m.accept(4) and m.allowed_tokens() == [3]
+    with pytest.raises(ValueError):
+        g.matcher(graph, {('가', 'NNG'): [3]})
+
+
+def test_byte_grammar_drops_unusable_edges():
+    '''모르는 태그가 든 간선과 끝에 닿지 않는 간선은 버린다.'''
+    g, eos = _grammar_fixture()
+    graph = (3, [(0, 2, 0., [('가', 'XX')]), (0, 2, 0., [('나', 'NNG')]), (0, 1, 0., [('다', 'NNG')])])
+    m = g.matcher(graph)
+    assert m.num_dropped_edges == 2
+    assert m.allowed_tokens() == [1]
+
+
+def test_byte_grammar_packed_and_batch():
+    g, eos = _grammar_fixture()
+    graph = (4, [(0, 1, 0., [('가', 'UN')]), (1, 3, 0., [('나', 'EF')]),
+                 (0, 2, 0., [('가', 'NNG')]), (2, 3, 0., [('다', 'JKS')])])
+    path = [0, 4, 3, 7, eos]
+    m, p = g.matcher(graph), g.matcher_packed(*_pack(graph))
+    for t in path:
+        assert m.allowed_tokens() == p.allowed_tokens()
+        assert m.accept(t) and p.accept(t)
+    assert p.is_terminated()
+
+    a, b = g.matcher(graph), g.matcher(graph)
+    assert g.accept_tokens([a, None, b], [0, 0, 1]).tolist() == [True, False, False]
+    pairs, counts = g.allowed_pairs([a, None, b], [5, 6, 7])
+    assert counts.tolist() == [2, 0, 1]  # b는 1을 받지 못해 시작 상태 그대로
+    assert pairs.tolist() == [[5, 4], [5, 5], [7, 0]]
+
+    other, _ = _grammar_fixture()
+    with pytest.raises(ValueError):
+        other.accept_tokens([a], [0])
+
+
+def test_byte_grammar_invalid_inputs():
+    import struct
+    from kiwipiepy.guide import ByteGrammar, GrammarMatcher
+    g, eos = _grammar_fixture()
+    for packed in [struct.pack('<2i', 0, 1), struct.pack('<3i', 0, 1, 1), struct.pack('<3i', 0, 1, -1)]:
+        with pytest.raises(ValueError):
+            g.matcher_packed(2, ['가', 'NNG'], packed)
+    with pytest.raises(ValueError):
+        g.matcher_packed(2, ['가', 'NNG'], struct.pack('<5i', 0, 1, 1, 0, 2))
+    with pytest.raises(RuntimeError):
+        GrammarMatcher().accept(0)
+    with pytest.raises(ValueError):
+        ByteGrammar([b'a', b'b'], {'NNG': 1}, [], [2])  # 태그 토큰이 일반 토큰과 겹침
+
+
+def test_byte_grammar_from_tokenizer_json(tmp_path):
+    '''tokenizer.json의 ByteLevel 어휘를 바이트로 되돌리고, 추가 토큰은 일반 토큰에서 뺀다.'''
+    import json
+    from kiwipiepy.guide import ByteGrammar, _byte_decoder
+    enc = {b: c for c, b in _byte_decoder().items()}
+    to_level = lambda s: ''.join(enc[b] for b in s.encode())
+    tok = {'model': {'type': 'BPE', 'vocab': {to_level('가'): 0, to_level(' 가'): 1, to_level('나'): 2, '<|NNG|>': 3}, 'merges': []},
+           'added_tokens': [{'id': 3, 'content': '<|NNG|>'}, {'id': 4, 'content': '<eos>'}]}
+    path = tmp_path / 'tokenizer.json'
+    path.write_text(json.dumps(tok, ensure_ascii=False), encoding='utf-8')
+    g = ByteGrammar.from_tokenizer_json(str(path), {'NNG': 3}, [], [4])
+    m = g.matcher((3, [(0, 1, 0., [('가', 'NNG')]), (1, 2, 0., [('나', 'NNG')])]))
+    assert m.allowed_tokens() == [0]
+    assert m.accept(0) and m.accept(3) and m.accept(2) and m.accept(3) and m.accept(4)
