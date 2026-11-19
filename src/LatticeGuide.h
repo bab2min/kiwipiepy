@@ -222,6 +222,10 @@ namespace kiwi
 				std::vector<uint32_t> tags, uint32_t eos, const std::vector<std::string>& prefix,
 				FormTagTable formTags);
 
+			// prepare()가 만든 viability가 H를 가리키므로 옮기지 않는다
+			LatticeFollower(LatticeFollower&&) = delete;
+			LatticeFollower& operator=(LatticeFollower&&) = delete;
+
 			void consume(uint32_t token);
 			/** @return 허용 토큰. 이어 쓸 수 있는 토큰이 없으면, 쓰던 형태가 온전하면 예산을 넘겨 끝내는 태그를(numRelaxed), 아니면 종료 토큰만(isStuck). 처음부터 격자 밖이면 nullopt(제약 없음) */
 			std::optional<std::vector<uint32_t>> allowed(const std::vector<uint32_t>& top);

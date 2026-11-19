@@ -1607,6 +1607,8 @@ top_n_results: List[Tuple[List[Token], float]]
     `top_n`이 0보다 큰 경우, 언어 모델로 상위 `top_n`개 분석을 찾아 반환합니다. 각 항목은 `(분석 결과, 분석 점수)`로 구성됩니다. `top_n`이 0인 경우 이 값은 반환되지 않습니다.
     이 값은 같은 옵션으로 `analyze(text, top_n=top_n, ...)`를 호출한 결과와 같습니다.
         '''
+        if max_unk_span_size < 0 or max_unk_span_size_with_space < 0 or top_n < 0:
+            raise ValueError("`max_unk_span_size`, `max_unk_span_size_with_space` and `top_n` must be zero or positive.")
         if normalize_coda:
             match_options |= Match.NORMALIZING_CODA
         if z_coda:

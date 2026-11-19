@@ -3944,7 +3944,7 @@ struct ByteGrammarObject : py::CObject<ByteGrammarObject>
 			std::vector<guide::GraphEdge> es;
 			for (size_t i = 0; i < flat.size() && !error;)
 			{
-				if (i + 3 > flat.size() || flat[i + 2] < 0 || i + 3 + 2 * (size_t)flat[i + 2] > flat.size())
+				if (i + 3 > flat.size() || flat[i + 2] < 0 || (size_t)flat[i + 2] > (flat.size() - i - 3) / 2)
 				{
 					error = "`packed` is truncated.";
 					break;
@@ -3984,7 +3984,7 @@ struct ByteGrammarObject : py::CObject<ByteGrammarObject>
 				ret.emplace_back(nullptr);
 				return;
 			}
-			if (!PyObject_IsInstance(item, (PyObject*)py::Type<GrammarMatcherObject>)) throw py::ValueError{ "`matchers` must contain `GrammarMatcher` or `None`." };
+			if (!PyObject_TypeCheck(item, py::Type<GrammarMatcherObject>)) throw py::ValueError{ "`matchers` must contain `GrammarMatcher` or `None`." };
 			auto m = (GrammarMatcherObject*)item;
 			if (m->get().getGrammar() != grammar.get()) throw py::ValueError{ "A matcher in `matchers` was made from another grammar." };
 			Py_INCREF(item);
