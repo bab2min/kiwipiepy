@@ -6,13 +6,14 @@ on:
       - 'v*.*.*'
       - '!v*.*.*d'
   workflow_dispatch:
-    
+
+env:
+  PIP_ONLY_BINARY: numpy
 
 jobs:
   build_manylinux:
     name: Build for manylinux
     runs-on: ubuntu-latest
-    # 릴리즈 빌드(deploy.yml)와 같은 컨테이너·컴파일러로 빌드한다(v0.25.0 때 러너에서 직접 빌드하다 러너가 멈췄다)
     container:
       image: docker://quay.io/pypa/manylinux2014_x86_64
     strategy:
@@ -29,9 +30,9 @@ jobs:
     - name: Install dependencies
       run: |
         $PY -m pip install --upgrade pip
-        $PY -m pip install "cmake<4"
+        /opt/python/cp311-cp311/bin/pip install "cmake<4"
         rm /usr/local/bin/cmake || true
-        ln -s /opt/python/cp312-cp312/bin/cmake /usr/local/bin/cmake
+        ln -s /opt/python/cp311-cp311/bin/cmake /usr/local/bin/cmake
     - name: build
       run: |
         $PY -m pip install pdoc3==0.10.0 transformers
