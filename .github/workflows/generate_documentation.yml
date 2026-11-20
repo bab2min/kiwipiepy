@@ -18,18 +18,9 @@ jobs:
         language: [kr]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v1
       with:
         submodules: recursive
-        lfs: true
-    - name: Fetch LFS objects of submodule
-      run: |
-        git lfs install
-        git -C Kiwi lfs pull
-        if head -c 40 Kiwi/models/cong/base/cong.mdl | grep -q "git-lfs"; then
-          echo "::error:: LFS files were not pulled correctly."
-          exit 1
-        fi
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
@@ -39,7 +30,7 @@ jobs:
         python3 -m pip install --upgrade pip
     - name: build
       run: |
-        python3 -m pip install pdoc3==0.10.0 transformers
+        python3 -m pip install pdoc3==0.10.0 transformers "cmake<4"
 
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
