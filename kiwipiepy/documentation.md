@@ -872,6 +872,7 @@ Python 모듈 관련 오류는  https://github.com/bab2min/kiwipiepy/issues, 형
     * 주어진 텍스트가 분석될 수 있는 형태소 경로 전체를 담은 형태 그래프를 반환하는 `Kiwi.morph_graph` 메소드가 추가되었습니다.
     * 오타 교정된 형태소의 `Token.raw_form`이 빈 문자열로 반환되던 버그를 수정했습니다.
     * 기본 오타 정의(`basic_typos`)에 '쉬어'를 '셔'처럼 줄여 쓴 오타가 추가되었습니다.
+    * 객체가 소멸될 때 weakref를 제대로 해제하지 않던 버그 수정
 
 * 0.24.1 (2026-10-20)
     * Kiwi 0.24.1의 기능들(https://github.com/bab2min/Kiwi/releases/tag/v0.24.1 )이 반영되었습니다.
