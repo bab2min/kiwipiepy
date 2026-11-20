@@ -31,7 +31,7 @@ classifiers = [
     "Programming Language :: C++",
 ]
 dependencies = [
-    "kiwipiepy_model>=0.24,<0.25",
+    "kiwipiepy_model>=0.25,<0.26",
     "numpy",
     "tqdm",
 ]
