@@ -89,6 +89,7 @@ _basic_defs = [
     TypoDefinition(["을", "를"], ["을", "를"], 2.),
 
     TypoDefinition(["ㅣ워", "ㅣ어", "ㅕ"], ["ㅣ워", "ㅣ어", "ㅕ"], 1.5),
+    TypoDefinition(["ㅟ어"], ["ㅕ"], 1.),
 ]
 
 

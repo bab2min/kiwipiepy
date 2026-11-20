@@ -1572,6 +1572,26 @@ def test_morph_graph_top_n():
                 [(s, [(t.form, t.tag, t.start, t.len) for t in ts]) for ts, s in ref]
 
 
+def test_raw_form_of_typo_tokens():
+    '''분석할 때 넘긴 오타 교정기로 교정된 토큰의 raw_form은 원문 구간이다.'''
+    kiwi = Kiwi()
+    expected = [('왜', '외'), ('안', '않')]
+    typo_pairs = lambda tokens: [(t.form, t.raw_form) for t in tokens if t.typo_cost > 0]
+
+    tokens = kiwi.tokenize('외않됀데', typos='basic')
+    assert typo_pairs(tokens) == expected
+    assert all(t.raw_form == t.form for t in tokens if t.typo_cost == 0)
+
+    for tokens in kiwi.tokenize(['외않됀데', '외않됀데'], typos='basic'):
+        assert typo_pairs(tokens) == expected
+
+    _, _, _, top = kiwi.morph_graph('외않됀데', typos='basic', top_n=1)
+    assert typo_pairs(top[0][0]) == expected
+
+    # UTF-16 두 칸을 쓰는 글자가 앞에 있어도 구간이 어긋나지 않는다
+    assert typo_pairs(kiwi.tokenize('😀 외않됀데', typos='basic')) == expected
+
+
 def _lattice_fixture(text, forms, form_tags=None, groups=(), any_form=True):
     '''forms마다 토큰 하나를 둔 작은 토큰 표로 정렬 격자 진행 상태를 만든다. 태그 토큰은 일반 토큰 뒤 번호.'''
     from kiwipiepy.guide import LatticeTokens
