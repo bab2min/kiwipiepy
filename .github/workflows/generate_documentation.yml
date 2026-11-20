@@ -30,7 +30,7 @@ jobs:
         python3 -m pip install --upgrade pip
     - name: build
       run: |
-        python3 -m pip install pdoc3==0.10.0 transformers
+        python3 -m pip install pdoc3==0.10.0 transformers "cmake<4"
 
         mv Kiwi/models/cong/base/sj.* model/kiwipiepy_model/
         mv Kiwi/models/cong/base/*.mdl model/kiwipiepy_model/
