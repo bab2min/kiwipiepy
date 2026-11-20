@@ -848,7 +848,7 @@ enabled_dialects: Union[Dialect, str]
         self._enabled_dialects = enabled_dialects
         self._pretokenized_pats : List[Tuple['re.Pattern', str, Any]] = []
         self._user_values : Dict[int, Any] = {}
-        self._template_cache : Dict[str, Template] = {}
+        self._template_cache : Dict[str, list] = {}
         self._dict_modified_by : Optional[str] = None
 
     def _mark_dict_modified(self, method_name:str):
@@ -2743,7 +2743,7 @@ format_str: str
     템플릿 문자열입니다. 이 문자열은 치환 필드를 {}로 나타냅니다. 템플릿 문자열의 구체적인 문법에 대해서는
     https://docs.python.org/ko/3/library/string.html#formatstrings 를 참고하세요.
 cache: bool
-    True인 경우 같은 포맷 문자열에 대해 이 메소드가 반환하는 템플릿 객체를 보관해둡니다.
+    True인 경우 같은 포맷 문자열의 분석 결과를 보관해둡니다(최근 1024개).
     이 경우 동일한 템플릿 객체를 여러 번 생성할 때 더 빠른 속도로 생성이 가능해집니다. 기본값은 True입니다.
 
 Returns
@@ -2819,11 +2819,17 @@ ValueError: cannot specify format specifier for Kiwi Token
         if not cache:
             return Template(self, format_str)
         
-        try:
-            return self._template_cache[format_str]
-        except KeyError:
-            self._template_cache[format_str] = ret = Template(self, format_str)
-            return ret
+        # Template은 Kiwi를 참조하므로 캐시에 넣으면 GC가 회수하지 못하는 순환이 생깁니다. 분석 결과만 보관합니다.
+        parsed = self._template_cache.pop(format_str, None)
+        if parsed is None:
+            while len(self._template_cache) >= 1024:
+                try:
+                    del self._template_cache[next(iter(self._template_cache))]
+                except (KeyError, RuntimeError):  # 다른 스레드가 동시에 비우는 경우
+                    pass
+            parsed = Template(self, format_str)._parsed_format
+        self._template_cache[format_str] = parsed
+        return Template._from_parsed(self, format_str, parsed)
 
     def list_senses(self,
         form:Optional[str] = None,

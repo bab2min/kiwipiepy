@@ -1096,6 +1096,28 @@ def test_template():
     res = tpl.format([("우리", "NP"), ("들", "XSN")], ("길", "NNG"), ("묻", "VV-I"))
     assert res == "우리들이 길을 묻는다."
 
+def test_template_cache_does_not_keep_kiwi_alive():
+    import gc
+    freed = []
+    class Sentinel:
+        def __del__(self):
+            freed.append(True)
+
+    kiwi = Kiwi(num_workers=1)
+    kiwi._sentinel = Sentinel()
+    tpl = kiwi.template("{}가 {}을 했다.")
+    assert tpl.format(("나", "NP"), ("공부", "NNG")) == "내가 공부를 했다."
+    del kiwi, tpl
+    gc.collect()
+    assert freed
+
+def test_template_cache_is_bounded():
+    kiwi = Kiwi(num_workers=1)
+    for i in range(1100):
+        kiwi.template(f"{i}번 {{}}가 왔다.")
+    assert len(kiwi._template_cache) == 1024
+    assert kiwi.template("1099번 {}가 왔다.").format(("나", "NP")) == "1099번 내가 왔다."
+
 def test_issue_145():
     kiwi = Kiwi()
     stopwords = Stopwords()
