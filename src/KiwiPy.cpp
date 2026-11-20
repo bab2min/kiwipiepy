@@ -1429,7 +1429,8 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res,
 	const KiwiObject* kiwiObj,
 	const shared_ptr<Kiwi>& kiwiInst, 
 	const py::SurrogateOffsetMap& sourceOffsets,
-	vector<py::UniqueObj>&& userValues = {})
+	vector<py::UniqueObj>&& userValues = {},
+	const u16string* sourceText = nullptr)
 {
 	// set the following objects semi-immortal. (they are neither freed nor managed)
 	// it prevents crashes at Python3.12
@@ -1467,7 +1468,10 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res,
 			tItem->_morphId = q.morph ? kiwiInst->morphToId(q.morph) : -1;
 			tItem->_baseMorph = (q.morph && !!q.dialect) ? kiwiInst->idToMorph(q.morph->lmMorphemeId) : 
 				(q.morph ? (q.morph->origMorphemeId ? kiwiInst->idToMorph(q.morph->origMorphemeId) : q.morph) : nullptr);
-			tItem->_raw_form = q.typoCost ? kiwiInst->getTypoForm(q.typoFormId) : tItem->_form;
+			if (!q.typoCost) tItem->_raw_form = tItem->_form;
+			// 분석 시점 오타 교정은 typoFormId가 없으므로 원문 구간을 쓴다
+			else if (!q.typoFormId && sourceText) tItem->_raw_form = sourceText->substr(q.position, q.length);
+			else tItem->_raw_form = kiwiInst->getTypoForm(q.typoFormId);
 			tItem->_pairedToken = q.pairedToken;
 			tItem->_dialect = (uint16_t)q.dialect;
 			if (q.tag == POSTag::sl || q.tag == POSTag::sh || q.tag == POSTag::sw || q.tag == POSTag::w_emoji)
@@ -2151,6 +2155,7 @@ struct AnalysisContext
 {
 	vector<py::UniqueObj> userValues;
 	py::SurrogateOffsetMap sourceOffsets;
+	u16string sourceText; // 오타 교정을 쓸 때만 채운다(raw_form용)
 };
 
 struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, FutureCarrier<vector<TokenResult>, AnalysisContext>>
@@ -2183,7 +2188,7 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 			if (v.first.size() > topN) v.first.erase(v.first.begin() + topN, v.first.end());
 			auto context = move(v.second);
 			return resToPyList(
-				move(v.first), kiwi.get(), kiwiInst, context.sourceOffsets, move(context.userValues)
+				move(v.first), kiwi.get(), kiwiInst, context.sourceOffsets, move(context.userValues), &context.sourceText
 			);
 		});
 	}
@@ -2203,13 +2208,14 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 		{
 			updatePretokenizedSpanToU16(pretokenized.first, so);
 		}
+		u16string sourceText = options.typoTransformer ? so.str : u16string{};
 		return makeFutureCarrier(
 			kiwiInst->asyncAnalyze(move(so.str), topN,
 				options,
 				move(pretokenized.first),
 				config
 			),
-			AnalysisContext{ move(pretokenized.second), move(so.offsets) }
+			AnalysisContext{ move(pretokenized.second), move(so.offsets), move(sourceText) }
 		);
 	}
 };
@@ -2640,7 +2646,7 @@ py::UniqueObj KiwiObject::morphGraph(PyObject* text, Match matchOptions,
 	}
 	if (!topN) return py::buildPyTuple(graph.numStates, edges.get(), positions.get());
 	if (graph.topPaths.size() > topN) graph.topPaths.erase(graph.topPaths.begin() + topN, graph.topPaths.end());
-	return py::buildPyTuple(graph.numStates, edges.get(), positions.get(), resToPyList(move(graph.topPaths), this, kiwiInst, so.offsets));
+	return py::buildPyTuple(graph.numStates, edges.get(), positions.get(), resToPyList(move(graph.topPaths), this, kiwiInst, so.offsets, {}, &so.str));
 }
 
 py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
@@ -2693,7 +2699,7 @@ py::UniqueObj KiwiObject::analyze(PyObject* text, size_t topN,
 			return analyzeText();
 		}();
 		if (res.size() > topN) res.erase(res.begin() + topN, res.end());
-		return resToPyList(move(res), this, kiwiInst, so.offsets, move(pretokenizedSpans.second));
+		return resToPyList(move(res), this, kiwiInst, so.offsets, move(pretokenizedSpans.second), &so.str);
 	}
 	else
 	{
