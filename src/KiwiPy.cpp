@@ -1468,9 +1468,9 @@ py::UniqueObj resToPyList(vector<TokenResult>&& res,
 			tItem->_morphId = q.morph ? kiwiInst->morphToId(q.morph) : -1;
 			tItem->_baseMorph = (q.morph && !!q.dialect) ? kiwiInst->idToMorph(q.morph->lmMorphemeId) : 
 				(q.morph ? (q.morph->origMorphemeId ? kiwiInst->idToMorph(q.morph->origMorphemeId) : q.morph) : nullptr);
-			if (!q.typoCost) tItem->_raw_form = tItem->_form;
+			if (!q.typoCost || q.tag == POSTag::z_coda) tItem->_raw_form = tItem->_form;
 			// 분석 시점 오타 교정은 typoFormId가 없으므로 원문 구간을 쓴다
-			else if (!q.typoFormId && sourceText) tItem->_raw_form = sourceText->substr(q.position, q.length);
+			else if (!q.typoFormId && sourceText && (size_t)q.position + q.length <= sourceText->size()) tItem->_raw_form = sourceText->substr(q.position, q.length);
 			else tItem->_raw_form = kiwiInst->getTypoForm(q.typoFormId);
 			tItem->_pairedToken = q.pairedToken;
 			tItem->_dialect = (uint16_t)q.dialect;
@@ -2155,7 +2155,7 @@ struct AnalysisContext
 {
 	vector<py::UniqueObj> userValues;
 	py::SurrogateOffsetMap sourceOffsets;
-	u16string sourceText; // 오타 교정을 쓸 때만 채운다(raw_form용)
+	u16string sourceText;
 };
 
 struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, FutureCarrier<vector<TokenResult>, AnalysisContext>>
@@ -2208,7 +2208,7 @@ struct KiwiResIter : public py::ResultIter<KiwiResIter, vector<TokenResult>, Fut
 		{
 			updatePretokenizedSpanToU16(pretokenized.first, so);
 		}
-		u16string sourceText = options.typoTransformer ? so.str : u16string{};
+		u16string sourceText = so.str;
 		return makeFutureCarrier(
 			kiwiInst->asyncAnalyze(move(so.str), topN,
 				options,

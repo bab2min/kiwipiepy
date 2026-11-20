@@ -1613,6 +1613,16 @@ def test_raw_form_of_typo_tokens():
     assert typo_pairs(kiwi.tokenize('😀 외않됀데', typos='basic')) == expected
 
 
+def test_z_coda_in_batch():
+    '''Z_CODA 토큰은 오타 교정기 없이도 typo_cost가 0보다 크다. 여러 문장 입력에서 raw_form을 채우다 죽던 문제.'''
+    kiwi = Kiwi()
+    single = kiwi.tokenize('좋아햌')
+    assert [t.raw_form for t in single if t.tag == 'Z_CODA'] == ['ᆿ']
+    batch = list(kiwi.tokenize(['좋아햌', '안조아햌 느끼한 사람들']))
+    assert [(t.form, t.tag, t.raw_form) for t in batch[0]] == [(t.form, t.tag, t.raw_form) for t in single]
+    assert len(list(kiwi.analyze(['좋아햌'], top_n=2))) == 1
+
+
 def _lattice_fixture(text, forms, form_tags=None, groups=(), any_form=True):
     '''forms마다 토큰 하나를 둔 작은 토큰 표로 정렬 격자 진행 상태를 만든다. 태그 토큰은 일반 토큰 뒤 번호.'''
     from kiwipiepy.guide import LatticeTokens
